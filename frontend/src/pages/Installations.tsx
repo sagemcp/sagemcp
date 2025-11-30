@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '@/utils/api'
 
@@ -27,26 +27,16 @@ export default function Installations() {
   const [uninstalling, setUninstalling] = useState<string | null>(null)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    loadTenants()
-  }, [])
-
-  useEffect(() => {
-    if (tenants.length > 0) {
-      loadInstallations()
-    }
-  }, [selectedTenant, tenants])
-
-  const loadTenants = async () => {
+  const loadTenants = useCallback(async () => {
     try {
       const response = await api.get('/admin/tenants')
       setTenants(response.data)
     } catch (error) {
       console.error('Failed to load tenants:', error)
     }
-  }
+  }, [])
 
-  const loadInstallations = async () => {
+  const loadInstallations = useCallback(async () => {
     try {
       setLoading(true)
       const installationsByTenant: Record<string, Installation[]> = {}
@@ -91,7 +81,17 @@ export default function Installations() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedTenant, tenants])
+
+  useEffect(() => {
+    loadTenants()
+  }, [loadTenants])
+
+  useEffect(() => {
+    if (tenants.length > 0) {
+      loadInstallations()
+    }
+  }, [tenants, loadInstallations])
 
   const handleUninstall = async (connectorId: string, tenantId: string) => {
     if (!confirm('Are you sure you want to uninstall this server?')) {

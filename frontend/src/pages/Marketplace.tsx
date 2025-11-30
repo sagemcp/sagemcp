@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '@/utils/api'
 
@@ -36,21 +36,16 @@ export default function Marketplace() {
   const [oauthFilter, setOauthFilter] = useState<string>('all')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    loadStats()
-    loadServers()
-  }, [searchQuery, runtimeFilter, sourceFilter, oauthFilter])
-
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const response = await api.get('/registry/stats')
       setStats(response.data)
     } catch (error) {
       console.error('Failed to load stats:', error)
     }
-  }
+  }, [])
 
-  const loadServers = async () => {
+  const loadServers = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -69,7 +64,12 @@ export default function Marketplace() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQuery, runtimeFilter, sourceFilter, oauthFilter])
+
+  useEffect(() => {
+    loadStats()
+    loadServers()
+  }, [loadStats, loadServers])
 
   const getRuntimeIcon = (runtime: string) => {
     const icons: Record<string, string> = {

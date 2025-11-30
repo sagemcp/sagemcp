@@ -148,10 +148,10 @@ async def list_registry_servers(
             query = query.where(MCPServerRegistry.requires_oauth == requires_oauth)
 
         if verified_only:
-            query = query.where(MCPServerRegistry.is_verified == True)
+            query = query.where(MCPServerRegistry.is_verified.is_(True))
 
         # Filter out deprecated servers by default
-        query = query.where(MCPServerRegistry.is_deprecated == False)
+        query = query.where(MCPServerRegistry.is_deprecated.is_(False))
 
         # Order by popularity (star count, then download count)
         query = query.order_by(
@@ -277,7 +277,7 @@ async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
         # Total servers
         total_result = await db.execute(
             select(func.count(MCPServerRegistry.id))
-            .where(MCPServerRegistry.is_deprecated == False)
+            .where(MCPServerRegistry.is_deprecated.is_(False))
         )
         total_servers = total_result.scalar() or 0
 
@@ -287,7 +287,7 @@ async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
                 MCPServerRegistry.runtime_type,
                 func.count(MCPServerRegistry.id)
             )
-            .where(MCPServerRegistry.is_deprecated == False)
+            .where(MCPServerRegistry.is_deprecated.is_(False))
             .group_by(MCPServerRegistry.runtime_type)
         )
         by_runtime = {row[0].value: row[1] for row in runtime_result}
@@ -298,7 +298,7 @@ async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
                 MCPServerRegistry.source_type,
                 func.count(MCPServerRegistry.id)
             )
-            .where(MCPServerRegistry.is_deprecated == False)
+            .where(MCPServerRegistry.is_deprecated.is_(False))
             .group_by(MCPServerRegistry.source_type)
         )
         by_source = {row[0].value: row[1] for row in source_result}
@@ -307,8 +307,8 @@ async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
         oauth_result = await db.execute(
             select(func.count(MCPServerRegistry.id))
             .where(
-                MCPServerRegistry.is_deprecated == False,
-                MCPServerRegistry.requires_oauth == True
+                MCPServerRegistry.is_deprecated.is_(False),
+                MCPServerRegistry.requires_oauth.is_(True)
             )
         )
         requires_oauth_count = oauth_result.scalar() or 0
@@ -317,8 +317,8 @@ async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
         verified_result = await db.execute(
             select(func.count(MCPServerRegistry.id))
             .where(
-                MCPServerRegistry.is_deprecated == False,
-                MCPServerRegistry.is_verified == True
+                MCPServerRegistry.is_deprecated.is_(False),
+                MCPServerRegistry.is_verified.is_(True)
             )
         )
         verified_count = verified_result.scalar() or 0

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import api from '@/utils/api'
 
@@ -26,12 +26,38 @@ export default function ContainerConsole() {
   const logsEndRef = useRef<HTMLDivElement>(null)
   const intervalRef = useRef<number | null>(null)
 
+  const loadInstallation = useCallback(async () => {
+    try {
+      const response = await api.get(
+        `/registry/installations/${connectorId}/status?tenant_id=${tenantId}`
+      )
+      setInstallation(response.data)
+    } catch (error) {
+      console.error('Failed to load installation:', error)
+    }
+  }, [connectorId, tenantId])
+
+  const loadLogs = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await api.get(
+        `/registry/installations/${connectorId}/logs?tenant_id=${tenantId}&tail=100`
+      )
+      setLogs(response.data.logs || 'No logs available')
+    } catch (error) {
+      console.error('Failed to load logs:', error)
+      setLogs('Error loading logs. The logs endpoint may not be available yet.')
+    } finally {
+      setLoading(false)
+    }
+  }, [connectorId, tenantId])
+
   useEffect(() => {
     if (tenantId && connectorId) {
       loadInstallation()
       loadLogs()
     }
-  }, [connectorId, tenantId])
+  }, [connectorId, tenantId, loadInstallation, loadLogs])
 
   useEffect(() => {
     if (autoRefresh) {
@@ -47,40 +73,12 @@ export default function ContainerConsole() {
         intervalRef.current = null
       }
     }
-  }, [autoRefresh, connectorId, tenantId])
+  }, [autoRefresh, loadLogs, loadInstallation])
 
   useEffect(() => {
     // Auto-scroll to bottom when logs update
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
-
-  const loadInstallation = async () => {
-    try {
-      const response = await api.get(
-        `/registry/installations/${connectorId}/status?tenant_id=${tenantId}`
-      )
-      setInstallation(response.data)
-    } catch (error) {
-      console.error('Failed to load installation:', error)
-    }
-  }
-
-  const loadLogs = async () => {
-    try {
-      setLoading(true)
-      // Note: This endpoint doesn't exist yet in the backend,
-      // we'll need to add it to expose container logs
-      const response = await api.get(
-        `/registry/installations/${connectorId}/logs?tenant_id=${tenantId}&tail=100`
-      )
-      setLogs(response.data.logs || 'No logs available')
-    } catch (error) {
-      console.error('Failed to load logs:', error)
-      setLogs('Error loading logs. The logs endpoint may not be available yet.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleRestart = async () => {
     if (!confirm('Are you sure you want to restart this container?')) {

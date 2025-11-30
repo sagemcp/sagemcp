@@ -269,7 +269,7 @@ class GitHubDiscoveryProvider(BaseDiscoveryProvider):
             )
             if response.status_code == 200:
                 return "nodejs"
-        except:
+        except Exception:
             pass
 
         # Check for Python files
@@ -283,7 +283,7 @@ class GitHubDiscoveryProvider(BaseDiscoveryProvider):
                 )
                 if response.status_code == 200:
                     return "python"
-            except:
+            except Exception:
                 continue
 
         # Check for go.mod (Go)
@@ -295,7 +295,7 @@ class GitHubDiscoveryProvider(BaseDiscoveryProvider):
             )
             if response.status_code == 200:
                 return "go"
-        except:
+        except Exception:
             pass
 
         # Check for Cargo.toml (Rust)
@@ -307,7 +307,7 @@ class GitHubDiscoveryProvider(BaseDiscoveryProvider):
             )
             if response.status_code == 200:
                 return "rust"
-        except:
+        except Exception:
             pass
 
         return "binary"  # Unknown runtime
@@ -336,7 +336,7 @@ class GitHubDiscoveryProvider(BaseDiscoveryProvider):
             )
             if response.status_code == 200:
                 return response.json().get("tag_name")
-        except:
+        except Exception:
             pass
 
         return None

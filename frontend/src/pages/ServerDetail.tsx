@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/utils/api'
 
@@ -45,12 +45,7 @@ export default function ServerDetail() {
   const [selectedTenant, setSelectedTenant] = useState<string>('')
   const [showInstallModal, setShowInstallModal] = useState(false)
 
-  useEffect(() => {
-    loadServer()
-    loadTenants()
-  }, [serverId])
-
-  const loadServer = async () => {
+  const loadServer = useCallback(async () => {
     try {
       setLoading(true)
       const response = await api.get(`/registry/servers/${serverId}`)
@@ -60,16 +55,21 @@ export default function ServerDetail() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [serverId])
 
-  const loadTenants = async () => {
+  const loadTenants = useCallback(async () => {
     try {
       const response = await api.get('/admin/tenants')
       setTenants(response.data)
     } catch (error) {
       console.error('Failed to load tenants:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadServer()
+    loadTenants()
+  }, [loadServer, loadTenants])
 
   const handleInstall = async () => {
     if (!selectedTenant || !server) return

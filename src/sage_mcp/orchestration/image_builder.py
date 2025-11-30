@@ -282,7 +282,7 @@ CMD ["/app/mcp-server"]
                 image=kaniko_image,
                 args=[
                     f"--context={context_url}",
-                    f"--dockerfile=Dockerfile",  # Will be created from env
+                    "--dockerfile=Dockerfile",  # Will be created from env
                     f"--destination={image_name}",
                     "--cache=true",
                     "--compressed-caching=false",
