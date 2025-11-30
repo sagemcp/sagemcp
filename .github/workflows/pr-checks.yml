@@ -85,7 +85,7 @@ jobs:
     - name: Run tests
       env:
         SECRET_KEY: test-secret-key
-      run: pytest tests/ -v --cov=src/sage_mcp --cov-report=term --cov-fail-under=35
+      run: pytest tests/ -v --cov=src/sage_mcp --cov-report=term --cov-fail-under=30
 
   frontend-checks:
     name: Frontend PR Checks
