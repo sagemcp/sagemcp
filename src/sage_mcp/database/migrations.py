@@ -139,6 +139,16 @@ async def upgrade_add_custom_connector_type(engine: AsyncEngine = None):
         engine = db_manager.engine
 
     async with engine.begin() as conn:
+        # First check if the enum type exists
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'connectortype')"
+        ))
+        enum_exists = result.scalar()
+
+        if not enum_exists:
+            print("✓ connectortype enum doesn't exist yet (will be created with tables)")
+            return
+
         # Check if 'custom' already exists in the enum
         result = await conn.execute(text(
             "SELECT EXISTS (SELECT 1 FROM pg_enum e "
