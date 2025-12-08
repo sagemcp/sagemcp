@@ -28,7 +28,7 @@
     "react-hot-toast": "^2.4.0",
     "react-router-dom": "^6.8.1",
     "tailwind-merge": "^2.2.1",
-    "zod": "^3.21.4"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.2.0",
