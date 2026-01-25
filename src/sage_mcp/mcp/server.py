@@ -315,9 +315,11 @@ class MCPServer:
             temp_cred = OAuthCredential(
                 provider=provider,
                 tenant_id=tenant_id,
+                provider_user_id="user_provided",  # Placeholder for user-provided tokens
                 access_token=self.user_token,
                 token_type="Bearer",
-                is_active=True
+                is_active=True,
+                expires_at=None  # User tokens don't have expiration managed by us
             )
             return temp_cred
 

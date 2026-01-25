@@ -125,13 +125,20 @@ class BaseConnector(ABC):
         if not self.requires_oauth:
             return True
 
-        if not oauth_cred or not oauth_cred.is_active:
+        if not oauth_cred:
+            print("DEBUG: OAuth credential is None")
+            return False
+
+        if not oauth_cred.is_active:
+            print(f"DEBUG: OAuth credential is not active: is_active={oauth_cred.is_active}")
             return False
 
         # Check if token is expired
         if oauth_cred.is_expired:
+            print(f"DEBUG: OAuth credential is expired: expires_at={oauth_cred.expires_at}")
             return False
 
+        print("DEBUG: OAuth credential validation passed")
         return True
 
     async def _make_authenticated_request(
