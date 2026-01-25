@@ -16,6 +16,7 @@ class MCPTransport:
         self.tenant_slug = tenant_slug
         self.connector_id = connector_id
         self.user_token = user_token  # User-provided OAuth token (optional)
+        print(f"DEBUG [transport.py]: MCPTransport created - tenant: {tenant_slug}, connector: {connector_id}, has_user_token: {user_token is not None}")
         self.mcp_server = MCPServer(tenant_slug, connector_id, user_token)
         self.initialized = False
 

@@ -79,11 +79,16 @@ async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
     # Using custom header to avoid conflict with MCP protocol auth
     user_token = request.headers.get('x-user-oauth-token')
 
+    # DEBUG: Log header extraction
+    print(f"DEBUG [mcp.py]: Received headers: {dict(request.headers)}")
+    print(f"DEBUG [mcp.py]: Extracted user_token from X-User-OAuth-Token: {user_token is not None} (length: {len(user_token) if user_token else 0})")
+
     # Fallback: also support Authorization header for backward compatibility
     if not user_token:
         auth_header = request.headers.get('authorization', '')
         if auth_header.startswith('Bearer '):
             user_token = auth_header[7:]
+            print(f"DEBUG [mcp.py]: Fallback - Extracted user_token from Authorization header: {user_token is not None}")
 
     # Determine message type
     message_id = message.get("id")

@@ -22,6 +22,9 @@ class MCPServer:
         self.tenant_slug = tenant_slug
         self.connector_id = connector_id
         self.user_token = user_token  # User-provided OAuth token (optional)
+        print(f"DEBUG [server.py]: MCPServer created - tenant: {tenant_slug}, connector: {connector_id}, has_user_token: {user_token is not None}")
+        if user_token:
+            print(f"DEBUG [server.py]: User token length: {len(user_token)}")
         self.tenant: Optional[Tenant] = None
         self.connector: Optional[Connector] = None  # Single connector
         self.connectors: List[Connector] = []  # For backward compatibility, will contain single connector
@@ -308,10 +311,14 @@ class MCPServer:
         1. User-provided token (passed in request) - if available, create temp credential
         2. Tenant-level credential (stored in database) - fallback option
         """
+        print(f"DEBUG [server.py._get_oauth_credential]: Called for provider={provider}, tenant_id={tenant_id}")
+        print(f"DEBUG [server.py._get_oauth_credential]: self.user_token is {'SET' if self.user_token else 'None/Empty'}")
+
         # If user token provided, create a temporary OAuthCredential with it
         if self.user_token:
             # Create a temporary OAuthCredential object with the user's token
             # This avoids database lookup and uses the user's personal OAuth identity
+            print(f"DEBUG [server.py._get_oauth_credential]: Using user-provided token from header (length: {len(self.user_token)})")
             temp_cred = OAuthCredential(
                 provider=provider,
                 tenant_id=tenant_id,
@@ -324,6 +331,8 @@ class MCPServer:
             return temp_cred
 
         # Fallback to tenant-level credential from database
+        print(f"DEBUG [server.py._get_oauth_credential]: No user token provided, querying database for tenant-level credential")
+
         # Normalize provider to lowercase for case-insensitive lookup
         provider_lower = provider.lower()
 
@@ -338,4 +347,6 @@ class MCPServer:
                     OAuthCredential.is_active.is_(True)
                 )
             )
-            return result.scalar_one_or_none()
+            cred = result.scalar_one_or_none()
+            print(f"DEBUG [server.py._get_oauth_credential]: Database query result: {'Found' if cred else 'Not found'}")
+            return cred
