@@ -126,7 +126,7 @@ class BaseConnector(ABC):
             return True
 
         if not oauth_cred:
-            print(f"DEBUG: OAuth credential is None")
+            print("DEBUG: OAuth credential is None")
             return False
 
         if not oauth_cred.is_active:
@@ -138,7 +138,7 @@ class BaseConnector(ABC):
             print(f"DEBUG: OAuth credential is expired: expires_at={oauth_cred.expires_at}")
             return False
 
-        print(f"DEBUG: OAuth credential validation passed")
+        print("DEBUG: OAuth credential validation passed")
         return True
 
     async def _make_authenticated_request(
