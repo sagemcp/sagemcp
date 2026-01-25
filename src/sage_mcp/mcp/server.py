@@ -95,8 +95,8 @@ class MCPServer:
 
             for conn in sorted_connectors:
                 if conn.is_enabled:
-                    connector_prefix = conn.connector_type.value + "_"
-                    if name.startswith(connector_prefix):
+                    connector_prefix = conn.connector_type.value.lower() + "_"
+                    if name.lower().startswith(connector_prefix):
                         connector = conn
                         action = name[len(connector_prefix):]
                         break
@@ -322,13 +322,17 @@ class MCPServer:
             return temp_cred
 
         # Fallback to tenant-level credential from database
-        async with get_db_context() as session:
-            from sqlalchemy import select
+        # Normalize provider to lowercase for case-insensitive lookup
+        provider_lower = provider.lower()
 
+        async with get_db_context() as session:
+            from sqlalchemy import select, func
+
+            # Try case-insensitive lookup first
             result = await session.execute(
                 select(OAuthCredential).where(
                     OAuthCredential.tenant_id == tenant_id,
-                    OAuthCredential.provider == provider,
+                    func.lower(OAuthCredential.provider) == provider_lower,
                     OAuthCredential.is_active.is_(True)
                 )
             )
