@@ -331,7 +331,7 @@ class MCPServer:
             return temp_cred
 
         # Fallback to tenant-level credential from database
-        print(f"DEBUG [server.py._get_oauth_credential]: No user token provided, querying database for tenant-level credential")
+        print("DEBUG [server.py._get_oauth_credential]: No user token provided, querying database for tenant-level credential")
 
         # Normalize provider to lowercase for case-insensitive lookup
         provider_lower = provider.lower()
