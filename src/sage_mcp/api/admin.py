@@ -71,8 +71,8 @@ class ConnectorResponse(BaseModel):
 
     @field_serializer('connector_type')
     def serialize_connector_type(self, connector_type: ConnectorType, _info):
-        """Serialize connector_type as lowercase for compatibility with integration-service."""
-        return connector_type.value.lower()
+        """Serialize connector_type for compatibility with integration-service."""
+        return connector_type.value
 
     class Config:
         from_attributes = True

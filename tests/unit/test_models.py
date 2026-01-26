@@ -86,9 +86,9 @@ class TestConnector:
 
     def test_connector_types(self):
         """Test connector types enum."""
-        assert ConnectorType.GITHUB.value == "GITHUB"
-        assert ConnectorType.GITLAB.value == "GITLAB"
-        assert ConnectorType.GOOGLE_DOCS.value == "GOOGLE_DOCS"
+        assert ConnectorType.GITHUB.value == "github"
+        assert ConnectorType.GITLAB.value == "gitlab"
+        assert ConnectorType.GOOGLE_DOCS.value == "google_docs"
 
     def test_connector_tenant_relationship(self, db_session, sample_tenant):
         """Test connector-tenant relationship."""

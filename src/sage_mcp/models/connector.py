@@ -39,18 +39,18 @@ if TYPE_CHECKING:
 class ConnectorType(enum.Enum):
     """Supported connector types."""
 
-    GITHUB = "GITHUB"
-    GITLAB = "GITLAB"
-    GOOGLE_DOCS = "GOOGLE_DOCS"
-    NOTION = "NOTION"
-    CONFLUENCE = "CONFLUENCE"
-    JIRA = "JIRA"
-    LINEAR = "LINEAR"
-    SLACK = "SLACK"
-    TEAMS = "TEAMS"
-    DISCORD = "DISCORD"
-    ZOOM = "ZOOM"
-    CUSTOM = "custom"  # For external MCP servers (lowercase for new)
+    GITHUB = "github"
+    GITLAB = "gitlab"
+    GOOGLE_DOCS = "google_docs"
+    NOTION = "notion"
+    CONFLUENCE = "confluence"
+    JIRA = "jira"
+    LINEAR = "linear"
+    SLACK = "slack"
+    TEAMS = "teams"
+    DISCORD = "discord"
+    ZOOM = "zoom"
+    CUSTOM = "custom"
 
 
 class ConnectorRuntimeType(enum.Enum):

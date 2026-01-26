@@ -136,7 +136,7 @@ class TestConnectorRegistry:
         assert info["display_name"] == "Test Connector"
         assert info["description"] == "A test connector"
         assert info["requires_oauth"] is True
-        assert info["type"] == "GITHUB"
+        assert info["type"] == "github"
 
 
 class TestGitHubConnector:

@@ -122,7 +122,7 @@ class TestAdminAPI:
         connector_data = {
             "name": "Test GitHub Connector",
             "description": "GitHub integration for testing",
-            "connector_type": "GITHUB",
+            "connector_type": "github",
             "configuration": {}
         }
 
@@ -134,7 +134,7 @@ class TestAdminAPI:
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "Test GitHub Connector"
-        assert data["connector_type"] == "GITHUB"
+        assert data["connector_type"] == "github"
         assert data["is_enabled"] is True
 
     def test_list_connectors(self, client: TestClient):
@@ -152,7 +152,7 @@ class TestAdminAPI:
         connector_data = {
             "name": "List Test Connector",
             "description": "A connector for list testing",
-            "connector_type": "GITHUB",
+            "connector_type": "github",
             "configuration": {}
         }
         client.post(
