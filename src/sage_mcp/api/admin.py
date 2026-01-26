@@ -6,7 +6,7 @@ from uuid import UUID
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
@@ -68,6 +68,11 @@ class ConnectorResponse(BaseModel):
     runtime_command: Optional[str]
     runtime_env: Optional[Dict[str, Any]]
     package_path: Optional[str]
+
+    @field_serializer('connector_type')
+    def serialize_connector_type(self, connector_type: ConnectorType, _info):
+        """Serialize connector_type as lowercase for compatibility with integration-service."""
+        return connector_type.value.lower()
 
     class Config:
         from_attributes = True
