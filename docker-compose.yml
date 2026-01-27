@@ -23,7 +23,10 @@ services:
 
   # Main application
   app:
-    build: .
+    build:
+      context: .
+      platforms:
+        - linux/amd64
     container_name: sage-mcp-app
     ports:
       - "8000:8000"
