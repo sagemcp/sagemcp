@@ -95,6 +95,30 @@ OAUTH_PROVIDERS = {
             else None
         ),
     },
+    "google_calendar": {
+        "name": "Google Calendar",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
     "jira": {
         "name": "Jira",
         "auth_url": "https://auth.atlassian.com/authorize",
@@ -340,7 +364,7 @@ async def initiate_oauth(
         params["scope"] = " ".join(provider_config["scopes"])  # Space-separated for others
 
     # Add Google-specific parameters
-    if provider in ["google", "google_docs"]:
+    if provider in ["google", "google_docs", "google_calendar"]:
         params["access_type"] = "offline"  # Request refresh token
         params["prompt"] = "consent"  # Force consent screen to get refresh token
 
@@ -464,7 +488,7 @@ async def oauth_callback(
     }
 
     # Google, Atlassian, Notion, and Zoom OAuth require grant_type parameter
-    if provider in ["google", "google_docs", "jira", "notion", "zoom"]:
+    if provider in ["google", "google_docs", "google_calendar", "jira", "notion", "zoom"]:
         token_data["grant_type"] = "authorization_code"
 
     headers = {"Accept": "application/json"}
@@ -518,7 +542,7 @@ async def oauth_callback(
         # Slack OAuth v2 returns user_id in the auth.test response
         provider_user_id = user_info.get("user_id", user_info.get("user"))
         provider_username = user_info.get("user", provider_user_id)
-    elif provider in ["google", "google_docs"]:
+    elif provider in ["google", "google_docs", "google_calendar"]:
         # Google OAuth returns 'id' and 'email' fields
         provider_user_id = str(user_info.get("id", user_info.get("sub", "unknown")))
         provider_username = user_info.get("email", user_info.get("name", "unknown"))
