@@ -515,10 +515,10 @@ class JiraConnector(BaseConnector):
             try:
                 issue_response = await self._make_authenticated_request(
                     "GET",
-                    f"{base_url}/search",
+                    f"{base_url}/search/jql",
                     oauth_cred,
                     params={
-                        "jql": "ORDER BY updated DESC",
+                        "jql": "updated >= -30d ORDER BY updated DESC",
                         "maxResults": 20,
                         "fields": "summary,status"
                     }
@@ -668,6 +668,14 @@ class JiraConnector(BaseConnector):
         max_results = arguments.get("max_results", 50)
         fields = arguments.get("fields", ["summary", "status", "assignee", "priority", "created", "updated"])
 
+        # The new /search/jql endpoint requires bounded queries
+        # Add a default time filter if the JQL only contains ORDER BY
+        jql_upper = jql.upper().strip()
+        if jql_upper.startswith("ORDER BY") and "WHERE" not in jql_upper and "=" not in jql:
+            # Add a 90-day time restriction for unbounded ORDER BY queries
+            jql = f"updated >= -90d {jql}"
+            print(f"DEBUG: Added time restriction to unbounded query: {jql}")
+
         params = {
             "jql": jql,
             "maxResults": max_results,
@@ -677,7 +685,7 @@ class JiraConnector(BaseConnector):
         print(f"DEBUG: Searching Jira issues with JQL: {jql}")
         response = await self._make_authenticated_request(
             "GET",
-            f"{base_url}/search",
+            f"{base_url}/search/jql",
             oauth_cred,
             params=params
         )
