@@ -86,7 +86,7 @@ class Connector(Base):
             name="connectortype",
             create_constraint=False,
             native_enum=False,
-            values_callable=lambda x: [e.value for e in x]
+            values_callable=lambda x: [e.name for e in x]  # Use enum names (uppercase) to match PostgreSQL
         ),
         nullable=False,
         index=True
@@ -111,7 +111,7 @@ class Connector(Base):
             name="connectorruntimetype",
             create_constraint=False,
             native_enum=False,
-            values_callable=lambda x: [e.value for e in x]
+            values_callable=lambda x: [e.value for e in x]  # Use enum values (lowercase) to match PostgreSQL
         ),
         nullable=False,
         default=ConnectorRuntimeType.NATIVE,

@@ -6,7 +6,7 @@ from uuid import UUID
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, field_serializer, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
@@ -51,6 +51,29 @@ class ConnectorCreate(BaseModel):
     runtime_command: Optional[str] = None  # JSON array as string, e.g., '["npx", "@modelcontextprotocol/server-github"]'
     runtime_env: Optional[Dict[str, Any]] = None
     package_path: Optional[str] = None
+
+    @field_validator('connector_type', mode='before')
+    @classmethod
+    def validate_connector_type(cls, v):
+        """Accept both uppercase and lowercase connector type strings."""
+        if isinstance(v, str):
+            # Try case-insensitive lookup by enum name first (e.g., "JIRA" -> ConnectorType.JIRA)
+            v_upper = v.upper()
+            for member in ConnectorType:
+                if member.name == v_upper:
+                    return member
+
+            # Fallback to case-insensitive lookup by value (e.g., "jira" -> ConnectorType.JIRA)
+            v_lower = v.lower()
+            for member in ConnectorType:
+                if member.value == v_lower:
+                    return member
+
+            # If no match, raise validation error
+            valid_values = [m.value for m in ConnectorType]
+            raise ValueError(f"Invalid connector type: {v}. Must be one of: {', '.join(valid_values)}")
+
+        return v
 
 
 class ConnectorResponse(BaseModel):
