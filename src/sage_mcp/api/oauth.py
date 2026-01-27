@@ -834,19 +834,29 @@ async def create_oauth_config(
     session: AsyncSession = Depends(get_db_session)
 ):
     """Create or update OAuth configuration for a tenant."""
+    print(f"DEBUG: create_oauth_config called for tenant: {tenant_slug}")
+    print(f"DEBUG: Received config_data: provider={config_data.provider}, client_id={config_data.client_id[:10]}...")
+    print(f"DEBUG: Available providers: {list(OAUTH_PROVIDERS.keys())}")
+
     # Verify tenant exists
     tenant_result = await session.execute(
         select(Tenant).where(Tenant.slug == tenant_slug)
     )
     tenant = tenant_result.scalar_one_or_none()
     if not tenant:
+        print(f"DEBUG: Tenant not found: {tenant_slug}")
         raise HTTPException(status_code=404, detail="Tenant not found")
 
+    print(f"DEBUG: Tenant found: {tenant.id}, slug: {tenant.slug}")
+
     # Validate provider
+    print(f"DEBUG: Validating provider '{config_data.provider}' against OAUTH_PROVIDERS")
     if config_data.provider not in OAUTH_PROVIDERS:
+        error_msg = f"Unsupported provider: {config_data.provider}. Available providers: {', '.join(OAUTH_PROVIDERS.keys())}"
+        print(f"ERROR: {error_msg}")
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported provider: {config_data.provider}"
+            detail=error_msg
         )
 
     # Check if configuration already exists
@@ -860,14 +870,17 @@ async def create_oauth_config(
 
     if existing:
         # Update existing configuration
+        print(f"DEBUG: Updating existing OAuth config for provider: {config_data.provider}")
         existing.client_id = config_data.client_id
         existing.client_secret = config_data.client_secret
         existing.is_active = True
         await session.commit()
         await session.refresh(existing)
+        print(f"DEBUG: Successfully updated OAuth config: {existing.id}")
         return existing
     else:
         # Create new configuration
+        print(f"DEBUG: Creating new OAuth config for provider: {config_data.provider}")
         new_config = OAuthConfig(
             tenant_id=tenant.id,
             provider=config_data.provider,
@@ -877,6 +890,7 @@ async def create_oauth_config(
         session.add(new_config)
         await session.commit()
         await session.refresh(new_config)
+        print(f"DEBUG: Successfully created OAuth config: {new_config.id}")
         return new_config
 
 
