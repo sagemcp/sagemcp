@@ -19,8 +19,8 @@ from .database.migrations import (
     upgrade_add_mcp_server_registry,
 )
 
-# Import connectors to register them
-from .connectors import github  # noqa
+# Import connectors to register them (connectors/__init__.py imports all)
+from . import connectors  # noqa
 
 
 @asynccontextmanager
