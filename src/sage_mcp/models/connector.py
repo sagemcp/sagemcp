@@ -42,6 +42,7 @@ class ConnectorType(enum.Enum):
     GITHUB = "github"
     GITLAB = "gitlab"
     GOOGLE_DOCS = "google_docs"
+    GOOGLE_CALENDAR = "google_calendar"
     NOTION = "notion"
     CONFLUENCE = "confluence"
     JIRA = "jira"
