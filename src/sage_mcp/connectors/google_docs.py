@@ -45,9 +45,9 @@ class GoogleDocsConnector(BaseConnector):
                         },
                         "order_by": {
                             "type": "string",
-                            "enum": ["modifiedTime", "name", "createdTime"],
+                            "enum": ["modifiedTime", "modifiedTime desc", "name", "name desc", "createdTime", "createdTime desc"],
                             "default": "modifiedTime desc",
-                            "description": "Sort order for documents"
+                            "description": "Sort order for documents (append ' desc' for descending)"
                         },
                         "owner_email": {
                             "type": "string",
