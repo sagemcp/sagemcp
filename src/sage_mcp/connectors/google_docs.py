@@ -32,7 +32,7 @@ class GoogleDocsConnector(BaseConnector):
         tools = [
             types.Tool(
                 name="google_docs_list_documents",
-                description="List Google Docs documents accessible to the user",
+                description="List Google Docs documents accessible to the user. Use owner_email to find docs owned by a specific person.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -48,6 +48,10 @@ class GoogleDocsConnector(BaseConnector):
                             "enum": ["modifiedTime", "name", "createdTime"],
                             "default": "modifiedTime desc",
                             "description": "Sort order for documents"
+                        },
+                        "owner_email": {
+                            "type": "string",
+                            "description": "Filter documents owned by this email address. Use get_user_external_accounts to resolve a user's Google email first."
                         }
                     }
                 }
@@ -88,7 +92,7 @@ class GoogleDocsConnector(BaseConnector):
             ),
             types.Tool(
                 name="google_docs_search_documents",
-                description="Search for Google Docs by title or content",
+                description="Search for Google Docs by title or content. Use owner_email to find docs owned by a specific person.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -102,6 +106,10 @@ class GoogleDocsConnector(BaseConnector):
                             "maximum": 100,
                             "default": 20,
                             "description": "Number of results to return"
+                        },
+                        "owner_email": {
+                            "type": "string",
+                            "description": "Filter documents owned by this email address. Use get_user_external_accounts to resolve a user's Google email first."
                         }
                     },
                     "required": ["query"]
@@ -338,14 +346,19 @@ class GoogleDocsConnector(BaseConnector):
         """List Google Docs documents."""
         page_size = arguments.get("page_size", 20)
         order_by = arguments.get("order_by", "modifiedTime desc")
+        owner_email = arguments.get("owner_email")
 
         try:
+            query = "mimeType='application/vnd.google-apps.document'"
+            if owner_email:
+                query += f" and '{owner_email}' in owners"
+
             response = await self._make_authenticated_request(
                 "GET",
                 "https://www.googleapis.com/drive/v3/files",
                 oauth_cred,
                 params={
-                    "q": "mimeType='application/vnd.google-apps.document'",
+                    "q": query,
                     "pageSize": page_size,
                     "orderBy": order_by,
                     "fields": "files(id, name, createdTime, modifiedTime, webViewLink, owners, starred)"
@@ -440,14 +453,19 @@ class GoogleDocsConnector(BaseConnector):
         """Search for documents by name."""
         query = arguments["query"]
         page_size = arguments.get("page_size", 20)
+        owner_email = arguments.get("owner_email")
 
         try:
+            drive_query = f"mimeType='application/vnd.google-apps.document' and name contains '{query}'"
+            if owner_email:
+                drive_query += f" and '{owner_email}' in owners"
+
             response = await self._make_authenticated_request(
                 "GET",
                 "https://www.googleapis.com/drive/v3/files",
                 oauth_cred,
                 params={
-                    "q": f"mimeType='application/vnd.google-apps.document' and name contains '{query}'",
+                    "q": drive_query,
                     "pageSize": page_size,
                     "fields": "files(id, name, createdTime, modifiedTime, webViewLink)"
                 }
