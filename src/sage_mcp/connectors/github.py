@@ -1539,16 +1539,29 @@ class GitHubConnector(BaseConnector):
                 event_data["commits"] = len(event["payload"].get("commits", []))
                 event_data["ref"] = event["payload"].get("ref", "")
             elif event["type"] == "PullRequestEvent":
-                event_data["action"] = event["payload"]["action"]
-                event_data["pr_number"] = event["payload"]["pull_request"]["number"]
-                event_data["pr_title"] = event["payload"]["pull_request"]["title"]
+                event_data["action"] = event["payload"].get("action")
+                pr = event["payload"].get("pull_request", {})
+                event_data["pr_number"] = pr.get("number")
+                event_data["pr_title"] = pr.get("title", "")
+            elif event["type"] == "PullRequestReviewEvent":
+                event_data["action"] = event["payload"].get("action")
+                pr = event["payload"].get("pull_request", {})
+                event_data["pr_number"] = pr.get("number")
+                event_data["pr_title"] = pr.get("title", "")
+            elif event["type"] == "PullRequestReviewCommentEvent":
+                event_data["action"] = event["payload"].get("action")
+                pr = event["payload"].get("pull_request", {})
+                event_data["pr_number"] = pr.get("number")
+                event_data["pr_title"] = pr.get("title", "")
             elif event["type"] == "IssuesEvent":
-                event_data["action"] = event["payload"]["action"]
-                event_data["issue_number"] = event["payload"]["issue"]["number"]
-                event_data["issue_title"] = event["payload"]["issue"]["title"]
+                event_data["action"] = event["payload"].get("action")
+                issue = event["payload"].get("issue", {})
+                event_data["issue_number"] = issue.get("number")
+                event_data["issue_title"] = issue.get("title", "")
             elif event["type"] == "IssueCommentEvent":
-                event_data["action"] = event["payload"]["action"]
-                event_data["issue_number"] = event["payload"]["issue"]["number"]
+                event_data["action"] = event["payload"].get("action")
+                issue = event["payload"].get("issue", {})
+                event_data["issue_number"] = issue.get("number")
             elif event["type"] == "CreateEvent":
                 event_data["ref_type"] = event["payload"]["ref_type"]
                 event_data["ref"] = event["payload"].get("ref")
