@@ -1,11 +1,12 @@
 """Admin API routes for tenant and connector management."""
 
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_serializer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +18,16 @@ from ..models.tenant import Tenant
 from ..connectors.registry import connector_registry
 from ..runtime import process_manager
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+def _invalidate_pool(request: Request, tenant_slug: str, connector_id: str):
+    """Invalidate server pool entry if pool is active."""
+    pool = getattr(request.app.state, "server_pool", None)
+    if pool:
+        pool.invalidate(tenant_slug, connector_id)
 
 
 class TenantCreate(BaseModel):
@@ -160,7 +170,7 @@ async def populate_tools_for_connector(connector: Connector, session: AsyncSessi
     except Exception as e:
         # If tool population fails, log but don't fail the connector creation
         # The connector is still usable, tools just won't have explicit state records
-        print(f"Warning: Failed to populate tools for connector {connector.id}: {e}")
+        logger.warning("Failed to populate tools for connector %s: %s", connector.id, e)
         await session.rollback()
 
 
@@ -433,6 +443,7 @@ async def update_connector(
     tenant_slug: str,
     connector_id: str,
     connector_data: ConnectorCreate,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Update a connector."""
@@ -474,6 +485,8 @@ async def update_connector(
     await session.commit()
     await session.refresh(connector)
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return connector
 
 
@@ -481,6 +494,7 @@ async def update_connector(
 async def delete_connector(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Delete a connector."""
@@ -513,6 +527,8 @@ async def delete_connector(
     )
 
     await session.commit()
+
+    _invalidate_pool(request, tenant_slug, connector_id)
 
     return {
         "message": f"Connector '{connector.name}' has been deleted"
@@ -659,6 +675,7 @@ async def toggle_tool(
     connector_id: str,
     tool_name: str,
     request: ToolToggleRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Toggle a specific tool's enabled/disabled state."""
@@ -710,6 +727,8 @@ async def toggle_tool(
     await session.commit()
     await session.refresh(tool_state)
 
+    _invalidate_pool(http_request, tenant_slug, connector_id)
+
     return ToolStateResponse(
         tool_name=tool_state.tool_name,
         is_enabled=tool_state.is_enabled
@@ -724,6 +743,7 @@ async def bulk_update_tools(
     tenant_slug: str,
     connector_id: str,
     request: BulkToolUpdatesRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Bulk update multiple tools' enabled/disabled state."""
@@ -777,6 +797,8 @@ async def bulk_update_tools(
 
     await session.commit()
 
+    _invalidate_pool(http_request, tenant_slug, connector_id)
+
     return {
         "success": True,
         "updated_count": updated_count,
@@ -791,6 +813,7 @@ async def bulk_update_tools(
 async def enable_all_tools(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Enable all tools for a connector."""
@@ -826,6 +849,8 @@ async def enable_all_tools(
 
     await session.commit()
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return {
         "success": True,
         "updated_count": result.rowcount,
@@ -840,6 +865,7 @@ async def enable_all_tools(
 async def disable_all_tools(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Disable all tools for a connector."""
@@ -875,6 +901,8 @@ async def disable_all_tools(
 
     await session.commit()
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return {
         "success": True,
         "updated_count": result.rowcount,
@@ -889,6 +917,7 @@ async def disable_all_tools(
 async def sync_connector_tools(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Sync tools for a connector - detect new tools from code and remove orphaned tools.
@@ -974,6 +1003,8 @@ async def sync_connector_tools(
             removed_tools.append(tool_name)
 
     await session.commit()
+
+    _invalidate_pool(request, tenant_slug, connector_id)
 
     # Calculate unchanged count
     unchanged_count = len(code_tool_names & db_tool_names)
@@ -1071,7 +1102,7 @@ async def restart_process(
     try:
         await process_manager.terminate(str(connector.tenant_id), str(connector.id))
     except Exception as e:
-        print(f"Warning: Failed to terminate process: {e}")
+        logger.warning("Failed to terminate process: %s", e)
 
     # Process will be restarted on next request via process_manager.get_or_create()
     return {

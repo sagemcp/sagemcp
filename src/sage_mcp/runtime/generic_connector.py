@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -10,6 +11,8 @@ from mcp import types
 from ..connectors.base import BaseConnector
 from ..models.connector import Connector
 from ..models.oauth_credential import OAuthCredential
+
+logger = logging.getLogger(__name__)
 
 
 class GenericMCPConnector(BaseConnector):
@@ -248,9 +251,9 @@ class GenericMCPConnector(BaseConnector):
                     # Not JSON, might be debug output
                     pass
                 except Exception as e:
-                    print(f"Error processing MCP message: {e}")
+                    logger.error("Error processing MCP message: %s", e)
         except Exception as e:
-            print(f"Error reading stdout: {e}")
+            logger.error("Error reading stdout: %s", e)
 
     async def _read_stderr(self):
         """Background task to read and log stderr."""
@@ -262,7 +265,7 @@ class GenericMCPConnector(BaseConnector):
                 # Log stderr for debugging
                 stderr_line = line.decode().strip()
                 if stderr_line:
-                    print(f"MCP stderr [{self.runtime_type}]: {stderr_line}")
+                    logger.debug("MCP stderr [%s]: %s", self.runtime_type, stderr_line)
         except Exception:
             pass
 

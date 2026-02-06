@@ -2,7 +2,7 @@
 
 import os
 from functools import lru_cache
-from typing import Optional, Union, Literal
+from typing import List, Optional, Union, Literal
 
 from pydantic import Field, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         default="postgresql://sage_mcp:password@localhost:5432/sage_mcp",
         env="DATABASE_URL"
     )
-    
+
     # Supabase specific configuration
     supabase_url: Optional[str] = Field(default=None, env="SUPABASE_URL")
     supabase_anon_key: Optional[str] = Field(default=None, env="SUPABASE_ANON_KEY")
@@ -113,6 +113,11 @@ class Settings(BaseSettings):
     mcp_max_connections_per_tenant: int = Field(
         default=10, env="MCP_MAX_CONNECTIONS_PER_TENANT"
     )
+    mcp_allowed_origins: Optional[str] = Field(
+        default=None,
+        env="MCP_ALLOWED_ORIGINS",
+        description="Comma-separated list of allowed origins for MCP requests",
+    )
 
     # Image Registry Configuration
     image_registry: Optional[str] = Field(
@@ -123,6 +128,25 @@ class Settings(BaseSettings):
     redis_url: Optional[str] = Field(
         default=None, env="REDIS_URL"
     )
+
+    # CORS Configuration
+    cors_allowed_origins: Optional[str] = Field(
+        default=None,
+        env="CORS_ALLOWED_ORIGINS",
+        description="Comma-separated list of allowed CORS origins. Defaults to ['*'] in dev.",
+    )
+
+    # Rate Limiting
+    rate_limit_rpm: int = Field(
+        default=100,
+        env="RATE_LIMIT_RPM",
+        description="Default requests per minute per tenant",
+    )
+
+    # Feature Flags
+    enable_server_pool: bool = Field(default=False, env="SAGEMCP_ENABLE_SERVER_POOL")
+    enable_session_management: bool = Field(default=False, env="SAGEMCP_ENABLE_SESSION_MANAGEMENT")
+    enable_metrics: bool = Field(default=False, env="SAGEMCP_ENABLE_METRICS")
 
     @field_validator("secret_key", mode="before")
     @classmethod
@@ -146,22 +170,31 @@ class Settings(BaseSettings):
         """Get the appropriate database URL based on the provider."""
         if self.database_provider == "supabase":
             if self.supabase_url:
-                # Extract database URL from Supabase URL
-                # Supabase URL format: https://xxxx.supabase.co
-                # Database URL format: postgresql://postgres:[password]@db.xxxx.supabase.co:5432/postgres
                 import re
                 match = re.match(r'https://([^.]+)\.supabase\.co', self.supabase_url)
                 if match:
                     project_id = match.group(1)
-                    # Use dedicated database password, fallback to service role key
                     password = self.supabase_database_password or self.supabase_service_role_key or "postgres"
-                    # Use official Supabase connection pooler (SSL handled in connect_args)
                     return f"postgresql://postgres.{project_id}:{password}@aws-0-us-west-1.pooler.supabase.com:5432/postgres"
-            
-            # Fallback to DATABASE_URL if Supabase URL not available
+
             return self.database_url
-        
+
         return self.database_url
+
+    def get_cors_origins(self) -> List[str]:
+        """Parse CORS allowed origins from config."""
+        if self.cors_allowed_origins:
+            return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+        # Default: allow all in development
+        if self.environment != "production":
+            return ["*"]
+        return []
+
+    def get_mcp_allowed_origins(self) -> Optional[List[str]]:
+        """Parse MCP allowed origins from config."""
+        if self.mcp_allowed_origins:
+            return [o.strip() for o in self.mcp_allowed_origins.split(",") if o.strip()]
+        return None
 
 
 @lru_cache()
