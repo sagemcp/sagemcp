@@ -165,7 +165,7 @@ export const poolApi = {
   summary: () => api.get<PoolSummary>('/admin/pool/summary'),
   evict: (tenantSlug: string, connectorId: string) =>
     api.delete(`/admin/pool/${tenantSlug}/${connectorId}`),
-  evictIdle: (idleSeconds: number = 600) =>
+  evictIdle: (idleSeconds = 600) =>
     api.post('/admin/pool/evict-idle', null, { params: { idle_seconds: idleSeconds } }),
 }
 
