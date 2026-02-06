@@ -13,7 +13,7 @@ describe('App', () => {
 
     expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Tenants').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('MCP Testing').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pool').length).toBeGreaterThan(0)
   })
 
   it('renders the main content area', () => {

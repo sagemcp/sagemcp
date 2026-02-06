@@ -78,6 +78,14 @@ async def lifespan(app: FastAPI):
     from .mcp.event_buffer import EventBufferManager
     app.state.event_buffer_manager = EventBufferManager()
 
+    # Initialize log broadcaster for admin UI streaming
+    from .observability.log_broadcaster import LogBroadcaster, BroadcastHandler
+    broadcaster = LogBroadcaster()
+    app.state.log_broadcaster = broadcaster
+    broadcast_handler = BroadcastHandler(broadcaster)
+    broadcast_handler.setLevel(logging.INFO)
+    logging.getLogger("sage_mcp").addHandler(broadcast_handler)
+
     # Set MCP allowed origins (Phase 2.4)
     app.state.mcp_allowed_origins = settings.get_mcp_allowed_origins()
 

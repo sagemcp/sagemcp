@@ -2,63 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-root: #09090b;
+  --bg-surface: #18181b;
+  --bg-elevated: #27272a;
+  --bg-hover: #3f3f46;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #22c55e;
+  --border-default: #27272a;
+  --border-hover: #3f3f46;
+}
+
 @layer base {
   * {
-    @apply border-gray-200;
+    @apply border-zinc-800;
   }
-  
+
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    background-color: var(--bg-root);
+    color: var(--text-primary);
     font-family: 'Inter', system-ui, sans-serif;
+    @apply antialiased;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
   }
-  
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply inline-flex items-center justify-center rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-200 border border-zinc-700 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
   }
-  
+
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
   }
-  
+
   .input-field {
-    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500;
+    @apply block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50;
   }
-  
+
   .card {
-    @apply bg-white rounded-lg shadow-airbyte border border-gray-200;
+    @apply bg-surface-elevated rounded-lg border border-zinc-800;
   }
-  
+
   .card-header {
-    @apply px-6 py-4 border-b border-gray-200;
+    @apply px-6 py-4 border-b border-zinc-800;
   }
-  
+
   .card-content {
     @apply px-6 py-4;
   }
-  
+
   .status-badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
-  
+
   .status-active {
-    @apply status-badge bg-success-100 text-success-800;
+    @apply status-badge bg-success-500/15 text-success-400;
   }
-  
+
   .status-inactive {
-    @apply status-badge bg-gray-100 text-gray-800;
+    @apply status-badge bg-zinc-800 text-zinc-400;
   }
-  
+
   .status-error {
-    @apply status-badge bg-error-100 text-error-800;
+    @apply status-badge bg-error-500/15 text-error-400;
   }
-  
+
   .status-warning {
-    @apply status-badge bg-warning-100 text-warning-800;
+    @apply status-badge bg-warning-500/15 text-warning-400;
   }
 }

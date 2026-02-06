@@ -103,7 +103,7 @@ export default function ServerDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
       </div>
     )
   }
@@ -111,12 +111,12 @@ export default function ServerDetail() {
   if (!server) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Server not found</p>
+        <p className="text-zinc-400">Server not found</p>
         <button
           onClick={() => navigate('/marketplace')}
-          className="mt-4 text-blue-600 hover:text-blue-800"
+          className="mt-4 text-blue-400 hover:text-blue-300"
         >
-          ← Back to Marketplace
+          \u2190 Back to Marketplace
         </button>
       </div>
     )
@@ -127,33 +127,33 @@ export default function ServerDetail() {
       {/* Back Button */}
       <button
         onClick={() => navigate('/marketplace')}
-        className="text-blue-600 hover:text-blue-800 flex items-center"
+        className="text-blue-400 hover:text-blue-300 flex items-center"
       >
-        ← Back to Marketplace
+        \u2190 Back to Marketplace
       </button>
 
       {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{server.display_name || server.name}</h1>
-            <p className="text-gray-600 mt-2">{server.description}</p>
+            <h1 className="text-3xl font-bold text-zinc-100">{server.display_name || server.name}</h1>
+            <p className="text-zinc-400 mt-2">{server.description}</p>
 
             <div className="flex flex-wrap gap-2 mt-4">
-              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-500/10 text-blue-400">
                 {server.runtime_type}
               </span>
-              <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-500/10 text-purple-400">
                 {server.source_type}
               </span>
               {server.requires_oauth && (
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-amber-500/10 text-amber-400">
                   OAuth Required
                 </span>
               )}
               {server.is_verified && (
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  ✓ Verified
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-500/10 text-green-400">
+                  \u2713 Verified
                 </span>
               )}
             </div>
@@ -170,71 +170,71 @@ export default function ServerDetail() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-600">Stars</div>
-          <div className="text-2xl font-bold mt-2">⭐ {server.star_count}</div>
+        <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+          <div className="text-sm font-medium text-zinc-400">Stars</div>
+          <div className="text-2xl font-bold mt-2 text-zinc-100">\u2B50 {server.star_count}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-600">Tools</div>
-          <div className="text-2xl font-bold mt-2">🔧 {server.tools_count}</div>
+        <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+          <div className="text-sm font-medium text-zinc-400">Tools</div>
+          <div className="text-2xl font-bold mt-2 text-zinc-100">\uD83D\uDD27 {server.tools_count}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-600">Resources</div>
-          <div className="text-2xl font-bold mt-2">📦 {server.resources_count}</div>
+        <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+          <div className="text-sm font-medium text-zinc-400">Resources</div>
+          <div className="text-2xl font-bold mt-2 text-zinc-100">\uD83D\uDCE6 {server.resources_count}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-600">Prompts</div>
-          <div className="text-2xl font-bold mt-2">💬 {server.prompts_count}</div>
+        <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+          <div className="text-sm font-medium text-zinc-400">Prompts</div>
+          <div className="text-2xl font-bold mt-2 text-zinc-100">\uD83D\uDCAC {server.prompts_count}</div>
         </div>
       </div>
 
       {/* Details */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Server Details</h2>
+      <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+        <h2 className="text-xl font-semibold mb-4 text-zinc-100">Server Details</h2>
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <dt className="text-sm font-medium text-gray-600">Version</dt>
-            <dd className="mt-1 text-sm text-gray-900">{server.latest_version || 'N/A'}</dd>
+            <dt className="text-sm font-medium text-zinc-400">Version</dt>
+            <dd className="mt-1 text-sm text-zinc-100">{server.latest_version || 'N/A'}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-gray-600">Author</dt>
-            <dd className="mt-1 text-sm text-gray-900">{server.author || 'Unknown'}</dd>
+            <dt className="text-sm font-medium text-zinc-400">Author</dt>
+            <dd className="mt-1 text-sm text-zinc-100">{server.author || 'Unknown'}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-gray-600">License</dt>
-            <dd className="mt-1 text-sm text-gray-900">{server.license || 'N/A'}</dd>
+            <dt className="text-sm font-medium text-zinc-400">License</dt>
+            <dd className="mt-1 text-sm text-zinc-100">{server.license || 'N/A'}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-gray-600">Runtime</dt>
-            <dd className="mt-1 text-sm text-gray-900">{server.runtime_type}</dd>
+            <dt className="text-sm font-medium text-zinc-400">Runtime</dt>
+            <dd className="mt-1 text-sm text-zinc-100">{server.runtime_type}</dd>
           </div>
           {server.npm_package_name && (
             <div>
-              <dt className="text-sm font-medium text-gray-600">NPM Package</dt>
-              <dd className="mt-1 text-sm text-gray-900">{server.npm_package_name}</dd>
+              <dt className="text-sm font-medium text-zinc-400">NPM Package</dt>
+              <dd className="mt-1 text-sm text-zinc-100">{server.npm_package_name}</dd>
             </div>
           )}
           {server.github_repo && (
             <div>
-              <dt className="text-sm font-medium text-gray-600">GitHub Repo</dt>
-              <dd className="mt-1 text-sm text-gray-900">{server.github_repo}</dd>
+              <dt className="text-sm font-medium text-zinc-400">GitHub Repo</dt>
+              <dd className="mt-1 text-sm text-zinc-100">{server.github_repo}</dd>
             </div>
           )}
         </dl>
       </div>
 
       {/* Links */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Links</h2>
+      <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+        <h2 className="text-xl font-semibold mb-4 text-zinc-100">Links</h2>
         <div className="space-y-2">
           {server.homepage_url && (
             <a
               href={server.homepage_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-blue-600 hover:text-blue-800"
+              className="block text-blue-400 hover:text-blue-300"
             >
-              🏠 Homepage →
+              \uD83C\uDFE0 Homepage \u2192
             </a>
           )}
           {server.repository_url && (
@@ -242,36 +242,36 @@ export default function ServerDetail() {
               href={server.repository_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-blue-600 hover:text-blue-800"
+              className="block text-blue-400 hover:text-blue-300"
             >
-              💻 Repository →
+              \uD83D\uDCBB Repository \u2192
             </a>
           )}
           <a
             href={server.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block text-blue-600 hover:text-blue-800"
+            className="block text-blue-400 hover:text-blue-300"
           >
-            📦 Source →
+            \uD83D\uDCE6 Source \u2192
           </a>
         </div>
       </div>
 
       {/* Install Modal */}
       {showInstallModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">Install {server.name}</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-6 w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4 text-zinc-100">Install {server.name}</h2>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
                 Select Tenant
               </label>
               <select
                 value={selectedTenant}
                 onChange={(e) => setSelectedTenant(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 <option value="">Choose a tenant...</option>
                 {tenants.map((tenant) => (
@@ -283,9 +283,9 @@ export default function ServerDetail() {
             </div>
 
             {server.requires_oauth && (
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ This server requires OAuth authentication. You'll need to configure
+              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                <p className="text-sm text-amber-400">
+                  \u26A0\uFE0F This server requires OAuth authentication. You'll need to configure
                   OAuth credentials after installation.
                 </p>
               </div>
@@ -295,14 +295,14 @@ export default function ServerDetail() {
               <button
                 onClick={() => setShowInstallModal(false)}
                 disabled={installing}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-zinc-300 hover:bg-zinc-800 rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleInstall}
                 disabled={!selectedTenant || installing}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
               >
                 {installing ? 'Installing...' : 'Install'}
               </button>

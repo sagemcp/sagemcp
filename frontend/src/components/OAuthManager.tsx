@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   Key,
   ExternalLink,
@@ -94,29 +94,29 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
 
     console.log('Starting OAuth connection for:', provider.name)
     setConnectingProvider(provider.id)
-    
+
     // Listen for OAuth completion
     const handleMessage = (event: MessageEvent) => {
       console.log('Received message:', event.data, 'from origin:', event.origin)
-      
+
       if (event.origin !== window.location.origin) {
         console.log('Message from different origin, ignoring')
         return
       }
-      
+
       if (event.data?.type === 'oauth-complete') {
         console.log('OAuth completion message received for provider:', event.data.provider)
         setConnectingProvider(null)
-        
+
         // Force refresh of all OAuth-related queries
         console.log('Invalidating OAuth queries...')
         queryClient.invalidateQueries({ queryKey: ['oauth-credentials', tenantSlug] })
         queryClient.invalidateQueries({ queryKey: ['oauth-providers'] })
-        
+
         // Force immediate refetch to ensure UI updates
         queryClient.refetchQueries({ queryKey: ['oauth-credentials', tenantSlug] })
         queryClient.refetchQueries({ queryKey: ['oauth-providers'] })
-        
+
         toast.success(`Successfully connected to ${provider.name}!`)
         onCredentialChange?.()
         window.removeEventListener('message', handleMessage)
@@ -125,10 +125,10 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
 
     window.addEventListener('message', handleMessage)
     console.log('Added message listener for OAuth completion')
-    
+
     // Open OAuth flow
     const popup = oauthApi.initiateOAuth(tenantSlug, provider.id)
-    
+
     // Monitor popup closure
     const checkClosed = setInterval(() => {
       if (popup && popup.closed) {
@@ -138,7 +138,7 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
         clearInterval(checkClosed)
       }
     }, 1000)
-    
+
     // Clean up if window is closed manually or timeout
     setTimeout(() => {
       console.log('OAuth timeout reached, cleaning up')
@@ -192,7 +192,7 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
     queryClient.invalidateQueries({ queryKey: ['oauth-configs', tenantSlug] })
     queryClient.invalidateQueries({ queryKey: ['oauth-credentials', tenantSlug] })
     queryClient.invalidateQueries({ queryKey: ['oauth-providers'] })
-    
+
     // Force immediate refetch to ensure UI updates
     queryClient.refetchQueries({ queryKey: ['oauth-configs', tenantSlug] })
     queryClient.refetchQueries({ queryKey: ['oauth-credentials', tenantSlug] })
@@ -205,8 +205,8 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
         {[...Array(3)].map((_, i) => (
           <div key={i} className="card animate-pulse">
             <div className="card-content">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-zinc-700 rounded w-1/4 mb-2"></div>
+              <div className="h-3 bg-zinc-700 rounded w-3/4"></div>
             </div>
           </div>
         ))}
@@ -216,10 +216,10 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+      <div className="flex items-center space-x-2 text-sm text-zinc-400 mb-4">
         <Key className="h-4 w-4" />
         <span>
-          {filterProvider 
+          {filterProvider
             ? `Configure ${filterProvider.charAt(0).toUpperCase() + filterProvider.slice(1)} OAuth to enable this connector`
             : 'Connect external services to enable additional connectors'
           }
@@ -251,13 +251,13 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
                     <ProviderIcon provider={provider.id} />
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-900">{provider.name}</h3>
-                    <p className="text-sm text-gray-500">
+                    <h3 className="font-medium text-zinc-100">{provider.name}</h3>
+                    <p className="text-sm text-zinc-500">
                       Scopes: {provider.scopes.join(', ')}
                     </p>
                     {credential && (
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-zinc-500">
                           Connected as: {credential.provider_username || credential.provider_user_id}
                         </span>
                         {expired && (
@@ -283,7 +283,7 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
                       Expired
                     </span>
                   ) : (
-                    <span className="status-badge bg-gray-100 text-gray-600">
+                    <span className="status-badge bg-zinc-800 text-zinc-400">
                       Not Connected
                     </span>
                   )}
@@ -354,8 +354,8 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
       })}
 
       {providers.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          <Key className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+        <div className="text-center py-8 text-zinc-500">
+          <Key className="h-12 w-12 mx-auto mb-2 text-zinc-500" />
           <p>No OAuth providers configured</p>
         </div>
       )}

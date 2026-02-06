@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   Power,
   PowerOff,
@@ -12,6 +12,9 @@ import {
 } from 'lucide-react'
 import { toolsApi } from '@/utils/api'
 import { cn } from '@/utils/cn'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface ToolManagementProps {
   tenantSlug: string
@@ -23,7 +26,6 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Fetch tools list
   const { data: toolsData, isLoading, error } = useQuery({
     queryKey: ['tools', tenantSlug, connectorId],
     queryFn: async () => {
@@ -32,7 +34,6 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     }
   })
 
-  // Toggle single tool mutation
   const toggleToolMutation = useMutation({
     mutationFn: async ({ toolName, isEnabled }: { toolName: string; isEnabled: boolean }) => {
       await toolsApi.toggle(tenantSlug, connectorId, toolName, isEnabled)
@@ -46,7 +47,6 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     }
   })
 
-  // Enable all tools mutation
   const enableAllMutation = useMutation({
     mutationFn: async () => {
       await toolsApi.enableAll(tenantSlug, connectorId)
@@ -60,7 +60,6 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     }
   })
 
-  // Disable all tools mutation
   const disableAllMutation = useMutation({
     mutationFn: async () => {
       await toolsApi.disableAll(tenantSlug, connectorId)
@@ -74,7 +73,6 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     }
   })
 
-  // Sync tools mutation
   const syncToolsMutation = useMutation({
     mutationFn: async () => {
       const response = await toolsApi.sync(tenantSlug, connectorId)
@@ -93,11 +91,9 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     }
   })
 
-  // Filter tools based on search query
   const filteredTools = useMemo(() => {
     if (!toolsData?.tools) return []
     if (!searchQuery) return toolsData.tools
-
     const query = searchQuery.toLowerCase()
     return toolsData.tools.filter(tool =>
       tool.tool_name.toLowerCase().includes(query) ||
@@ -105,7 +101,6 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     )
   }, [toolsData?.tools, searchQuery])
 
-  // Check if tool is dangerous (has delete/create in name)
   const isDangerousTool = (toolName: string) => {
     const dangerous = ['delete', 'create', 'remove']
     return dangerous.some(keyword => toolName.toLowerCase().includes(keyword))
@@ -117,99 +112,91 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-800">Failed to load tools</p>
+      <div className="p-4 rounded-lg border border-error-500/30 bg-error-500/10">
+        <p className="text-error-400">Failed to load tools</p>
       </div>
     )
   }
 
-  if (!toolsData) {
-    return null
-  }
+  if (!toolsData) return null
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-base font-semibold text-zinc-100">
             Tools for {connectorName}
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-zinc-500 mt-0.5">
             {toolsData.summary.enabled} of {toolsData.summary.total} tools enabled
           </p>
         </div>
       </div>
 
       {/* Bulk Actions */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <button
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-zinc-800 bg-surface-elevated">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => enableAllMutation.mutate()}
           disabled={enableAllMutation.isPending}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-            "bg-green-100 text-green-700 hover:bg-green-200",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
+          className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
         >
-          <Power className="h-4 w-4" />
+          <Power className="h-4 w-4 mr-1.5" />
           Enable All
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => disableAllMutation.mutate()}
           disabled={disableAllMutation.isPending}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-            "bg-red-100 text-red-700 hover:bg-red-200",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
+          className="text-error-400 hover:text-error-300 hover:bg-error-500/10"
         >
-          <PowerOff className="h-4 w-4" />
+          <PowerOff className="h-4 w-4 mr-1.5" />
           Disable All
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => syncToolsMutation.mutate()}
           disabled={syncToolsMutation.isPending}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-            "bg-blue-100 text-blue-700 hover:bg-blue-200",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
+          className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
         >
-          <RefreshCw className={cn("h-4 w-4", syncToolsMutation.isPending && "animate-spin")} />
+          <RefreshCw className={cn("h-4 w-4 mr-1.5", syncToolsMutation.isPending && "animate-spin")} />
           Sync Tools
-        </button>
+        </Button>
 
-        {/* Search */}
         <div className="ml-auto flex items-center gap-2 flex-1 max-w-xs">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
             <input
               type="text"
               placeholder="Search tools..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field pl-9 py-1.5 text-sm"
             />
           </div>
         </div>
       </div>
 
       {/* Tools List */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <div className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
+      <div className="border border-zinc-800 rounded-lg overflow-hidden">
+        <div className="divide-y divide-zinc-800 max-h-[500px] overflow-y-auto">
           {filteredTools.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-zinc-500">
               {searchQuery ? 'No tools match your search' : 'No tools available'}
             </div>
           ) : (
@@ -217,43 +204,41 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
               <div
                 key={tool.tool_name}
                 className={cn(
-                  "p-4 hover:bg-gray-50 transition-colors",
-                  !tool.is_enabled && "opacity-60"
+                  "p-4 hover:bg-zinc-800/50 transition-colors",
+                  !tool.is_enabled && "opacity-50"
                 )}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className={cn(
-                        "text-sm font-medium truncate",
-                        tool.is_enabled ? "text-gray-900" : "text-gray-500"
+                        "text-sm font-medium font-mono truncate",
+                        tool.is_enabled ? "text-zinc-100" : "text-zinc-500"
                       )}>
                         {tool.tool_name}
                       </h4>
                       {isDangerousTool(tool.tool_name) && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          <AlertTriangle className="h-3 w-3" />
+                        <Badge variant="warning" className="text-xs">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
                           Dangerous
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     {tool.description && (
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                      <p className="text-xs text-zinc-500 mt-1 line-clamp-2">
                         {tool.description}
                       </p>
                     )}
                   </div>
 
-                  {/* Toggle Button */}
                   <button
                     onClick={() => handleToggleTool(tool.tool_name, tool.is_enabled)}
                     disabled={toggleToolMutation.isPending}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                      "border",
+                      "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border",
                       tool.is_enabled
-                        ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
-                        : "bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100",
+                        ? "bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20"
+                        : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                     title={tool.is_enabled ? 'Disable tool' : 'Enable tool'}

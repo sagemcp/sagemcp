@@ -10,7 +10,7 @@ export default function OAuthSuccess() {
 
   useEffect(() => {
     console.log('OAuth Success page loaded with:', { provider, tenant, error })
-    
+
     // Notify parent window that OAuth is complete (if not an error)
     if (!error && provider && tenant) {
       console.log('OAuth completed successfully, notifying parent window')
@@ -38,36 +38,36 @@ export default function OAuthSuccess() {
   }, [error, provider, tenant])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+    <div className="min-h-screen bg-[var(--bg-root)] flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-8 text-center">
         {error ? (
           <>
             <XCircle className="h-16 w-16 text-error-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2">
               Authentication Failed
             </h1>
-            <p className="text-gray-600 mb-4">
+            <p className="text-zinc-400 mb-4">
               There was an error connecting to {provider}: {error}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-zinc-500">
               This window will close automatically.
             </p>
           </>
         ) : (
           <>
             <CheckCircle className="h-16 w-16 text-success-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2">
               Successfully Connected!
             </h1>
-            <p className="text-gray-600 mb-4">
+            <p className="text-zinc-400 mb-4">
               Your {provider} account has been connected to tenant "{tenant}".
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-zinc-500">
               This window will close automatically in a few seconds.
             </p>
           </>
         )}
-        
+
         <button
           onClick={() => window.close()}
           className="mt-4 btn-primary"
