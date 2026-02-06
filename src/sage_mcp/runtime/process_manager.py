@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -12,6 +13,8 @@ from ..database.connection import get_db_context
 from ..models.connector import Connector
 from ..models.mcp_process import MCPProcess, ProcessStatus
 from ..models.oauth_credential import OAuthCredential
+
+logger = logging.getLogger(__name__)
 
 
 class MCPProcessManager:
@@ -278,7 +281,7 @@ class MCPProcessManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Error in health check loop: {e}")
+                logger.error("Error in health check loop: %s", e)
 
     async def _update_process_status(
         self,

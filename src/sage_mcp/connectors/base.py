@@ -1,5 +1,6 @@
 """Base connector interface for plugin system."""
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Protocol
 
@@ -7,6 +8,8 @@ from mcp import types
 
 from ..models.connector import Connector
 from ..models.oauth_credential import OAuthCredential
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectorPlugin(Protocol):
@@ -126,19 +129,19 @@ class BaseConnector(ABC):
             return True
 
         if not oauth_cred:
-            print("DEBUG: OAuth credential is None")
+            logger.debug("OAuth credential is None")
             return False
 
         if not oauth_cred.is_active:
-            print(f"DEBUG: OAuth credential is not active: is_active={oauth_cred.is_active}")
+            logger.debug("OAuth credential is not active: is_active=%s", oauth_cred.is_active)
             return False
 
         # Check if token is expired
         if oauth_cred.is_expired:
-            print(f"DEBUG: OAuth credential is expired: expires_at={oauth_cred.expires_at}")
+            logger.debug("OAuth credential is expired: expires_at=%s", oauth_cred.expires_at)
             return False
 
-        print("DEBUG: OAuth credential validation passed")
+        logger.debug("OAuth credential validation passed")
         return True
 
     async def _make_authenticated_request(
@@ -152,10 +155,6 @@ class BaseConnector(ABC):
 
         Uses a shared HTTP client with connection pooling for better performance.
         This reduces latency by 3-5x and memory usage by 50%.
-
-        Performance improvement (per request):
-        - Old: 40-80MB memory spike, 200-500ms latency overhead
-        - New: 2-5MB memory, 50-100ms latency
         """
         from .http_client import get_http_client
 

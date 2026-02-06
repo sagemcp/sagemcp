@@ -1,5 +1,6 @@
 """MCP Server implementation for multi-tenant support."""
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
@@ -14,6 +15,8 @@ from ..models.connector_tool_state import ConnectorToolState
 from ..models.oauth_credential import OAuthCredential
 from ..connectors.registry import connector_registry
 
+logger = logging.getLogger(__name__)
+
 
 class MCPServer:
     """Multi-tenant MCP server implementation."""
@@ -22,13 +25,15 @@ class MCPServer:
         self.tenant_slug = tenant_slug
         self.connector_id = connector_id
         self.user_token = user_token  # User-provided OAuth token (optional)
-        print(f"DEBUG [server.py]: MCPServer created - tenant: {tenant_slug}, connector: {connector_id}, has_user_token: {user_token is not None}")
-        if user_token:
-            print(f"DEBUG [server.py]: User token length: {len(user_token)}")
+        logger.debug(
+            "MCPServer created - tenant: %s, connector: %s, has_user_token: %s",
+            tenant_slug, connector_id, user_token is not None,
+        )
         self.tenant: Optional[Tenant] = None
         self.connector: Optional[Connector] = None  # Single connector
         self.connectors: List[Connector] = []  # For backward compatibility, will contain single connector
         self.server = Server("sage-mcp")
+        self._tool_states_cache: Optional[Dict[str, bool]] = None
         self._setup_handlers()
 
     async def initialize(self) -> bool:
@@ -49,11 +54,27 @@ class MCPServer:
 
                 self.connector = connector
                 self.connectors = [connector]  # For backward compatibility with existing handlers
+
+                # Pre-populate tool states cache
+                await self._load_tool_states_cache(session, connector.id)
             else:
                 # Fallback: Load all enabled connectors for this tenant (for backward compatibility)
                 self.connectors = await self._get_tenant_connectors(session, tenant.id)
 
             return True
+
+    async def _load_tool_states_cache(self, session: AsyncSession, connector_id):
+        """Load tool states into cache during initialization."""
+        result = await session.execute(
+            select(ConnectorToolState.tool_name, ConnectorToolState.is_enabled)
+            .where(ConnectorToolState.connector_id == connector_id)
+        )
+        self._tool_states_cache = {name: enabled for name, enabled in result.all()}
+        logger.debug("Cached %d tool states", len(self._tool_states_cache))
+
+    def refresh_tool_states(self):
+        """Invalidate the tool states cache so it's reloaded on next access."""
+        self._tool_states_cache = None
 
     def _setup_handlers(self):
         """Set up MCP protocol handlers."""
@@ -61,21 +82,18 @@ class MCPServer:
         @self.server.list_tools()
         async def handle_list_tools() -> List[types.Tool]:
             """List available tools based on tenant's connectors."""
-            print(f"DEBUG: handle_list_tools called for tenant {self.tenant_slug}")
-            print(f"DEBUG: Found {len(self.connectors)} connectors")
+            logger.debug("handle_list_tools called for tenant %s", self.tenant_slug)
 
             tools = []
 
             for connector in self.connectors:
-                print(f"DEBUG: Processing connector {connector.name} (enabled: {connector.is_enabled})")
                 if not connector.is_enabled:
-                    print(f"DEBUG: Skipping disabled connector {connector.name}")
                     continue
 
                 connector_tools = await self._get_connector_tools(connector)
                 tools.extend(connector_tools)
 
-            print(f"DEBUG: Returning {len(tools)} total tools")
+            logger.debug("Returning %d total tools", len(tools))
             return tools
 
         @self.server.call_tool()
@@ -87,13 +105,10 @@ class MCPServer:
                 arguments = {}
 
             # Parse tool name to determine connector and action
-            # Expected format: connectortype_action (e.g., github_list_repositories, google_docs_list_documents)
-            # We need to match against actual connector types since they may contain underscores
             connector = None
             action = None
 
             # Try to match tool name against connector types (longest match first)
-            # Sort by length descending to match longer connector types first (e.g., "google_docs" before "google")
             sorted_connectors = sorted(self.connectors, key=lambda c: len(c.connector_type.value), reverse=True)
 
             for conn in sorted_connectors:
@@ -137,12 +152,9 @@ class MCPServer:
         @self.server.read_resource()
         async def handle_read_resource(uri: str) -> str:
             """Read a specific resource."""
-            # Parse URI to determine connector and resource
-            # Format: connector_type://resource_path
             try:
                 scheme, path = uri.split("://", 1)
 
-                # Find the appropriate connector
                 connector = None
                 for conn in self.connectors:
                     if conn.connector_type.value == scheme and conn.is_enabled:
@@ -159,8 +171,6 @@ class MCPServer:
 
     async def _get_tenant(self, session: AsyncSession, tenant_slug: str) -> Optional[Tenant]:
         """Get tenant by slug."""
-        from sqlalchemy import select
-
         result = await session.execute(
             select(Tenant).where(Tenant.slug == tenant_slug)
         )
@@ -168,7 +178,6 @@ class MCPServer:
 
     async def _get_connector_by_id(self, session: AsyncSession, connector_id: str, tenant_id: str) -> Optional[Connector]:
         """Get a specific connector by ID."""
-        from sqlalchemy import select
         import uuid
 
         try:
@@ -186,8 +195,6 @@ class MCPServer:
 
     async def _get_tenant_connectors(self, session: AsyncSession, tenant_id: str) -> List[Connector]:
         """Get enabled connectors for a tenant."""
-        from sqlalchemy import select
-
         result = await session.execute(
             select(Connector).where(
                 Connector.tenant_id == tenant_id,
@@ -198,89 +205,79 @@ class MCPServer:
 
     async def _get_connector_tools(self, connector: Connector) -> List[types.Tool]:
         """Get tools for a specific connector, filtered by enabled state."""
-        print(f"DEBUG: Getting tools for connector {connector.name} ({connector.connector_type.value})")
+        logger.debug("Getting tools for connector %s (%s)", connector.name, connector.connector_type.value)
 
-        # Use new routing method that supports both native and external connectors
-        connector_plugin = connector_registry.get_connector_for_config(connector)
+        # Get OAuth credential first (needed for get_connector_for_config on external connectors)
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+
+        # For native connectors, check if oauth is needed before fetching
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        # Use async routing method that supports both native and external connectors
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
-            print(f"DEBUG: No connector plugin found for {connector.connector_type.value}")
+            logger.debug("No connector plugin found for %s", connector.connector_type.value)
             return []
 
-        print(f"DEBUG: Found connector plugin: {connector_plugin.name}")
-
-        # Get OAuth credentials if needed
-        oauth_cred = None
-        if connector_plugin.requires_oauth:
-            print(f"DEBUG: Connector requires OAuth, fetching credentials for {connector.connector_type.value}")
-            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
-            if oauth_cred:
-                print(f"DEBUG: Found OAuth credential for {oauth_cred.provider}")
-            else:
-                print(f"DEBUG: No OAuth credential found for {connector.connector_type.value}")
-
         try:
-            # Get all tools from connector plugin (source of truth)
             all_tools = await connector_plugin.get_tools(connector, oauth_cred)
-            print(f"DEBUG: Got {len(all_tools)} tools from connector")
+            logger.debug("Got %d tools from connector", len(all_tools))
 
-            # Fetch tool states from database
-            async with get_db_context() as session:
-                result = await session.execute(
-                    select(ConnectorToolState.tool_name, ConnectorToolState.is_enabled)
-                    .where(ConnectorToolState.connector_id == connector.id)
-                )
-                tool_states = {name: enabled for name, enabled in result.all()}
+            # Use cached tool states if available, otherwise fetch from DB
+            tool_states = self._tool_states_cache
+            if tool_states is None:
+                async with get_db_context() as session:
+                    result = await session.execute(
+                        select(ConnectorToolState.tool_name, ConnectorToolState.is_enabled)
+                        .where(ConnectorToolState.connector_id == connector.id)
+                    )
+                    tool_states = {name: enabled for name, enabled in result.all()}
+                    self._tool_states_cache = tool_states
 
-            print(f"DEBUG: Found {len(tool_states)} tool states in database")
-
-            # Filter tools based on database state
-            # Default to enabled if no DB record exists (fallback for new tools)
+            # Filter tools based on database state (default to enabled if no DB record)
             enabled_tools = [
                 tool for tool in all_tools
-                if tool_states.get(tool.name, True)  # Default True if no DB record
+                if tool_states.get(tool.name, True)
             ]
 
-            print(f"DEBUG: Returning {len(enabled_tools)} enabled tools (filtered from {len(all_tools)})")
-
-            for tool in enabled_tools:
-                print(f"DEBUG: Enabled tool: {tool.name}")
-
+            logger.debug("Returning %d enabled tools (filtered from %d)", len(enabled_tools), len(all_tools))
             return enabled_tools
         except Exception as e:
-            print(f"Error getting tools for {connector.connector_type.value}: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Error getting tools for %s: %s", connector.connector_type.value, e, exc_info=True)
             return []
 
     async def _get_connector_resources(self, connector: Connector) -> List[types.Resource]:
         """Get resources for a specific connector."""
-        # Use new routing method that supports both native and external connectors
-        connector_plugin = connector_registry.get_connector_for_config(connector)
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
             return []
-
-        # Get OAuth credentials if needed
-        oauth_cred = None
-        if connector_plugin.requires_oauth:
-            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
 
         try:
             return await connector_plugin.get_resources(connector, oauth_cred)
         except Exception as e:
-            print(f"Error getting resources for {connector.connector_type.value}: {e}")
+            logger.error("Error getting resources for %s: %s", connector.connector_type.value, e)
             return []
 
     async def _execute_tool(self, connector: Connector, action: str, arguments: Dict[str, Any]) -> str:
         """Execute a tool action for a connector."""
-        # Use new routing method that supports both native and external connectors
-        connector_plugin = connector_registry.get_connector_for_config(connector)
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
             return f"Connector plugin not found: {connector.connector_type.value}"
-
-        # Get OAuth credentials if needed
-        oauth_cred = None
-        if connector_plugin.requires_oauth:
-            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
 
         try:
             return await connector_plugin.execute_tool(connector, action, arguments, oauth_cred)
@@ -289,15 +286,15 @@ class MCPServer:
 
     async def _read_connector_resource(self, connector: Connector, path: str) -> str:
         """Read a resource from a connector."""
-        # Use new routing method that supports both native and external connectors
-        connector_plugin = connector_registry.get_connector_for_config(connector)
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
             return f"Connector plugin not found: {connector.connector_type.value}"
-
-        # Get OAuth credentials if needed
-        oauth_cred = None
-        if connector_plugin.requires_oauth:
-            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
 
         try:
             return await connector_plugin.read_resource(connector, path, oauth_cred)
@@ -311,35 +308,30 @@ class MCPServer:
         1. User-provided token (passed in request) - if available, create temp credential
         2. Tenant-level credential (stored in database) - fallback option
         """
-        print(f"DEBUG [server.py._get_oauth_credential]: Called for provider={provider}, tenant_id={tenant_id}")
-        print(f"DEBUG [server.py._get_oauth_credential]: self.user_token is {'SET' if self.user_token else 'None/Empty'}")
+        logger.debug("Getting OAuth credential for provider=%s, tenant_id=%s", provider, tenant_id)
 
         # If user token provided, create a temporary OAuthCredential with it
         if self.user_token:
-            # Create a temporary OAuthCredential object with the user's token
-            # This avoids database lookup and uses the user's personal OAuth identity
-            print(f"DEBUG [server.py._get_oauth_credential]: Using user-provided token from header (length: {len(self.user_token)})")
+            logger.debug("Using user-provided token from header (length: %d)", len(self.user_token))
             temp_cred = OAuthCredential(
                 provider=provider,
                 tenant_id=tenant_id,
-                provider_user_id="user_provided",  # Placeholder for user-provided tokens
+                provider_user_id="user_provided",
                 access_token=self.user_token,
                 token_type="Bearer",
                 is_active=True,
-                expires_at=None  # User tokens don't have expiration managed by us
+                expires_at=None
             )
             return temp_cred
 
         # Fallback to tenant-level credential from database
-        print("DEBUG [server.py._get_oauth_credential]: No user token provided, querying database for tenant-level credential")
+        logger.debug("No user token provided, querying database for tenant-level credential")
 
-        # Normalize provider to lowercase for case-insensitive lookup
         provider_lower = provider.lower()
 
         async with get_db_context() as session:
-            from sqlalchemy import select, func
+            from sqlalchemy import func
 
-            # Try case-insensitive lookup first
             result = await session.execute(
                 select(OAuthCredential).where(
                     OAuthCredential.tenant_id == tenant_id,
@@ -348,5 +340,5 @@ class MCPServer:
                 )
             )
             cred = result.scalar_one_or_none()
-            print(f"DEBUG [server.py._get_oauth_credential]: Database query result: {'Found' if cred else 'Not found'}")
+            logger.debug("Database query result: %s", "Found" if cred else "Not found")
             return cred
