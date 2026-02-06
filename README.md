@@ -19,11 +19,14 @@ Sage MCP is a production-ready platform that enables you to run multiple isolate
 
 **Key Features:**
 - Multi-tenant architecture with path-based isolation
-- Full MCP protocol support (WebSocket, HTTP, SSE)
-- OAuth 2.0 integration for secure service authentication
-- Extensible plugin system for custom connectors
-- React-based management interface
-- Flexible database support (PostgreSQL, Supabase)
+- Full MCP protocol support (Streamable HTTP, WebSocket, SSE) with protocol version negotiation
+- Server pooling with LRU eviction (5,000 max instances, 30-min TTL)
+- Session management via `Mcp-Session-Id` with resumable SSE streams
+- Token-bucket rate limiting (configurable RPM per tenant)
+- External MCP server hosting via stdio subprocess (`GenericMCPConnector`)
+- OAuth 2.0 integration with tenant-level and user-level tokens
+- Prometheus metrics, structured JSON logging, and Kubernetes health probes
+- Progressive rollout via feature flags (`SAGEMCP_ENABLE_*`)
 
 ## Architecture
 
@@ -44,11 +47,42 @@ graph TB
         end
 
         subgraph Backend["Backend :8000"]
-            API[FastAPI]
-            MCP[MCP Server]
-            CONNECTORS["Connector Plugins
-            GitHub • Jira • Slack
-            Google Docs • Notion • Zoom"]
+            subgraph Middleware["Middleware"]
+                RL["Rate Limiter
+                Token Bucket"]
+                CORS_MW["CORS / Origin
+                Validation"]
+                CT["Content-Type
+                Validation"]
+            end
+
+            API[FastAPI Admin API]
+
+            subgraph MCPCore["MCP Core"]
+                POOL["ServerPool
+                LRU · 5000 max"]
+                SESS["SessionManager
+                Mcp-Session-Id"]
+                TRANSPORT["Transport
+                HTTP POST · WS · SSE"]
+                EBUF["EventBuffer
+                Resumable Streams"]
+            end
+
+            subgraph Connectors["Connectors"]
+                NATIVE["Native Plugins
+                GitHub · Jira · Slack
+                Google Docs · Notion · Zoom"]
+                EXT_MCP["External MCP Servers
+                via ProcessManager + stdio"]
+            end
+
+            subgraph Observability["Observability"]
+                PROM["Prometheus /metrics"]
+                LOGS["Structured JSON Logs"]
+                HEALTH["Health Probes
+                /health/live · ready · startup"]
+            end
         end
 
         subgraph Database["Database"]
@@ -58,25 +92,36 @@ graph TB
     end
 
     subgraph External["External Services"]
-        EXT["GitHub • Slack • Jira
-        Google • Notion • Zoom APIs"]
+        EXT["GitHub · Slack · Jira
+        Google · Notion · Zoom APIs"]
     end
 
-    CD -->|WebSocket/HTTP| MCP
+    CD -->|"HTTP POST / WebSocket"| TRANSPORT
     WEB -->|HTTPS| UI
     UI -->|REST API| API
-    MCP -->|Execute Tools| CONNECTORS
+    TRANSPORT --> POOL
+    POOL --> SESS
+    SESS --> Connectors
+    NATIVE -->|OAuth| EXT
+    EXT_MCP -->|stdio| EXT
     API -->|ORM| DB
-    CONNECTORS -->|OAuth| EXT
 
     style CD fill:#e1f5ff
     style WEB fill:#e1f5ff
     style UI fill:#fff3e0
     style API fill:#f3e5f5
-    style MCP fill:#e8f5e9
-    style CONNECTORS fill:#e8f5e9
+    style POOL fill:#e8f5e9
+    style SESS fill:#e8f5e9
+    style TRANSPORT fill:#e8f5e9
+    style EBUF fill:#e8f5e9
+    style NATIVE fill:#e8f5e9
+    style EXT_MCP fill:#e8f5e9
     style DB fill:#fce4ec
     style EXT fill:#e0f2f1
+    style RL fill:#fff9c4
+    style CORS_MW fill:#fff9c4
+    style CT fill:#fff9c4
+    style PROM fill:#f3e5f5
 ```
 
 **[📖 View Full Architecture Documentation →](docs/architecture.md)** | Includes 10+ detailed diagrams covering OAuth flows, multi-tenancy, database schema, deployment, and more.
@@ -84,11 +129,12 @@ graph TB
 </div>
 
 **Architecture Highlights:**
-- **Multi-tenant isolation** with path-based routing (`/api/v1/{tenant_slug}/mcp`)
-- **Plugin-based connectors** for extensibility (6 connectors with 87+ tools)
-- **OAuth 2.0 authentication** per tenant with encrypted credential storage
-- **Async I/O** throughout the stack for high performance
-- **Horizontal scaling** ready via Kubernetes with Helm charts
+- **Server pooling** — LRU-evicted pool (5,000 max, 30-min TTL) caches `MCPServer` instances per tenant+connector
+- **Session management** — `Mcp-Session-Id` header tracks sessions; `EventBuffer` ring buffer enables SSE replay via `Last-Event-ID`
+- **Rate limiting** — per-tenant token-bucket rate limiter (default 100 RPM, configurable)
+- **External MCP hosting** — `MCPProcessManager` runs third-party MCP servers (Python/Node.js/Go) as stdio subprocesses with health checks and auto-restart
+- **Observability** — 11 Prometheus metrics (histograms, counters, gauges), structured JSON logging, `/health/live|ready|startup` probes
+- **Feature flags** — `SAGEMCP_ENABLE_SERVER_POOL`, `SAGEMCP_ENABLE_SESSION_MANAGEMENT`, `SAGEMCP_ENABLE_METRICS` for progressive rollout
 
 ### Built With
 
@@ -96,6 +142,7 @@ graph TB
 * [React](https://reactjs.org/) - Frontend interface
 * [SQLAlchemy](https://www.sqlalchemy.org/) - Database ORM
 * [MCP](https://modelcontextprotocol.io/) - Model Context Protocol
+* [prometheus-client](https://github.com/prometheus/client_python) - Metrics instrumentation
 * [Docker](https://www.docker.com/) - Containerization
 
 ## Getting Started
@@ -130,6 +177,8 @@ graph TB
    - Frontend: http://localhost:3001
    - API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
+   - Metrics: http://localhost:8000/metrics (when `SAGEMCP_ENABLE_METRICS=true`)
+   - Health: http://localhost:8000/health/live | `/health/ready` | `/health/startup`
 
 ## Usage
 
@@ -205,6 +254,7 @@ SageMCP supports both **tenant-level** and **user-level** OAuth authentication:
 curl -X POST http://localhost:8000/api/v1/{tenant-slug}/connectors/{connector-id}/mcp \
   -H "X-User-OAuth-Token: <user-oauth-token>" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
@@ -225,7 +275,7 @@ ws.onopen = () => {
     jsonrpc: '2.0',
     id: 1,
     method: 'initialize',
-    params: { protocolVersion: '2024-11-05' }
+    params: { protocolVersion: '2025-06-18' }  // also supports '2024-11-05'
   }));
 };
 ```
@@ -407,20 +457,46 @@ helm install sage-mcp ./helm \
   --set supabase.serviceRoleKey=your-service-role-key
 ```
 
+## Feature Flags & Configuration
+
+SageMCP uses feature flags for progressive rollout of v2 capabilities. All flags default to `false` and can be enabled via environment variables.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `SAGEMCP_ENABLE_SERVER_POOL` | LRU server-instance pool (5,000 max, 30-min TTL) | `false` |
+| `SAGEMCP_ENABLE_SESSION_MANAGEMENT` | `Mcp-Session-Id` tracking and SSE replay | `false` |
+| `SAGEMCP_ENABLE_METRICS` | Prometheus `/metrics` endpoint | `false` |
+
+Additional configuration settings:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `RATE_LIMIT_RPM` | Requests per minute per tenant (token bucket) | `100` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed CORS origins | `*` (dev) |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated allowed MCP `Origin` headers | — |
+
 ## Roadmap
 
-- [x] Multi-tenant MCP server
-- [x] GitHub connector with OAuth
-- [x] Jira connector with OAuth
-- [x] Slack connector with OAuth
-- [x] Google Docs connector with OAuth
-- [x] React management interface
-- [x] PostgreSQL and Supabase support
-- [x] Kubernetes deployment
+**Completed:**
+- [x] Multi-tenant MCP server with path-based isolation
+- [x] GitHub, Jira, Slack, Google Docs, Notion, and Zoom connectors with OAuth
+- [x] React management interface and CLI
+- [x] PostgreSQL / Supabase support, Kubernetes deployment
+- [x] Server pooling with LRU eviction (v2 Phase 1)
+- [x] Session management with `Mcp-Session-Id` (v2 Phase 2)
+- [x] Protocol version negotiation (`2025-06-18` / `2024-11-05`) (v2 Phase 2)
+- [x] Prometheus metrics, structured logging, health probes (v2 Phase 3)
+- [x] Token-bucket rate limiting, CORS hardening, Content-Type validation (v2 Phase 4)
+- [x] Resumable SSE streams via EventBuffer, JSON-RPC batching (v2 Phase 5)
+- [x] External MCP server hosting via `GenericMCPConnector` + `MCPProcessManager`
+
+**Planned:**
 - [ ] GitLab connector
-- [ ] Notion connector
 - [ ] Linear connector
-- [ ] Advanced connector configuration
+- [ ] Confluence connector
+- [ ] Tool policy language (per-connector tool enable/disable rules)
+- [ ] OpenTelemetry tracing
+- [ ] Redis-backed session persistence
 
 See the [open issues](https://github.com/mvmcode/SageMCP/issues) for a full list of proposed features and known issues.
 
