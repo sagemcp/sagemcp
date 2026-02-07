@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 from typing import Any, Dict, List, Optional
 
 from mcp import types
@@ -56,6 +57,8 @@ class GenericMCPConnector(BaseConnector):
         self._initialized = False
         self._read_task: Optional[asyncio.Task] = None
         self._stderr_task: Optional[asyncio.Task] = None
+        self._stderr_buffer: List[str] = []
+        self._stderr_buffer_max = 50
 
     @property
     def display_name(self) -> str:
@@ -85,6 +88,14 @@ class GenericMCPConnector(BaseConnector):
         """
         if self.process and self.process.returncode is None:
             return  # Already running
+
+        # Pre-validate that the command executable exists on PATH
+        cmd_name = self.command[0]
+        if not shutil.which(cmd_name):
+            raise Exception(
+                f"MCP server command '{cmd_name}' not found on PATH. "
+                f"Ensure the runtime is installed (e.g., Node.js for npx, Python for uvx)."
+            )
 
         # Prepare environment with SageMCP injections
         process_env = {
@@ -125,14 +136,26 @@ class GenericMCPConnector(BaseConnector):
         self._read_task = asyncio.create_task(self._read_stdout())
         self._stderr_task = asyncio.create_task(self._read_stderr())
 
-        # Wait a bit for process to start
-        await asyncio.sleep(0.2)
-
-        # Check if process died immediately
-        if self.process.returncode is not None:
-            raise Exception(
-                f"MCP server process died immediately with code {self.process.returncode}"
-            )
+        # Adaptive startup wait: poll for process readiness
+        # Fast poll (100ms) for the first second, then slow poll (500ms) up to 30s
+        elapsed = 0.0
+        while elapsed < 30.0:
+            if self.process.returncode is not None:
+                stderr_tail = "\n".join(self._stderr_buffer[-20:])
+                msg = (
+                    f"MCP server process died with code {self.process.returncode}\n"
+                    f"stderr:\n{stderr_tail}"
+                ) if stderr_tail else (
+                    f"MCP server process died with code {self.process.returncode}"
+                    f" (no stderr captured)"
+                )
+                raise Exception(msg)
+            # Once we've waited at least 200ms, assume process is alive enough to proceed
+            if elapsed >= 0.2:
+                break
+            interval = 0.1 if elapsed < 1.0 else 0.5
+            await asyncio.sleep(interval)
+            elapsed += interval
 
         # Initialize MCP session
         try:
@@ -256,16 +279,17 @@ class GenericMCPConnector(BaseConnector):
             logger.error("Error reading stdout: %s", e)
 
     async def _read_stderr(self):
-        """Background task to read and log stderr."""
+        """Background task to read and buffer stderr."""
         if not self.process or not self.process.stderr:
             return
 
         try:
             async for line in self.process.stderr:
-                # Log stderr for debugging
                 stderr_line = line.decode().strip()
                 if stderr_line:
-                    logger.debug("MCP stderr [%s]: %s", self.runtime_type, stderr_line)
+                    logger.warning("MCP stderr [%s]: %s", self.runtime_type, stderr_line)
+                    if len(self._stderr_buffer) < self._stderr_buffer_max:
+                        self._stderr_buffer.append(stderr_line)
         except Exception:
             pass
 
@@ -436,6 +460,7 @@ class GenericMCPConnector(BaseConnector):
             self.process = None
             self._initialized = False
             self._pending_requests.clear()
+            self._stderr_buffer.clear()
 
     def __del__(self):
         """Cleanup on garbage collection."""
