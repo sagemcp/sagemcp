@@ -4,22 +4,26 @@ import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
-import { 
-  Plus, 
-  Search, 
-  MoreVertical, 
-  Edit, 
-  Trash2, 
+import { toast } from 'sonner'
+import {
+  Plus,
+  Search,
+  MoreVertical,
+  Edit,
+  Trash2,
   ExternalLink,
   Building2,
   Mail,
   Calendar,
   Users
 } from 'lucide-react'
-import { tenantsApi } from '@/utils/api'
+import { tenantsApi, connectorsApi } from '@/utils/api'
 import { Tenant, TenantCreate } from '@/types'
-import { cn } from '@/utils/cn'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/sage/empty-state'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 
 const tenantSchema = z.object({
   slug: z.string()
@@ -33,14 +37,14 @@ const tenantSchema = z.object({
 
 type TenantFormData = z.infer<typeof tenantSchema>
 
-const TenantModal = ({ 
-  isOpen, 
-  onClose, 
-  tenant 
-}: { 
-  isOpen: boolean
-  onClose: () => void
-  tenant?: Tenant 
+const TenantSheet = ({
+  open,
+  onOpenChange,
+  tenant
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  tenant?: Tenant
 }) => {
   const queryClient = useQueryClient()
   const {
@@ -59,12 +63,12 @@ const TenantModal = ({
   })
 
   const createMutation = useMutation({
-    mutationFn: (data: TenantCreate) => 
+    mutationFn: (data: TenantCreate) =>
       tenant ? tenantsApi.update(tenant.slug, data) : tenantsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
       toast.success(tenant ? 'Tenant updated successfully' : 'Tenant created successfully')
-      onClose()
+      onOpenChange(false)
       reset()
     },
     onError: (error: any) => {
@@ -80,106 +84,78 @@ const TenantModal = ({
     createMutation.mutate(submitData)
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={onClose} />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {tenant ? 'Edit Tenant' : 'Create New Tenant'}
-            </h3>
-          </div>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-4 space-y-4">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent onClose={() => onOpenChange(false)}>
+        <SheetHeader>
+          <SheetTitle>{tenant ? 'Edit Tenant' : 'Create Tenant'}</SheetTitle>
+          <SheetDescription>
+            {tenant ? 'Update tenant configuration' : 'Set up a new multi-tenant MCP environment'}
+          </SheetDescription>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
+          <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Slug *
-              </label>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Slug *</label>
               <input
                 {...register('slug')}
                 className="input-field"
                 placeholder="my-tenant"
-                disabled={!!tenant} // Can't edit slug of existing tenant
+                disabled={!!tenant}
               />
-              {errors.slug && (
-                <p className="mt-1 text-sm text-error-600">{errors.slug.message}</p>
-              )}
+              {errors.slug && <p className="mt-1 text-sm text-error-400">{errors.slug.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                {...register('name')}
-                className="input-field"
-                placeholder="My Tenant"
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-error-600">{errors.name.message}</p>
-              )}
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Name *</label>
+              <input {...register('name')} className="input-field" placeholder="My Tenant" />
+              {errors.name && <p className="mt-1 text-sm text-error-400">{errors.name.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
               <textarea
                 {...register('description')}
                 className="input-field"
                 rows={3}
                 placeholder="Brief description of this tenant..."
               />
-              {errors.description && (
-                <p className="mt-1 text-sm text-error-600">{errors.description.message}</p>
-              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact Email
-              </label>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Contact Email</label>
               <input
                 {...register('contact_email')}
                 type="email"
                 className="input-field"
                 placeholder="contact@example.com"
               />
-              {errors.contact_email && (
-                <p className="mt-1 text-sm text-error-600">{errors.contact_email.message}</p>
-              )}
+              {errors.contact_email && <p className="mt-1 text-sm text-error-400">{errors.contact_email.message}</p>}
             </div>
+          </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn-primary"
-              >
-                {isSubmitting ? 'Creating...' : (tenant ? 'Update' : 'Create')}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          <SheetFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : (tenant ? 'Update' : 'Create')}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 const TenantCard = ({ tenant }: { tenant: Tenant }) => {
   const [showMenu, setShowMenu] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
+  const [showEditSheet, setShowEditSheet] = useState(false)
   const queryClient = useQueryClient()
+
+  const { data: connectors = [] } = useQuery({
+    queryKey: ['connectors', tenant.slug],
+    queryFn: () => connectorsApi.list(tenant.slug).then(res => res.data),
+  })
 
   const deleteMutation = useMutation({
     mutationFn: (slug: string) => tenantsApi.delete(slug),
@@ -200,104 +176,99 @@ const TenantCard = ({ tenant }: { tenant: Tenant }) => {
   }
 
   return (
-    <div className="card">
-      <div className="card-content">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            <div className="p-2 bg-primary-50 rounded-lg">
-              <Building2 className="h-5 w-5 text-primary-600" />
-            </div>
+    <>
+      <div className="rounded-lg border border-zinc-800 bg-surface-elevated hover:border-zinc-700 transition-colors">
+        <div className="p-5">
+          <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <Link
                   to={`/tenants/${tenant.slug}`}
-                  className="text-lg font-semibold text-gray-900 hover:text-primary-600"
+                  className="text-base font-semibold text-zinc-100 hover:text-accent transition-colors"
                 >
                   {tenant.name}
                 </Link>
-                <span className={cn(
-                  'status-badge',
-                  tenant.is_active ? 'status-active' : 'status-inactive'
-                )}>
+                <Badge variant={tenant.is_active ? 'healthy' : 'idle'}>
                   {tenant.is_active ? 'Active' : 'Inactive'}
-                </span>
+                </Badge>
               </div>
-              <p className="text-sm text-gray-500 font-mono">{tenant.slug}</p>
+              <p className="text-xs text-zinc-500 font-mono mt-0.5">{tenant.slug}</p>
               {tenant.description && (
-                <p className="text-sm text-gray-600 mt-1">{tenant.description}</p>
+                <p className="text-sm text-zinc-400 mt-2 line-clamp-2">{tenant.description}</p>
               )}
-              
-              <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500">
-                {tenant.contact_email && (
-                  <div className="flex items-center space-x-1">
-                    <Mail className="h-3 w-3" />
-                    <span>{tenant.contact_email}</span>
+            </div>
+
+            <div className="relative ml-2">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-1 rounded hover:bg-zinc-800 text-zinc-500 transition-colors"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 mt-1 w-44 rounded-md bg-zinc-800 border border-zinc-700 py-1 z-20 shadow-elevated">
+                    <Link
+                      to={`/tenants/${tenant.slug}`}
+                      className="flex items-center px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                      onClick={() => setShowMenu(false)}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                      View Details
+                    </Link>
+                    <button
+                      onClick={() => { setShowEditSheet(true); setShowMenu(false) }}
+                      className="flex items-center w-full px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                    >
+                      <Edit className="h-3.5 w-3.5 mr-2" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleteMutation.isPending}
+                      className="flex items-center w-full px-3 py-2 text-sm text-error-400 hover:bg-zinc-700 disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                    </button>
                   </div>
-                )}
-                {tenant.created_at && (
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>Created {new Date(tenant.created_at).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
-          
-          <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1 hover:bg-gray-100 rounded"
-            >
-              <MoreVertical className="h-4 w-4 text-gray-400" />
-            </button>
-            
-            {showMenu && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                <Link
-                  to={`/tenants/${tenant.slug}`}
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => setShowMenu(false)}
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Details
-                </Link>
-                <button 
-                  onClick={() => {
-                    setShowEditModal(true)
-                    setShowMenu(false)
-                  }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </button>
-                <button 
-                  onClick={handleDelete}
-                  disabled={deleteMutation.isPending}
-                  className="flex items-center w-full px-4 py-2 text-sm text-error-600 hover:bg-error-50 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-                </button>
+
+          {/* Footer meta */}
+          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-zinc-800">
+            {connectors.length > 0 && (
+              <span className="text-xs text-zinc-500">
+                <span className="text-zinc-400 font-medium">{connectors.length}</span> connector{connectors.length !== 1 ? 's' : ''}
+              </span>
+            )}
+            {tenant.contact_email && (
+              <div className="flex items-center gap-1 text-xs text-zinc-500">
+                <Mail className="h-3 w-3" />
+                <span className="truncate max-w-[140px]">{tenant.contact_email}</span>
+              </div>
+            )}
+            {tenant.created_at && (
+              <div className="flex items-center gap-1 text-xs text-zinc-500 ml-auto">
+                <Calendar className="h-3 w-3" />
+                <span>{new Date(tenant.created_at).toLocaleDateString()}</span>
               </div>
             )}
           </div>
         </div>
       </div>
-      
-      <TenantModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        tenant={tenant}
-      />
-    </div>
+
+      <TenantSheet open={showEditSheet} onOpenChange={setShowEditSheet} tenant={tenant} />
+    </>
   )
 }
 
 export default function Tenants() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showCreateSheet, setShowCreateSheet] = useState(false)
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['tenants'],
@@ -315,22 +286,19 @@ export default function Tenants() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tenants</h1>
-          <p className="text-gray-600">Manage your multi-tenant configurations</p>
+          <h1 className="text-2xl font-bold text-zinc-100">Tenants</h1>
+          <p className="text-sm text-zinc-500 mt-1">Manage your multi-tenant configurations</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary"
-        >
+        <Button onClick={() => setShowCreateSheet(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Tenant
-        </button>
+        </Button>
       </div>
 
-      {/* Search and filters */}
-      <div className="flex items-center space-x-4">
+      {/* Search and count */}
+      <div className="flex items-center gap-4">
         <div className="flex-1 max-w-md relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <input
             type="text"
             placeholder="Search tenants..."
@@ -339,59 +307,39 @@ export default function Tenants() {
             className="input-field pl-10"
           />
         </div>
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-zinc-500">
           <Users className="h-4 w-4" />
           <span>{filteredTenants.length} tenant{filteredTenants.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 
-      {/* Tenants grid */}
+      {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="card-content">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                <div className="h-3 bg-gray-200 rounded w-full"></div>
-              </div>
+            <div key={i} className="rounded-lg border border-zinc-800 bg-surface-elevated p-5">
+              <Skeleton className="h-5 w-3/4 mb-2" />
+              <Skeleton className="h-3 w-1/2 mb-4" />
+              <Skeleton className="h-3 w-full" />
             </div>
           ))}
         </div>
       ) : filteredTenants.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTenants.map((tenant) => (
             <TenantCard key={tenant.id} tenant={tenant} />
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {searchQuery ? 'No tenants found' : 'No tenants yet'}
-          </h3>
-          <p className="text-gray-600 mb-4">
-            {searchQuery 
-              ? 'Try adjusting your search criteria'
-              : 'Get started by creating your first tenant'
-            }
-          </p>
-          {!searchQuery && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn-primary"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Tenant
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={Building2}
+          title={searchQuery ? 'No tenants found' : 'No tenants yet'}
+          description={searchQuery ? 'Try adjusting your search criteria' : 'Get started by creating your first tenant'}
+          action={!searchQuery ? { label: 'Create Tenant', onClick: () => setShowCreateSheet(true) } : undefined}
+        />
       )}
 
-      <TenantModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-      />
+      <TenantSheet open={showCreateSheet} onOpenChange={setShowCreateSheet} />
     </div>
   )
 }

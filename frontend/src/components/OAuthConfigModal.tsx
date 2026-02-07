@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { X, Settings } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { oauthApi } from '@/utils/api'
@@ -123,7 +123,7 @@ export default function OAuthConfigModal({
     console.log('Tenant slug:', tenantSlug)
     console.log('Form errors:', errors)
     console.log('Is submitting:', isSubmitting)
-    
+
     console.log('API call will be made to:', `/api/v1/oauth/${tenantSlug}/config`)
     createMutation.mutate(data)
   }
@@ -142,10 +142,10 @@ export default function OAuthConfigModal({
   const modalContent = (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={handleClose} />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
+        <div className="relative bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl max-w-lg w-full">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
             <div className="flex items-center space-x-3">
               <div className={cn(
                 'p-2 rounded-lg',
@@ -158,34 +158,34 @@ export default function OAuthConfigModal({
                 <ProviderIcon provider={provider} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-zinc-100">
                   Configure {providerName} OAuth
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-zinc-400">
                   Set up your {providerName} OAuth application credentials
                 </p>
               </div>
             </div>
-            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={handleClose} className="text-zinc-500 hover:text-zinc-300">
               <X className="h-6 w-6" />
             </button>
           </div>
 
           {/* Content */}
           <div className="px-6 py-4">
-            <form 
+            <form
               onSubmit={handleSubmit(onSubmit)}
               className="space-y-4"
               onInvalid={(e) => console.log('Form invalid:', e)}
             >
               {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-400 mb-2">
                   Setup Instructions
                 </h4>
-                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <ol className="text-sm text-blue-400 space-y-1 list-decimal list-inside">
                   <li>Create a {providerName} OAuth application</li>
-                  <li>Set the redirect URI to: <code className="bg-blue-100 px-1 rounded text-xs">{redirectUri}</code></li>
+                  <li>Set the redirect URI to: <code className="bg-blue-500/10 px-1 rounded text-xs">{redirectUri}</code></li>
                   <li>Copy the Client ID and Client Secret below</li>
                 </ol>
               </div>
@@ -195,7 +195,7 @@ export default function OAuthConfigModal({
 
               {/* Client ID */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Client ID *
                 </label>
                 <input
@@ -210,7 +210,7 @@ export default function OAuthConfigModal({
 
               {/* Client Secret */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Client Secret *
                 </label>
                 <input
@@ -225,7 +225,7 @@ export default function OAuthConfigModal({
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={handleClose}

@@ -151,3 +151,46 @@ export interface OAuthConfigCreate {
   client_id: string
   client_secret: string
 }
+
+export interface SessionInfo {
+  session_id: string
+  tenant_slug: string
+  connector_id: string
+  created_at: number
+  last_access: number
+  negotiated_version: string | null
+}
+
+export interface PlatformStats {
+  tenants: number
+  connectors: number
+  active_instances: number
+  active_sessions: number
+  pool_hits: number
+  pool_misses: number
+  tool_calls_today: number
+  timestamp: string
+}
+
+export interface PoolEntry {
+  key: string
+  tenant_slug: string
+  connector_id: string
+  created_at: number
+  last_access: number
+  hit_count: number
+  ttl_remaining: number
+  status: 'healthy' | 'expiring' | 'expired'
+}
+
+export interface PoolSummary {
+  total: number
+  max_size: number
+  ttl_seconds: number
+  hits: number
+  misses: number
+  hit_rate: number
+  by_tenant: Record<string, number>
+  by_status: { healthy: number; expiring: number; expired: number }
+  memory_estimate_kb: number
+}

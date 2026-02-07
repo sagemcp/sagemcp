@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,30 +8,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Airbyte-inspired color palette
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
+        accent: {
+          DEFAULT: '#22c55e',
+          hover: '#16a34a',
+          muted: 'rgba(34,197,94,0.12)',
         },
-        gray: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
+        surface: {
+          DEFAULT: '#18181b',
+          elevated: '#27272a',
         },
         success: {
           50: '#f0fdf4',
@@ -71,10 +56,20 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
       },
       boxShadow: {
-        'airbyte': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        'airbyte-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        'glow': '0 0 20px rgba(34,197,94,0.15)',
+        'elevated': '0 4px 12px rgba(0,0,0,0.5)',
+      },
+      keyframes: {
+        'status-pulse': {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.5 },
+        },
+      },
+      animation: {
+        'status-pulse': 'status-pulse 2s ease-in-out infinite',
       },
     },
   },

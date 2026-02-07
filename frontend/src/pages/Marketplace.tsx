@@ -73,32 +73,32 @@ export default function Marketplace() {
 
   const getRuntimeIcon = (runtime: string) => {
     const icons: Record<string, string> = {
-      nodejs: '⬢',
-      python: '🐍',
-      go: '🔷',
-      rust: '🦀',
-      binary: '⚙️'
+      nodejs: '\u2B22',
+      python: '\uD83D\uDC0D',
+      go: '\uD83D\uDD37',
+      rust: '\uD83E\uDD80',
+      binary: '\u2699\uFE0F'
     }
-    return icons[runtime.toLowerCase()] || '📦'
+    return icons[runtime.toLowerCase()] || '\uD83D\uDCE6'
   }
 
   const getRuntimeColor = (runtime: string) => {
     const colors: Record<string, string> = {
-      nodejs: 'bg-green-100 text-green-800',
-      python: 'bg-blue-100 text-blue-800',
-      go: 'bg-cyan-100 text-cyan-800',
-      rust: 'bg-orange-100 text-orange-800',
-      binary: 'bg-gray-100 text-gray-800'
+      nodejs: 'bg-green-500/10 text-green-400',
+      python: 'bg-blue-500/10 text-blue-400',
+      go: 'bg-cyan-500/10 text-cyan-400',
+      rust: 'bg-orange-500/10 text-orange-400',
+      binary: 'bg-zinc-700 text-zinc-300'
     }
-    return colors[runtime.toLowerCase()] || 'bg-gray-100 text-gray-800'
+    return colors[runtime.toLowerCase()] || 'bg-zinc-700 text-zinc-300'
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">MCP Server Marketplace</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-zinc-100">MCP Server Marketplace</h1>
+        <p className="text-zinc-400 mt-2">
           Discover and install MCP servers from NPM and GitHub
         </p>
       </div>
@@ -106,31 +106,31 @@ export default function Marketplace() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Total Servers</div>
-            <div className="text-3xl font-bold mt-2">{stats.total_servers}</div>
+          <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+            <div className="text-sm font-medium text-zinc-400">Total Servers</div>
+            <div className="text-3xl font-bold mt-2 text-zinc-100">{stats.total_servers}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Node.js</div>
-            <div className="text-3xl font-bold mt-2">{stats.by_runtime.nodejs || 0}</div>
+          <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+            <div className="text-sm font-medium text-zinc-400">Node.js</div>
+            <div className="text-3xl font-bold mt-2 text-zinc-100">{stats.by_runtime.nodejs || 0}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Python</div>
-            <div className="text-3xl font-bold mt-2">{stats.by_runtime.python || 0}</div>
+          <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+            <div className="text-sm font-medium text-zinc-400">Python</div>
+            <div className="text-3xl font-bold mt-2 text-zinc-100">{stats.by_runtime.python || 0}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">OAuth Required</div>
-            <div className="text-3xl font-bold mt-2">{stats.requires_oauth_count}</div>
+          <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+            <div className="text-sm font-medium text-zinc-400">OAuth Required</div>
+            <div className="text-3xl font-bold mt-2 text-zinc-100">{stats.requires_oauth_count}</div>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
               Search
             </label>
             <input
@@ -138,19 +138,19 @@ export default function Marketplace() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search servers..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           {/* Runtime Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
               Runtime
             </label>
             <select
               value={runtimeFilter}
               onChange={(e) => setRuntimeFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="all">All Runtimes</option>
               <option value="nodejs">Node.js</option>
@@ -163,13 +163,13 @@ export default function Marketplace() {
 
           {/* Source Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
               Source
             </label>
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="all">All Sources</option>
               <option value="npm">NPM</option>
@@ -179,13 +179,13 @@ export default function Marketplace() {
 
           {/* OAuth Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
               OAuth
             </label>
             <select
               value={oauthFilter}
               onChange={(e) => setOauthFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="all">All</option>
               <option value="yes">Required</option>
@@ -196,19 +196,19 @@ export default function Marketplace() {
       </div>
 
       {/* Server List */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-surface-elevated rounded-lg border border-zinc-800">
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold mb-4 text-zinc-100">
             Available Servers ({servers.length})
           </h2>
 
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading servers...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+              <p className="mt-2 text-zinc-400">Loading servers...</p>
             </div>
           ) : servers.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-zinc-500">
               No servers found matching your filters
             </div>
           ) : (
@@ -216,7 +216,7 @@ export default function Marketplace() {
               {servers.map((server) => (
                 <div
                   key={server.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  className="border border-zinc-800 rounded-lg p-4 hover:border-zinc-600 transition-colors cursor-pointer bg-zinc-900"
                   onClick={() => navigate(`/marketplace/${server.id}`)}
                 >
                   {/* Header */}
@@ -224,14 +224,14 @@ export default function Marketplace() {
                     <div className="flex items-center space-x-2">
                       <span className="text-2xl">{getRuntimeIcon(server.runtime_type)}</span>
                       <div>
-                        <h3 className="font-semibold text-lg">{server.display_name || server.name}</h3>
-                        <p className="text-xs text-gray-500">by {server.author || 'Unknown'}</p>
+                        <h3 className="font-semibold text-lg text-zinc-100">{server.display_name || server.name}</h3>
+                        <p className="text-xs text-zinc-500">by {server.author || 'Unknown'}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Description */}
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                  <p className="text-sm text-zinc-400 mb-3 line-clamp-2">
                     {server.description || 'No description available'}
                   </p>
 
@@ -240,24 +240,24 @@ export default function Marketplace() {
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getRuntimeColor(server.runtime_type)}`}>
                       {server.runtime_type}
                     </span>
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    <span className="px-2 py-1 rounded text-xs font-medium bg-purple-500/10 text-purple-400">
                       {server.source_type}
                     </span>
                     {server.requires_oauth && (
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-amber-500/10 text-amber-400">
                         OAuth
                       </span>
                     )}
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between text-sm text-gray-500 pt-3 border-t">
+                  <div className="flex items-center justify-between text-sm text-zinc-500 pt-3 border-t border-zinc-800">
                     <div className="flex items-center space-x-3">
-                      <span>⭐ {server.star_count}</span>
-                      <span>🔧 {server.tools_count} tools</span>
+                      <span>\u2B50 {server.star_count}</span>
+                      <span>\uD83D\uDD27 {server.tools_count} tools</span>
                     </div>
-                    <button className="text-blue-600 hover:text-blue-800 font-medium">
-                      Details →
+                    <button className="text-blue-400 hover:text-blue-300 font-medium">
+                      Details \u2192
                     </button>
                   </div>
                 </div>

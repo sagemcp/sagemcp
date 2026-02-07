@@ -102,24 +102,24 @@ export default function ContainerConsole() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      running: 'bg-green-100 text-green-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      failed: 'bg-red-100 text-red-800',
-      succeeded: 'bg-blue-100 text-blue-800',
-      unknown: 'bg-gray-100 text-gray-800'
+      running: 'bg-green-500/10 text-green-400',
+      pending: 'bg-amber-500/10 text-amber-400',
+      failed: 'bg-red-500/10 text-red-400',
+      succeeded: 'bg-blue-500/10 text-blue-400',
+      unknown: 'bg-zinc-700 text-zinc-300'
     }
-    return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800'
+    return colors[status?.toLowerCase()] || 'bg-zinc-700 text-zinc-300'
   }
 
   if (!tenantId) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Error: Tenant ID is required</p>
+        <p className="text-red-400">Error: Tenant ID is required</p>
         <button
           onClick={() => navigate('/installations')}
-          className="mt-4 text-blue-600 hover:text-blue-800"
+          className="mt-4 text-blue-400 hover:text-blue-300"
         >
-          ← Back to Installations
+          \u2190 Back to Installations
         </button>
       </div>
     )
@@ -130,18 +130,18 @@ export default function ContainerConsole() {
       {/* Back Button */}
       <button
         onClick={() => navigate('/installations')}
-        className="text-blue-600 hover:text-blue-800 flex items-center"
+        className="text-blue-400 hover:text-blue-300 flex items-center"
       >
-        ← Back to Installations
+        \u2190 Back to Installations
       </button>
 
       {/* Header */}
       {installation && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-2xl font-bold">{installation.name}</h1>
+                <h1 className="text-2xl font-bold text-zinc-100">{installation.name}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(installation.container_status)}`}>
                   {installation.container_status}
                 </span>
@@ -149,20 +149,20 @@ export default function ContainerConsole() {
 
               <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
                 <div>
-                  <dt className="text-gray-600">Version</dt>
-                  <dd className="font-medium">{installation.installed_version || 'N/A'}</dd>
+                  <dt className="text-zinc-400">Version</dt>
+                  <dd className="font-medium text-zinc-200">{installation.installed_version || 'N/A'}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-600">Container IP</dt>
-                  <dd className="font-medium font-mono">{installation.container_ip || 'N/A'}</dd>
+                  <dt className="text-zinc-400">Container IP</dt>
+                  <dd className="font-medium font-mono text-zinc-200">{installation.container_ip || 'N/A'}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-600">Connector ID</dt>
-                  <dd className="font-medium font-mono text-xs">{installation.connector_id}</dd>
+                  <dt className="text-zinc-400">Connector ID</dt>
+                  <dd className="font-medium font-mono text-xs text-zinc-200">{installation.connector_id}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-600">Last Check</dt>
-                  <dd className="font-medium">
+                  <dt className="text-zinc-400">Last Check</dt>
+                  <dd className="font-medium text-zinc-200">
                     {installation.last_health_check
                       ? new Date(installation.last_health_check).toLocaleTimeString()
                       : 'N/A'}
@@ -174,7 +174,7 @@ export default function ContainerConsole() {
             <div className="flex space-x-2 ml-4">
               <button
                 onClick={handleRestart}
-                className="px-4 py-2 text-sm border border-orange-300 text-orange-600 rounded hover:bg-orange-50"
+                className="px-4 py-2 text-sm border border-orange-500/30 text-orange-400 rounded hover:bg-orange-500/10"
               >
                 Restart
               </button>
@@ -184,9 +184,9 @@ export default function ContainerConsole() {
       )}
 
       {/* Console */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Container Logs</h2>
+      <div className="bg-surface-elevated rounded-lg border border-zinc-800">
+        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-100">Container Logs</h2>
 
           <div className="flex items-center space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -194,9 +194,9 @@ export default function ContainerConsole() {
                 type="checkbox"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 rounded focus:ring-accent bg-zinc-700 border-zinc-600"
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-zinc-300">
                 Auto-refresh
               </span>
             </label>
@@ -204,14 +204,14 @@ export default function ContainerConsole() {
             <button
               onClick={loadLogs}
               disabled={loading}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500"
             >
               {loading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
         </div>
 
-        <div className="p-4 bg-gray-900 text-green-400 font-mono text-sm overflow-auto" style={{ minHeight: '500px', maxHeight: '600px' }}>
+        <div className="p-4 bg-zinc-950 text-green-400 font-mono text-sm overflow-auto" style={{ minHeight: '500px', maxHeight: '600px' }}>
           <pre className="whitespace-pre-wrap break-words">
             {logs || 'Loading logs...'}
             <div ref={logsEndRef} />
@@ -220,9 +220,9 @@ export default function ContainerConsole() {
       </div>
 
       {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          💡 <strong>Note:</strong> The container logs endpoint is part of Phase 2 implementation.
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+        <p className="text-sm text-blue-400">
+          \uD83D\uDCA1 <strong>Note:</strong> The container logs endpoint is part of Phase 2 implementation.
           If you see an error loading logs, the backend endpoint may need to be added.
         </p>
       </div>
