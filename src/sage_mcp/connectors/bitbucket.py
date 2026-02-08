@@ -563,8 +563,6 @@ class BitbucketConnector(BaseConnector):
             resources = []
             for repo in data.get("values", []):
                 full_name = repo.get("full_name", "")
-                slug = repo.get("slug", "")
-                workspace_slug = full_name.split("/")[0] if "/" in full_name else ""
 
                 resources.append(types.Resource(
                     uri=f"bitbucket://repo/{full_name}",

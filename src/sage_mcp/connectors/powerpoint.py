@@ -455,11 +455,6 @@ class PowerPointConnector(BaseConnector):
             # With format=pdf, it returns the converted PDF content.
             # We request it but don't download the full binary; instead we
             # capture the redirect URL or response metadata.
-            from .http_client import get_http_client
-
-            client = get_http_client()
-            headers = {"Authorization": f"Bearer {oauth_cred.access_token}"}
-
             # First, get the file metadata for context
             meta_response = await self._make_authenticated_request(
                 "GET",

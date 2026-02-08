@@ -100,14 +100,14 @@ async def retry_with_backoff(
             if status == 429:
                 retry_after = _parse_retry_after(exc.response)
                 raise ConnectorRateLimitError(
-                    f"Rate limited: HTTP 429",
+                    "Rate limited: HTTP 429",
                     retry_after=retry_after,
                 ) from exc
             if status == 404:
                 from .exceptions import ConnectorNotFoundError
 
                 raise ConnectorNotFoundError(
-                    f"Not found: HTTP 404"
+                    "Not found: HTTP 404"
                 ) from exc
             raise ConnectorAPIError(
                 f"API error: HTTP {status}",
