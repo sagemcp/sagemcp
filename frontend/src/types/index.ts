@@ -47,18 +47,38 @@ export interface ConnectorCreate {
 }
 
 export enum ConnectorType {
+  // Source control
   GITHUB = 'github',
   GITLAB = 'gitlab',
+  BITBUCKET = 'bitbucket',
+  // Google Suite
   GOOGLE_DOCS = 'google_docs',
+  GOOGLE_SHEETS = 'google_sheets',
+  GMAIL = 'gmail',
+  GOOGLE_SLIDES = 'google_slides',
+  // Documentation & knowledge
   NOTION = 'notion',
   CONFLUENCE = 'confluence',
+  // Project management
   JIRA = 'jira',
   LINEAR = 'linear',
+  // Communication
   SLACK = 'slack',
   TEAMS = 'teams',
   DISCORD = 'discord',
   ZOOM = 'zoom',
-  CUSTOM = 'custom'  // For external MCP servers
+  // Microsoft Office
+  OUTLOOK = 'outlook',
+  EXCEL = 'excel',
+  POWERPOINT = 'powerpoint',
+  // AI coding tools
+  COPILOT = 'copilot',
+  CLAUDE_CODE = 'claude_code',
+  CODEX = 'codex',
+  CURSOR = 'cursor',
+  WINDSURF = 'windsurf',
+  // Custom / external
+  CUSTOM = 'custom',
 }
 
 export enum ConnectorRuntimeType {

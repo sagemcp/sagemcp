@@ -161,7 +161,232 @@ OAUTH_PROVIDERS = {
             and os.getenv("ZOOM_CLIENT_SECRET") != "your-zoom-client-secret"
             else None
         ),
-    }
+    },
+    "google_sheets": {
+        "name": "Google Sheets",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "gmail": {
+        "name": "Gmail",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.labels",
+            "https://www.googleapis.com/auth/userinfo.email"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "google_slides": {
+        "name": "Google Slides",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/presentations",
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/userinfo.email"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "confluence": {
+        "name": "Confluence",
+        "auth_url": "https://auth.atlassian.com/authorize",
+        "token_url": "https://auth.atlassian.com/oauth/token",
+        "user_url": "https://api.atlassian.com/me",
+        "scopes": [
+            "read:confluence-content.all",
+            "write:confluence-content",
+            "read:confluence-space.summary",
+            "search:confluence",
+            "offline_access"
+        ],
+        "client_id": (
+            os.getenv("JIRA_CLIENT_ID")
+            if os.getenv("JIRA_CLIENT_ID")
+            and os.getenv("JIRA_CLIENT_ID") != "your-jira-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("JIRA_CLIENT_SECRET")
+            if os.getenv("JIRA_CLIENT_SECRET")
+            and os.getenv("JIRA_CLIENT_SECRET") != "your-jira-client-secret"
+            else None
+        ),
+    },
+    "gitlab": {
+        "name": "GitLab",
+        "auth_url": "https://gitlab.com/oauth/authorize",
+        "token_url": "https://gitlab.com/oauth/token",
+        "user_url": "https://gitlab.com/api/v4/user",
+        "scopes": [
+            "api",
+            "read_user",
+            "read_repository"
+        ],
+        "client_id": (
+            os.getenv("GITLAB_CLIENT_ID")
+            if os.getenv("GITLAB_CLIENT_ID")
+            and os.getenv("GITLAB_CLIENT_ID") != "your-gitlab-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GITLAB_CLIENT_SECRET")
+            if os.getenv("GITLAB_CLIENT_SECRET")
+            and os.getenv("GITLAB_CLIENT_SECRET") != "your-gitlab-client-secret"
+            else None
+        ),
+    },
+    "bitbucket": {
+        "name": "Bitbucket",
+        "auth_url": "https://bitbucket.org/site/oauth2/authorize",
+        "token_url": "https://bitbucket.org/site/oauth2/access_token",
+        "user_url": "https://api.bitbucket.org/2.0/user",
+        "scopes": [
+            "repository",
+            "pullrequest",
+            "issue",
+            "pipeline",
+            "account"
+        ],
+        "client_id": (
+            os.getenv("BITBUCKET_CLIENT_ID")
+            if os.getenv("BITBUCKET_CLIENT_ID")
+            and os.getenv("BITBUCKET_CLIENT_ID") != "your-bitbucket-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("BITBUCKET_CLIENT_SECRET")
+            if os.getenv("BITBUCKET_CLIENT_SECRET")
+            and os.getenv("BITBUCKET_CLIENT_SECRET") != "your-bitbucket-client-secret"
+            else None
+        ),
+    },
+    "linear": {
+        "name": "Linear",
+        "auth_url": "https://linear.app/oauth/authorize",
+        "token_url": "https://api.linear.app/oauth/token",
+        "user_url": "https://api.linear.app/graphql",
+        "scopes": [
+            "read",
+            "write",
+            "issues:create",
+            "comments:create"
+        ],
+        "client_id": (
+            os.getenv("LINEAR_CLIENT_ID")
+            if os.getenv("LINEAR_CLIENT_ID")
+            and os.getenv("LINEAR_CLIENT_ID") != "your-linear-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("LINEAR_CLIENT_SECRET")
+            if os.getenv("LINEAR_CLIENT_SECRET")
+            and os.getenv("LINEAR_CLIENT_SECRET") != "your-linear-client-secret"
+            else None
+        ),
+    },
+    "discord": {
+        "name": "Discord",
+        "auth_url": "https://discord.com/api/oauth2/authorize",
+        "token_url": "https://discord.com/api/oauth2/token",
+        "user_url": "https://discord.com/api/v10/users/@me",
+        "scopes": [
+            "identify",
+            "guilds",
+            "guilds.members.read",
+            "bot"
+        ],
+        "client_id": (
+            os.getenv("DISCORD_CLIENT_ID")
+            if os.getenv("DISCORD_CLIENT_ID")
+            and os.getenv("DISCORD_CLIENT_ID") != "your-discord-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("DISCORD_CLIENT_SECRET")
+            if os.getenv("DISCORD_CLIENT_SECRET")
+            and os.getenv("DISCORD_CLIENT_SECRET") != "your-discord-client-secret"
+            else None
+        ),
+    },
+    "microsoft": {
+        "name": "Microsoft 365",
+        "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "user_url": "https://graph.microsoft.com/v1.0/me",
+        "scopes": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "Mail.ReadWrite",
+            "Mail.Send",
+            "ChannelMessage.Send",
+            "Team.ReadBasic.All",
+            "Channel.ReadBasic.All",
+            "Chat.ReadWrite",
+            "Files.ReadWrite.All",
+            "User.Read"
+        ],
+        "client_id": (
+            os.getenv("MICROSOFT_CLIENT_ID")
+            if os.getenv("MICROSOFT_CLIENT_ID")
+            and os.getenv("MICROSOFT_CLIENT_ID") != "your-microsoft-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("MICROSOFT_CLIENT_SECRET")
+            if os.getenv("MICROSOFT_CLIENT_SECRET")
+            and os.getenv("MICROSOFT_CLIENT_SECRET") != "your-microsoft-client-secret"
+            else None
+        ),
+    },
 }
 
 
@@ -340,7 +565,7 @@ async def initiate_oauth(
         params["scope"] = " ".join(provider_config["scopes"])  # Space-separated for others
 
     # Add Google-specific parameters
-    if provider in ["google", "google_docs"]:
+    if provider in ["google", "google_docs", "google_sheets", "gmail", "google_slides"]:
         params["access_type"] = "offline"  # Request refresh token
         params["prompt"] = "consent"  # Force consent screen to get refresh token
 
@@ -463,8 +688,8 @@ async def oauth_callback(
         "redirect_uri": redirect_uri,
     }
 
-    # Google, Atlassian, Notion, and Zoom OAuth require grant_type parameter
-    if provider in ["google", "google_docs", "jira", "notion", "zoom"]:
+    # Google, Atlassian, Microsoft, Notion, and Zoom OAuth require grant_type parameter
+    if provider in ["google", "google_docs", "google_sheets", "gmail", "google_slides", "microsoft", "jira", "confluence", "notion", "zoom", "gitlab", "bitbucket", "linear", "discord"]:
         token_data["grant_type"] = "authorization_code"
 
     headers = {"Accept": "application/json"}
@@ -495,10 +720,18 @@ async def oauth_callback(
     user_headers = {"Authorization": f"Bearer {access_token}"}
 
     async with httpx.AsyncClient() as client:
-        user_response = await client.get(
-            provider_config["user_url"],
-            headers=user_headers
-        )
+        if provider == "linear":
+            # Linear uses GraphQL for user info
+            user_response = await client.post(
+                provider_config["user_url"],
+                json={"query": "{ viewer { id name email } }"},
+                headers={**user_headers, "Content-Type": "application/json"}
+            )
+        else:
+            user_response = await client.get(
+                provider_config["user_url"],
+                headers=user_headers
+            )
 
         if user_response.status_code != 200:
             raise HTTPException(
@@ -518,14 +751,26 @@ async def oauth_callback(
         # Slack OAuth v2 returns user_id in the auth.test response
         provider_user_id = user_info.get("user_id", user_info.get("user"))
         provider_username = user_info.get("user", provider_user_id)
-    elif provider in ["google", "google_docs"]:
+    elif provider in ["google", "google_docs", "google_sheets", "gmail", "google_slides"]:
         # Google OAuth returns 'id' and 'email' fields
         provider_user_id = str(user_info.get("id", user_info.get("sub", "unknown")))
         provider_username = user_info.get("email", user_info.get("name", "unknown"))
-    elif provider == "jira":
+    elif provider == "microsoft":
+        # Microsoft Graph /me returns 'id', 'mail' or 'userPrincipalName'
+        provider_user_id = str(user_info.get("id", "unknown"))
+        provider_username = user_info.get("mail", user_info.get("userPrincipalName", "unknown"))
+    elif provider in ["jira", "confluence"]:
         # Atlassian OAuth returns 'account_id' and 'email' fields
         provider_user_id = str(user_info.get("account_id", "unknown"))
         provider_username = user_info.get("email", user_info.get("name", "unknown"))
+    elif provider == "gitlab":
+        # GitLab OAuth returns 'id' and 'username' fields
+        provider_user_id = str(user_info.get("id", "unknown"))
+        provider_username = user_info.get("username", user_info.get("email", "unknown"))
+    elif provider == "bitbucket":
+        # Bitbucket OAuth returns 'uuid' and 'username' or 'display_name'
+        provider_user_id = str(user_info.get("uuid", user_info.get("account_id", "unknown")))
+        provider_username = user_info.get("username", user_info.get("display_name", "unknown"))
     elif provider == "notion":
         # Notion OAuth returns user object with 'id' field
         user_obj = user_info.get("bot", {}).get("owner", {}).get("user", user_info)
@@ -535,6 +780,15 @@ async def oauth_callback(
         # Zoom OAuth returns 'id' and 'email' fields
         provider_user_id = str(user_info.get("id", "unknown"))
         provider_username = user_info.get("email", user_info.get("first_name", "unknown"))
+    elif provider == "linear":
+        # Linear GraphQL viewer returns { data: { viewer: { id, name, email } } }
+        viewer = user_info.get("data", {}).get("viewer", {})
+        provider_user_id = str(viewer.get("id", "unknown"))
+        provider_username = viewer.get("email", viewer.get("name", "unknown"))
+    elif provider == "discord":
+        # Discord /users/@me returns 'id' and 'username'
+        provider_user_id = str(user_info.get("id", "unknown"))
+        provider_username = user_info.get("username", user_info.get("global_name", "unknown"))
     else:
         provider_user_id = str(user_info.get("id", "unknown"))
         provider_username = user_info.get(

@@ -8,6 +8,7 @@ from mcp import types
 
 from ..models.connector import Connector
 from ..models.oauth_credential import OAuthCredential
+from .exceptions import ConnectorAuthError
 
 logger = logging.getLogger(__name__)
 
@@ -154,19 +155,83 @@ class BaseConnector(ABC):
         """Make an authenticated HTTP request using OAuth credentials.
 
         Uses a shared HTTP client with connection pooling for better performance.
-        This reduces latency by 3-5x and memory usage by 50%.
+        Automatically retries on transient failures (429, 5xx, connection errors).
         """
         from .http_client import get_http_client
+        from .retry import retry_with_backoff
 
         if not self.validate_oauth_credential(oauth_cred):
-            raise ValueError("Invalid or expired OAuth credentials")
+            raise ConnectorAuthError("Invalid or expired OAuth credentials")
 
         headers = kwargs.get("headers", {})
         headers["Authorization"] = f"Bearer {oauth_cred.access_token}"
         kwargs["headers"] = headers
 
-        # Use shared client with connection pooling
-        client = get_http_client()
-        response = await client.request(method, url, **kwargs)
-        response.raise_for_status()
-        return response
+        async def _do_request():
+            client = get_http_client()
+            response = await client.request(method, url, **kwargs)
+            response.raise_for_status()
+            return response
+
+        return await retry_with_backoff(_do_request)
+
+
+class ApiKeyBaseConnector(BaseConnector):
+    """Base class for connectors that use API keys instead of OAuth.
+
+    API key is stored in connector.configuration["api_key"].
+    Used by AI coding tool connectors (Copilot, Claude Code, Codex, Cursor, Windsurf).
+    """
+
+    @property
+    def requires_oauth(self) -> bool:
+        return False
+
+    def _get_api_key(self, connector: Connector) -> str:
+        """Extract API key from connector configuration."""
+        return (connector.configuration or {}).get("api_key", "")
+
+    async def _make_api_key_request(
+        self,
+        method: str,
+        url: str,
+        connector: Connector,
+        auth_header: str = "Authorization",
+        auth_prefix: str = "Bearer",
+        **kwargs,
+    ) -> Any:
+        """Make an authenticated HTTP request using an API key.
+
+        Args:
+            method: HTTP method.
+            url: Request URL.
+            connector: Connector instance with configuration containing api_key.
+            auth_header: Header name for the API key (default: "Authorization").
+            auth_prefix: Prefix before the key value (default: "Bearer").
+                         Use "" for headers like x-api-key that need no prefix.
+            **kwargs: Additional arguments passed to httpx.request().
+
+        Returns:
+            httpx.Response with status already checked.
+        """
+        from .http_client import get_http_client
+        from .retry import retry_with_backoff
+
+        api_key = self._get_api_key(connector)
+        if not api_key:
+            raise ConnectorAuthError("API key not configured")
+
+        headers = kwargs.get("headers", {})
+        if auth_prefix:
+            headers[auth_header] = f"{auth_prefix} {api_key}"
+        else:
+            headers[auth_header] = api_key
+        kwargs["headers"] = headers
+
+        async def _do_request():
+            client = get_http_client()
+            response = await client.request(method, url, **kwargs)
+            response.raise_for_status()
+            return response
+
+        return await retry_with_backoff(_do_request)

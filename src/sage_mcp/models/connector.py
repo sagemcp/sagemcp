@@ -39,18 +39,45 @@ if TYPE_CHECKING:
 class ConnectorType(enum.Enum):
     """Supported connector types."""
 
+    # Source control
     GITHUB = "github"
     GITLAB = "gitlab"
+    BITBUCKET = "bitbucket"
+
+    # Google Suite
     GOOGLE_DOCS = "google_docs"
     GOOGLE_CALENDAR = "google_calendar"
+    GOOGLE_SHEETS = "google_sheets"
+    GMAIL = "gmail"
+    GOOGLE_SLIDES = "google_slides"
+
+    # Documentation & knowledge
     NOTION = "notion"
     CONFLUENCE = "confluence"
+
+    # Project management
     JIRA = "jira"
     LINEAR = "linear"
+
+    # Communication
     SLACK = "slack"
     TEAMS = "teams"
     DISCORD = "discord"
     ZOOM = "zoom"
+
+    # Microsoft Office
+    OUTLOOK = "outlook"
+    EXCEL = "excel"
+    POWERPOINT = "powerpoint"
+
+    # AI coding tools
+    COPILOT = "copilot"
+    CLAUDE_CODE = "claude_code"
+    CODEX = "codex"
+    CURSOR = "cursor"
+    WINDSURF = "windsurf"
+
+    # Custom / external
     CUSTOM = "custom"
 
 

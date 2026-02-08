@@ -27,14 +27,30 @@ const CONNECTOR_CONFIGS: Record<string, { name: string; description: string }> =
   [ConnectorType.GITHUB]: { name: 'GitHub', description: 'Connect to GitHub repositories and issues' },
   [ConnectorType.SLACK]: { name: 'Slack', description: 'Connect to Slack channels and messages' },
   [ConnectorType.GOOGLE_DOCS]: { name: 'Google Docs', description: 'Create, read, and manage Google Docs' },
+  [ConnectorType.GOOGLE_SHEETS]: { name: 'Google Sheets', description: 'Read, write, and manage Google Sheets spreadsheets' },
+  [ConnectorType.GMAIL]: { name: 'Gmail', description: 'Send, read, and manage Gmail messages and threads' },
+  [ConnectorType.GOOGLE_SLIDES]: { name: 'Google Slides', description: 'Create and manage Google Slides presentations' },
   [ConnectorType.JIRA]: { name: 'Jira', description: 'Access Jira projects, issues, and sprints' },
   [ConnectorType.NOTION]: { name: 'Notion', description: 'Connect to Notion pages and databases' },
   [ConnectorType.ZOOM]: { name: 'Zoom', description: 'Manage Zoom meetings and recordings' },
+  [ConnectorType.OUTLOOK]: { name: 'Outlook', description: 'Read, send, and manage Outlook emails' },
+  [ConnectorType.TEAMS]: { name: 'Microsoft Teams', description: 'Manage Teams channels, chats, and messages' },
+  [ConnectorType.EXCEL]: { name: 'Excel', description: 'Read, write, and manage Excel workbooks in OneDrive' },
+  [ConnectorType.POWERPOINT]: { name: 'PowerPoint', description: 'Manage PowerPoint presentations in OneDrive' },
+  [ConnectorType.CONFLUENCE]: { name: 'Confluence', description: 'Access Confluence spaces, pages, and content' },
+  [ConnectorType.GITLAB]: { name: 'GitLab', description: 'Connect to GitLab projects, merge requests, and pipelines' },
+  [ConnectorType.BITBUCKET]: { name: 'Bitbucket', description: 'Connect to Bitbucket repositories and pull requests' },
+  [ConnectorType.LINEAR]: { name: 'Linear', description: 'Access Linear issues, projects, teams, and cycles' },
+  [ConnectorType.DISCORD]: { name: 'Discord', description: 'Manage Discord servers, channels, and messages' },
 }
 
 const IMPLEMENTED_TYPES = [
   ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS,
-  ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM
+  ConnectorType.GOOGLE_SHEETS, ConnectorType.GMAIL, ConnectorType.GOOGLE_SLIDES,
+  ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM,
+  ConnectorType.OUTLOOK, ConnectorType.TEAMS, ConnectorType.EXCEL,
+  ConnectorType.POWERPOINT, ConnectorType.CONFLUENCE, ConnectorType.GITLAB,
+  ConnectorType.BITBUCKET, ConnectorType.LINEAR, ConnectorType.DISCORD,
 ]
 
 interface ConnectorModalProps {
@@ -106,7 +122,14 @@ export default function ConnectorModal({
   }
 
   const requiresOAuth = (type: ConnectorType) => {
-    return [ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS, ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM].includes(type)
+    return [
+      ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS,
+      ConnectorType.GOOGLE_SHEETS, ConnectorType.GMAIL, ConnectorType.GOOGLE_SLIDES,
+      ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM,
+      ConnectorType.OUTLOOK, ConnectorType.TEAMS, ConnectorType.EXCEL,
+      ConnectorType.POWERPOINT, ConnectorType.CONFLUENCE, ConnectorType.GITLAB,
+      ConnectorType.BITBUCKET, ConnectorType.LINEAR, ConnectorType.DISCORD,
+    ].includes(type)
   }
 
   const onSubmit = (data: ConnectorFormData) => {

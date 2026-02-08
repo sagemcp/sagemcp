@@ -97,12 +97,44 @@ class Settings(BaseSettings):
         default=None, env="ZOOM_CLIENT_SECRET"
     )
 
+    # OAuth Configuration - Microsoft
+    microsoft_client_id: Optional[str] = Field(
+        default=None, env="MICROSOFT_CLIENT_ID"
+    )
+    microsoft_client_secret: Optional[str] = Field(
+        default=None, env="MICROSOFT_CLIENT_SECRET"
+    )
+
+    # OAuth Configuration - Bitbucket
+    bitbucket_client_id: Optional[str] = Field(
+        default=None, env="BITBUCKET_CLIENT_ID"
+    )
+    bitbucket_client_secret: Optional[str] = Field(
+        default=None, env="BITBUCKET_CLIENT_SECRET"
+    )
+
     # OAuth Configuration - Jira
     jira_client_id: Optional[str] = Field(
         default=None, env="JIRA_CLIENT_ID"
     )
     jira_client_secret: Optional[str] = Field(
         default=None, env="JIRA_CLIENT_SECRET"
+    )
+
+    # OAuth Configuration - Linear
+    linear_client_id: Optional[str] = Field(
+        default=None, env="LINEAR_CLIENT_ID"
+    )
+    linear_client_secret: Optional[str] = Field(
+        default=None, env="LINEAR_CLIENT_SECRET"
+    )
+
+    # OAuth Configuration - Discord
+    discord_client_id: Optional[str] = Field(
+        default=None, env="DISCORD_CLIENT_ID"
+    )
+    discord_client_secret: Optional[str] = Field(
+        default=None, env="DISCORD_CLIENT_SECRET"
     )
 
     # Base URL for OAuth redirects

@@ -1,32 +1,41 @@
 import {
-  Github,
-  FileText,
-  Bookmark,
-  Trello,
-  Video,
-  Hash,
-  Users,
-  Disc,
   Plug,
-  Calendar,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Badge } from '@/components/ui/badge'
 import type { ConnectorType } from '@/types'
+import {
+  GitHubLogo, SlackLogo, GoogleDocsLogo, JiraLogo, NotionLogo, ZoomLogo,
+  GitLabLogo, BitbucketLogo, GoogleSheetsLogo, GmailLogo, GoogleSlidesLogo,
+  ConfluenceLogo, LinearLogo, TeamsLogo, DiscordLogo, OutlookLogo,
+  ExcelLogo, PowerPointLogo, CopilotLogo, ClaudeCodeLogo, CodexLogo,
+  CursorLogo, WindsurfLogo,
+} from '@/components/icons/BrandLogos'
 
 const connectorMeta: Record<string, { icon: React.ElementType; label: string }> = {
-  github: { icon: Github, label: 'GitHub' },
-  gitlab: { icon: Bookmark, label: 'GitLab' },
-  google_docs: { icon: FileText, label: 'Google Docs' },
-  google_calendar: { icon: Calendar, label: 'Google Calendar' },
-  notion: { icon: FileText, label: 'Notion' },
-  confluence: { icon: FileText, label: 'Confluence' },
-  jira: { icon: Trello, label: 'Jira' },
-  linear: { icon: Trello, label: 'Linear' },
-  slack: { icon: Hash, label: 'Slack' },
-  teams: { icon: Users, label: 'Teams' },
-  discord: { icon: Disc, label: 'Discord' },
-  zoom: { icon: Video, label: 'Zoom' },
+  github: { icon: GitHubLogo, label: 'GitHub' },
+  gitlab: { icon: GitLabLogo, label: 'GitLab' },
+  bitbucket: { icon: BitbucketLogo, label: 'Bitbucket' },
+  google_docs: { icon: GoogleDocsLogo, label: 'Google Docs' },
+  google_sheets: { icon: GoogleSheetsLogo, label: 'Google Sheets' },
+  gmail: { icon: GmailLogo, label: 'Gmail' },
+  google_slides: { icon: GoogleSlidesLogo, label: 'Google Slides' },
+  notion: { icon: NotionLogo, label: 'Notion' },
+  confluence: { icon: ConfluenceLogo, label: 'Confluence' },
+  jira: { icon: JiraLogo, label: 'Jira' },
+  linear: { icon: LinearLogo, label: 'Linear' },
+  slack: { icon: SlackLogo, label: 'Slack' },
+  teams: { icon: TeamsLogo, label: 'Teams' },
+  discord: { icon: DiscordLogo, label: 'Discord' },
+  zoom: { icon: ZoomLogo, label: 'Zoom' },
+  outlook: { icon: OutlookLogo, label: 'Outlook' },
+  excel: { icon: ExcelLogo, label: 'Excel' },
+  powerpoint: { icon: PowerPointLogo, label: 'PowerPoint' },
+  copilot: { icon: CopilotLogo, label: 'GitHub Copilot' },
+  claude_code: { icon: ClaudeCodeLogo, label: 'Claude Code' },
+  codex: { icon: CodexLogo, label: 'OpenAI Codex' },
+  cursor: { icon: CursorLogo, label: 'Cursor' },
+  windsurf: { icon: WindsurfLogo, label: 'Windsurf' },
   custom: { icon: Plug, label: 'Custom' },
 }
 
