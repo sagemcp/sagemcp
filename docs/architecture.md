@@ -80,6 +80,13 @@ Ring Buffer · 100 events"]
                         PPTX["PowerPoint · 10 tools"]
                     end
                     ZOOM["Zoom · 12 tools"]
+                    subgraph "AI Coding Tools"
+                        COPILOT["Copilot · 19 tools"]
+                        CLAUDE_CODE["Claude Code · 18 tools"]
+                        CODEX["Codex · 16 tools"]
+                        CURSOR_CONN["Cursor · 18 tools"]
+                        WINDSURF["Windsurf · 11 tools"]
+                    end
                 end
 
                 subgraph "External MCP Servers"
@@ -179,6 +186,11 @@ Supabase")]
     REGISTRY -->|"runtime=native"| EXCEL
     REGISTRY -->|"runtime=native"| PPTX
     REGISTRY -->|"runtime=native"| ZOOM
+    REGISTRY -->|"runtime=native"| COPILOT
+    REGISTRY -->|"runtime=native"| CLAUDE_CODE
+    REGISTRY -->|"runtime=native"| CODEX
+    REGISTRY -->|"runtime=native"| CURSOR_CONN
+    REGISTRY -->|"runtime=native"| WINDSURF
     REGISTRY -->|"runtime=external"| PROC_MGR
     PROC_MGR --> GEN_CONN
 
@@ -496,7 +508,7 @@ Abstract Class"]
         BASE --> BASE_METHODS
     end
 
-    subgraph "Native Connector Plugins (18 connectors · 258 tools)"
+    subgraph "Native Connector Plugins (23 connectors · 340 tools)"
         subgraph "Code & VCS"
             GH_CONN["GitHubConnector · 24 tools"]
             GL_CONN["GitLabConnector · 22 tools"]

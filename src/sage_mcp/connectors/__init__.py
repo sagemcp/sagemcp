@@ -22,6 +22,13 @@ from . import bitbucket  # noqa: F401
 from . import gitlab  # noqa: F401
 from . import linear  # noqa: F401
 from . import discord  # noqa: F401
+
+# AI coding tool intelligence connectors
+from . import copilot  # noqa: F401
+from . import claude_code  # noqa: F401
+from . import codex  # noqa: F401
+from . import cursor  # noqa: F401
+from . import windsurf  # noqa: F401
 # TODO: Add other connectors as they are implemented
 # from . import custom
 
