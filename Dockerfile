@@ -1,4 +1,4 @@
-# Use Python 3.11 slim image
+# Use Python 3.14 slim image
 FROM python:3.14-slim
 
 # Set environment variables
@@ -9,13 +9,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies, Node.js 22 LTS (for npx-based MCP servers), and uv (for Python-based MCP servers)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential \
-        libpq-dev \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
+        build-essential libpq-dev curl ca-certificates gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Copy requirements and source code
 COPY pyproject.toml README.md ./
