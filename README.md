@@ -15,7 +15,7 @@
 
 ## About The Project
 
-Sage MCP is a production-ready platform that enables you to run multiple isolated MCP servers with built-in OAuth authentication for services like GitHub, Jira, Slack, and more. It provides a web interface for managing tenants and connectors, making it easy to integrate Claude Desktop with various external services.
+Sage MCP is a production-ready platform that enables you to run multiple isolated MCP servers with built-in OAuth authentication for 18+ services including GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs/Sheets/Slides, Notion, Excel, PowerPoint, and Zoom. It provides a web interface for managing tenants and connectors, making it easy to integrate Claude Desktop with various external services.
 
 **Key Features:**
 - Multi-tenant architecture with path-based isolation
@@ -71,8 +71,13 @@ graph TB
 
             subgraph Connectors["Connectors"]
                 NATIVE["Native Plugins
-                GitHub · Jira · Slack
-                Google Docs · Notion · Zoom"]
+                GitHub · GitLab · Bitbucket
+                Jira · Linear · Confluence
+                Slack · Discord · Teams
+                Gmail · Outlook
+                Google Docs · Sheets · Slides
+                Notion · Zoom
+                Excel · PowerPoint"]
                 EXT_MCP["External MCP Servers
                 via ProcessManager + stdio"]
             end
@@ -92,8 +97,11 @@ graph TB
     end
 
     subgraph External["External Services"]
-        EXT["GitHub · Slack · Jira
-        Google · Notion · Zoom APIs"]
+        EXT["GitHub · GitLab · Bitbucket
+        Jira · Linear · Confluence
+        Slack · Discord · Teams
+        Gmail · Outlook · Google
+        Notion · Zoom · Microsoft APIs"]
     end
 
     CD -->|"HTTP POST / WebSocket"| TRANSPORT
@@ -291,6 +299,8 @@ ws.onopen = () => {
 
 <div align="left">
 
+**Code & Version Control**
+
 #### <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="24" height="24" style="vertical-align: middle;" /> GitHub
 **24 tools** for complete repository management
 - Repositories, issues, pull requests, and releases
@@ -298,6 +308,24 @@ ws.onopen = () => {
 - GitHub Actions workflows and runs
 - User and organization management
 - [Full Documentation →](docs/connectors/github.md)
+
+#### GitLab
+**22 tools** for GitLab project management
+- Projects, merge requests, issues, and pipelines
+- Branches, commits, and repository tree
+- Groups, milestones, labels, and MR discussions
+- Supports gitlab.com and self-hosted instances
+- [Full Documentation →](docs/connectors/gitlab.md)
+
+#### Bitbucket
+**19 tools** for Bitbucket Cloud
+- Repositories, pull requests, and issues
+- Pipelines, branches, commits, and diffs
+- Workspaces and workspace members
+- File content retrieval
+- [Full Documentation →](docs/connectors/bitbucket.md)
+
+**Project Management**
 
 #### <img src="https://cdn.worldvectorlogo.com/logos/jira-1.svg" width="24" height="24" style="vertical-align: middle;" /> Jira
 **20 tools** for agile project management
@@ -307,6 +335,24 @@ ws.onopen = () => {
 - Project and version tracking
 - [Full Documentation →](docs/connectors/jira.md)
 
+#### Linear
+**18 tools** for modern issue tracking
+- Issues, projects, teams, and cycles
+- Labels, workflow states, and comments
+- Full-text search and GraphQL API
+- Relay-style cursor pagination
+- [Full Documentation →](docs/connectors/linear.md)
+
+#### Confluence
+**16 tools** for knowledge management
+- Spaces, pages, and CQL content search
+- Comments, labels, and version history
+- Page creation, update, and deletion
+- Attachments and child page navigation
+- [Full Documentation →](docs/connectors/confluence.md)
+
+**Communication & Messaging**
+
 #### <img src="https://cdn.worldvectorlogo.com/logos/slack-new-logo.svg" width="24" height="24" style="vertical-align: middle;" /> Slack
 **11 tools** for workspace communication
 - Send and read messages in channels
@@ -314,6 +360,42 @@ ws.onopen = () => {
 - User and channel management
 - Emoji reactions and rich formatting
 - [Full Documentation →](docs/connectors/slack.md)
+
+#### Discord
+**15 tools** for server management
+- Guilds, channels, messages, and threads
+- Member management and role listing
+- Message search and reactions
+- Thread creation and management
+- [Full Documentation →](docs/connectors/discord.md)
+
+#### Microsoft Teams
+**13 tools** for team collaboration
+- Teams, channels, and channel messages
+- Chats, chat messages, and replies
+- Team and channel member listing
+- Message search across chats
+- [Full Documentation →](docs/connectors/teams.md)
+
+**Email**
+
+#### Gmail
+**14 tools** for email management
+- Messages, threads, and Gmail search syntax
+- Send, reply, and forward emails
+- Labels, drafts, and trash management
+- MIME message handling
+- [Full Documentation →](docs/connectors/gmail.md)
+
+#### Outlook
+**14 tools** for Outlook email
+- Messages, folders, and attachments
+- Send, reply, forward, and draft emails
+- OData search and focused inbox
+- Message flagging and folder management
+- [Full Documentation →](docs/connectors/outlook.md)
+
+**Documents & Productivity**
 
 #### <img src="https://www.gstatic.com/images/branding/product/1x/docs_2020q4_48dp.png" width="24" height="24" style="vertical-align: middle;" /> Google Docs
 **10 tools** for document management
@@ -323,6 +405,22 @@ ws.onopen = () => {
 - Manage sharing permissions
 - [Full Documentation →](docs/connectors/google-docs.md)
 
+#### Google Sheets
+**14 tools** for spreadsheet operations
+- Read, write, and append cell ranges
+- Sheet/tab management and batch updates
+- Find-and-replace and formatting
+- Search spreadsheets via Drive API
+- [Full Documentation →](docs/connectors/google-sheets.md)
+
+#### Google Slides
+**11 tools** for presentation management
+- Create and manage presentations
+- Add, delete, and duplicate slides
+- Text insertion and find-and-replace
+- Speaker notes read and update
+- [Full Documentation →](docs/connectors/google-slides.md)
+
 #### <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" width="24" height="24" style="vertical-align: middle;" /> Notion
 **10 tools** for workspace collaboration
 - Access databases, pages, and blocks
@@ -330,6 +428,22 @@ ws.onopen = () => {
 - Create and update pages with content
 - Read structured and plain text content
 - [Full Documentation →](docs/connectors/notion.md)
+
+#### Microsoft Excel
+**14 tools** for Excel workbook management
+- Read and write cell ranges via Graph API
+- Workbook, worksheet, and table operations
+- Formula evaluation and data appending
+- OneDrive file management
+- [Full Documentation →](docs/connectors/excel.md)
+
+#### Microsoft PowerPoint
+**10 tools** for presentation management
+- List, create, copy, and delete presentations
+- Slide listing and thumbnail access
+- PDF export and file operations
+- OneDrive integration
+- [Full Documentation →](docs/connectors/powerpoint.md)
 
 #### <img src="https://st1.zoom.us/static/5.17.11.2992/image/new/ZoomLogo.png" width="64" height="24" style="vertical-align: middle;" /> Zoom
 **12 tools** for video conferencing
@@ -341,10 +455,7 @@ ws.onopen = () => {
 
 </div>
 
-**Coming Soon**
-- GitLab
-- Linear
-- Confluence
+> **258 tools** across 18 native connectors, plus unlimited external MCP server support.
 
 For general OAuth setup guidance, see the [OAuth Configuration Guide](.github/docs/oauth-setup.md).
 
@@ -479,7 +590,8 @@ Additional configuration settings:
 
 **Completed:**
 - [x] Multi-tenant MCP server with path-based isolation
-- [x] GitHub, Jira, Slack, Google Docs, Notion, and Zoom connectors with OAuth
+- [x] 18 native connectors: GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs, Google Sheets, Google Slides, Notion, Excel, PowerPoint, Zoom
+- [x] Shared connector infrastructure: pagination strategies, retry with backoff, structured exceptions, GraphQL client
 - [x] React management interface and CLI
 - [x] PostgreSQL / Supabase support, Kubernetes deployment
 - [x] Server pooling with LRU eviction (v2 Phase 1)
@@ -491,9 +603,6 @@ Additional configuration settings:
 - [x] External MCP server hosting via `GenericMCPConnector` + `MCPProcessManager`
 
 **Planned:**
-- [ ] GitLab connector
-- [ ] Linear connector
-- [ ] Confluence connector
 - [ ] Tool policy language (per-connector tool enable/disable rules)
 - [ ] OpenTelemetry tracing
 - [ ] Redis-backed session persistence

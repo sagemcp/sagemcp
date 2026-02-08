@@ -52,11 +52,33 @@ Ring Buffer · 100 events"]
                 REGISTRY[Connector Registry]
 
                 subgraph "Native Plugins"
-                    GH["GitHub · 24 tools"]
-                    JIRA["Jira · 20 tools"]
-                    SLACK["Slack · 11 tools"]
-                    GDOCS["Google Docs · 10 tools"]
-                    NOTION["Notion · 10 tools"]
+                    subgraph "Code & VCS"
+                        GH["GitHub · 24 tools"]
+                        GL["GitLab · 22 tools"]
+                        BB["Bitbucket · 19 tools"]
+                    end
+                    subgraph "Project Mgmt"
+                        JIRA["Jira · 20 tools"]
+                        LINEAR["Linear · 18 tools"]
+                        CONFL["Confluence · 16 tools"]
+                    end
+                    subgraph "Communication"
+                        SLACK["Slack · 11 tools"]
+                        DISCORD["Discord · 15 tools"]
+                        TEAMS["Teams · 13 tools"]
+                    end
+                    subgraph "Email"
+                        GMAIL["Gmail · 14 tools"]
+                        OUTLOOK["Outlook · 14 tools"]
+                    end
+                    subgraph "Docs & Productivity"
+                        GDOCS["Google Docs · 10 tools"]
+                        GSHEETS["Google Sheets · 14 tools"]
+                        GSLIDES["Google Slides · 11 tools"]
+                        NOTION["Notion · 10 tools"]
+                        EXCEL["Excel · 14 tools"]
+                        PPTX["PowerPoint · 10 tools"]
+                    end
                     ZOOM["Zoom · 12 tools"]
                 end
 
@@ -98,9 +120,16 @@ Supabase")]
 
     subgraph "External Services"
         GITHUB_API[GitHub API]
+        GITLAB_API[GitLab API]
+        BB_API[Bitbucket API]
         SLACK_API[Slack API]
+        DISCORD_API[Discord API]
+        TEAMS_API[MS Teams API]
         JIRA_API[Jira API]
+        LINEAR_API[Linear API]
+        CONFL_API[Confluence API]
         GOOGLE_API[Google APIs]
+        MS_GRAPH_API[MS Graph API]
         NOTION_API[Notion API]
         ZOOM_API[Zoom API]
     end
@@ -133,10 +162,22 @@ Supabase")]
 
     %% Connector routing
     REGISTRY -->|"runtime=native"| GH
+    REGISTRY -->|"runtime=native"| GL
+    REGISTRY -->|"runtime=native"| BB
     REGISTRY -->|"runtime=native"| JIRA
+    REGISTRY -->|"runtime=native"| LINEAR
+    REGISTRY -->|"runtime=native"| CONFL
     REGISTRY -->|"runtime=native"| SLACK
+    REGISTRY -->|"runtime=native"| DISCORD
+    REGISTRY -->|"runtime=native"| TEAMS
+    REGISTRY -->|"runtime=native"| GMAIL
+    REGISTRY -->|"runtime=native"| OUTLOOK
     REGISTRY -->|"runtime=native"| GDOCS
+    REGISTRY -->|"runtime=native"| GSHEETS
+    REGISTRY -->|"runtime=native"| GSLIDES
     REGISTRY -->|"runtime=native"| NOTION
+    REGISTRY -->|"runtime=native"| EXCEL
+    REGISTRY -->|"runtime=native"| PPTX
     REGISTRY -->|"runtime=native"| ZOOM
     REGISTRY -->|"runtime=external"| PROC_MGR
     PROC_MGR --> GEN_CONN
@@ -151,10 +192,22 @@ Supabase")]
 
     %% External API calls
     GH -->|REST API| GITHUB_API
+    GL -->|REST API| GITLAB_API
+    BB -->|REST API| BB_API
     JIRA -->|REST API| JIRA_API
+    LINEAR -->|GraphQL| LINEAR_API
+    CONFL -->|REST API| CONFL_API
     SLACK -->|REST API| SLACK_API
+    DISCORD -->|REST API| DISCORD_API
+    TEAMS -->|Graph API| TEAMS_API
+    GMAIL -->|REST API| GOOGLE_API
+    OUTLOOK -->|Graph API| MS_GRAPH_API
     GDOCS -->|REST API| GOOGLE_API
+    GSHEETS -->|REST API| GOOGLE_API
+    GSLIDES -->|REST API| GOOGLE_API
     NOTION -->|REST API| NOTION_API
+    EXCEL -->|Graph API| MS_GRAPH_API
+    PPTX -->|Graph API| MS_GRAPH_API
     ZOOM -->|REST API| ZOOM_API
 
     %% External MCP runtimes
@@ -443,44 +496,46 @@ Abstract Class"]
         BASE --> BASE_METHODS
     end
 
-    subgraph "Native Connector Plugins"
-        GH_CONN[GitHubConnector]
-        JIRA_CONN[JiraConnector]
-        SLACK_CONN[SlackConnector]
-        GDOCS_CONN[GoogleDocsConnector]
-        NOTION_CONN[NotionConnector]
-        ZOOM_CONN[ZoomConnector]
+    subgraph "Native Connector Plugins (18 connectors · 258 tools)"
+        subgraph "Code & VCS"
+            GH_CONN["GitHubConnector · 24 tools"]
+            GL_CONN["GitLabConnector · 22 tools"]
+            BB_CONN["BitbucketConnector · 19 tools"]
+        end
+        subgraph "Project Management"
+            JIRA_CONN["JiraConnector · 20 tools"]
+            LINEAR_CONN["LinearConnector · 18 tools"]
+            CONFL_CONN["ConfluenceConnector · 16 tools"]
+        end
+        subgraph "Communication"
+            SLACK_CONN["SlackConnector · 11 tools"]
+            DISCORD_CONN["DiscordConnector · 15 tools"]
+            TEAMS_CONN["TeamsConnector · 13 tools"]
+        end
+        subgraph "Email"
+            GMAIL_CONN["GmailConnector · 14 tools"]
+            OUTLOOK_CONN["OutlookConnector · 14 tools"]
+        end
+        subgraph "Docs & Productivity"
+            GDOCS_CONN["GoogleDocsConnector · 10 tools"]
+            GSHEETS_CONN["GoogleSheetsConnector · 14 tools"]
+            GSLIDES_CONN["GoogleSlidesConnector · 11 tools"]
+            NOTION_CONN["NotionConnector · 10 tools"]
+            EXCEL_CONN["ExcelConnector · 14 tools"]
+            PPTX_CONN["PowerPointConnector · 10 tools"]
+        end
+        ZOOM_CONN["ZoomConnector · 12 tools"]
+    end
 
-        GH_CONN --> GH_TOOLS["24 Tools:
-- list_repositories
-- create_issue
-- list_pull_requests
-- etc."]
-        JIRA_CONN --> JIRA_TOOLS["20 Tools:
-- search_issues
-- create_issue
-- list_projects
-- etc."]
-        SLACK_CONN --> SLACK_TOOLS["11 Tools:
-- send_message
-- list_channels
-- search_messages
-- etc."]
-        GDOCS_CONN --> GDOCS_TOOLS["10 Tools:
-- list_documents
-- get_document
-- create_document
-- etc."]
-        NOTION_CONN --> NOTION_TOOLS["10 Tools:
-- list_databases
-- get_page
-- create_page
-- etc."]
-        ZOOM_CONN --> ZOOM_TOOLS["12 Tools:
-- list_meetings
-- create_meeting
-- list_recordings
-- etc."]
+    subgraph "Shared Infrastructure"
+        PAGINATION["Pagination
+offset · cursor · link · OData"]
+        RETRY["Retry
+Exponential backoff · jitter"]
+        GRAPHQL["GraphQL Client
+Relay pagination"]
+        EXCEPTIONS["Structured Exceptions
+Auth · RateLimit · API · Timeout"]
     end
 
     subgraph "External MCP Server Path"
@@ -507,30 +562,70 @@ stdio · JSON-RPC 2.0
     ROUTING -->|"runtime=external_*"| PROC_MGR
 
     REG_MAP -->|"github"| GH_CONN
+    REG_MAP -->|"gitlab"| GL_CONN
+    REG_MAP -->|"bitbucket"| BB_CONN
     REG_MAP -->|"jira"| JIRA_CONN
+    REG_MAP -->|"linear"| LINEAR_CONN
+    REG_MAP -->|"confluence"| CONFL_CONN
     REG_MAP -->|"slack"| SLACK_CONN
+    REG_MAP -->|"discord"| DISCORD_CONN
+    REG_MAP -->|"teams"| TEAMS_CONN
+    REG_MAP -->|"gmail"| GMAIL_CONN
+    REG_MAP -->|"outlook"| OUTLOOK_CONN
     REG_MAP -->|"google_docs"| GDOCS_CONN
+    REG_MAP -->|"google_sheets"| GSHEETS_CONN
+    REG_MAP -->|"google_slides"| GSLIDES_CONN
     REG_MAP -->|"notion"| NOTION_CONN
+    REG_MAP -->|"excel"| EXCEL_CONN
+    REG_MAP -->|"powerpoint"| PPTX_CONN
     REG_MAP -->|"zoom"| ZOOM_CONN
 
     BASE -.->|inherits| GH_CONN
+    BASE -.->|inherits| GL_CONN
+    BASE -.->|inherits| BB_CONN
     BASE -.->|inherits| JIRA_CONN
+    BASE -.->|inherits| LINEAR_CONN
+    BASE -.->|inherits| CONFL_CONN
     BASE -.->|inherits| SLACK_CONN
+    BASE -.->|inherits| DISCORD_CONN
+    BASE -.->|inherits| TEAMS_CONN
+    BASE -.->|inherits| GMAIL_CONN
+    BASE -.->|inherits| OUTLOOK_CONN
     BASE -.->|inherits| GDOCS_CONN
+    BASE -.->|inherits| GSHEETS_CONN
+    BASE -.->|inherits| GSLIDES_CONN
     BASE -.->|inherits| NOTION_CONN
+    BASE -.->|inherits| EXCEL_CONN
+    BASE -.->|inherits| PPTX_CONN
     BASE -.->|inherits| ZOOM_CONN
 
     style REG fill:#e8f5e9
     style ROUTING fill:#e8f5e9
     style BASE fill:#fff3e0
     style GH_CONN fill:#e3f2fd
+    style GL_CONN fill:#e3f2fd
+    style BB_CONN fill:#e3f2fd
     style JIRA_CONN fill:#e3f2fd
+    style LINEAR_CONN fill:#e3f2fd
+    style CONFL_CONN fill:#e3f2fd
     style SLACK_CONN fill:#e3f2fd
+    style DISCORD_CONN fill:#e3f2fd
+    style TEAMS_CONN fill:#e3f2fd
+    style GMAIL_CONN fill:#e3f2fd
+    style OUTLOOK_CONN fill:#e3f2fd
     style GDOCS_CONN fill:#e3f2fd
+    style GSHEETS_CONN fill:#e3f2fd
+    style GSLIDES_CONN fill:#e3f2fd
     style NOTION_CONN fill:#e3f2fd
+    style EXCEL_CONN fill:#e3f2fd
+    style PPTX_CONN fill:#e3f2fd
     style ZOOM_CONN fill:#e3f2fd
     style PROC_MGR fill:#fff9c4
     style GEN_CONN fill:#fff9c4
+    style PAGINATION fill:#f3e5f5
+    style RETRY fill:#f3e5f5
+    style GRAPHQL fill:#f3e5f5
+    style EXCEPTIONS fill:#f3e5f5
 ```
 
 ## Request Flow: Creating and Using a Connector
@@ -1050,4 +1145,4 @@ SageMCP is a **multi-tenant MCP server platform** that enables Claude Desktop to
 - **Progressive rollout** — Feature flags (`SAGEMCP_ENABLE_*`) for safe, incremental v2 adoption
 - **Protocol compliance** — Supports MCP protocol versions `2025-06-18` and `2024-11-05` with version negotiation
 
-The platform bridges Claude Desktop's MCP protocol with external service APIs (GitHub, Slack, Jira, Google Docs, Notion, Zoom) and any MCP-compatible server through a unified, tenant-aware, production-hardened interface.
+The platform bridges Claude Desktop's MCP protocol with 18 external service APIs (GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs, Google Sheets, Google Slides, Notion, Excel, PowerPoint, Zoom) and any MCP-compatible server through a unified, tenant-aware, production-hardened interface. Shared infrastructure modules (pagination, retry, GraphQL client, structured exceptions) ensure consistent behavior across all connectors.
