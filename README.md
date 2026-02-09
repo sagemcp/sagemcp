@@ -4,7 +4,7 @@
     <strong>Multi-Tenant MCP Server Platform</strong>
   </p>
   <p>
-    A scalable platform for hosting MCP (Model Context Protocol) servers with OAuth integration and connector plugins.
+    A scalable platform for hosting MCP (Model Context Protocol) servers with OAuth/API key integration and connector plugins.
   </p>
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -15,7 +15,7 @@
 
 ## About The Project
 
-Sage MCP is a production-ready platform that enables you to run multiple isolated MCP servers with built-in OAuth authentication for 18+ services including GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs/Sheets/Slides, Notion, Excel, PowerPoint, and Zoom. It provides a web interface for managing tenants and connectors, making it easy to integrate Claude Desktop with various external services.
+Sage MCP is a production-ready platform that enables you to run multiple isolated MCP servers with built-in OAuth/API key authentication for 23+ services including GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs/Sheets/Slides, Notion, Excel, PowerPoint, Zoom, and AI coding tool intelligence connectors (GitHub Copilot, Claude Code, OpenAI Codex, Cursor, Windsurf). It provides a web interface for managing tenants and connectors, making it easy to integrate Claude Desktop with various external services.
 
 **Key Features:**
 - Multi-tenant architecture with path-based isolation
@@ -455,7 +455,50 @@ ws.onopen = () => {
 
 </div>
 
-> **258 tools** across 18 native connectors, plus unlimited external MCP server support.
+### AI Coding Tool Intelligence
+
+SageMCP provides management plane connectors for 5 AI coding tools, giving engineering managers org-level visibility into adoption, cost, and productivity. All connectors implement a standardized `CodingToolMetrics` schema for cross-tool comparison.
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+
+#### GitHub Copilot
+**19 tools** for Copilot management (OAuth)
+- Org usage analytics, acceptance rates, language/editor breakdowns
+- Seat management: assign, remove, list inactive seats
+- Policy & governance: content exclusions, audit logs
+- [Full Documentation →](docs/connectors/copilot.md)
+
+#### Claude Code
+**18 tools** for Anthropic Admin API (API key)
+- Usage reports, cost breakdowns, Claude Code analytics
+- User/invite management, workspace management
+- API key management, organization info
+- [Full Documentation →](docs/connectors/claude-code.md)
+
+#### OpenAI Codex
+**16 tools** for OpenAI Admin API (API key)
+- Completions/embeddings usage, cost breakdowns
+- User/invite/project management
+- Audit logs, service accounts
+- [Full Documentation →](docs/connectors/codex.md)
+
+#### Cursor
+**18 tools** for Cursor Team API (API key)
+- Rich analytics: agent edits, tab usage, DAU, model usage, MCP adoption
+- Member management, spending controls, audit logs
+- Leaderboard, client versions, repo blocklists
+- [Full Documentation →](docs/connectors/cursor.md)
+
+#### Windsurf
+**11 tools** for Codeium API (service key)
+- Team analytics, per-user analytics, Cascade (agent) analytics
+- Usage config management, credit balance
+- Stub tools for undocumented APIs with workaround suggestions
+- [Full Documentation →](docs/connectors/windsurf.md)
+
+</div>
+
+> **340 tools** across 23 native connectors, plus unlimited external MCP server support.
 
 For general OAuth setup guidance, see the [OAuth Configuration Guide](.github/docs/oauth-setup.md).
 
@@ -590,7 +633,8 @@ Additional configuration settings:
 
 **Completed:**
 - [x] Multi-tenant MCP server with path-based isolation
-- [x] 18 native connectors: GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs, Google Sheets, Google Slides, Notion, Excel, PowerPoint, Zoom
+- [x] 23 native connectors: GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs, Google Sheets, Google Slides, Notion, Excel, PowerPoint, Zoom, GitHub Copilot, Claude Code, OpenAI Codex, Cursor, Windsurf
+- [x] AI coding tool intelligence: standardized `CodingToolMetrics` schema for cross-tool comparison
 - [x] Shared connector infrastructure: pagination strategies, retry with backoff, structured exceptions, GraphQL client
 - [x] React management interface and CLI
 - [x] PostgreSQL / Supabase support, Kubernetes deployment

@@ -29,7 +29,7 @@ OAUTH_PROVIDERS = {
         "auth_url": "https://github.com/login/oauth/authorize",
         "token_url": "https://github.com/login/oauth/access_token",
         "user_url": "https://api.github.com/user",
-        "scopes": ["repo", "user:email", "read:org"],
+        "scopes": ["repo", "user:email", "read:org", "manage_billing:copilot"],
         "client_id": (
             os.getenv("GITHUB_CLIENT_ID")
             if os.getenv("GITHUB_CLIENT_ID")
