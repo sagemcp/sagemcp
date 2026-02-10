@@ -138,7 +138,7 @@ async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
         if auth_header.startswith('Bearer '):
             user_token = auth_header[7:]
 
-    logger.debug("MCP POST from tenant=%s connector=%s", tenant_slug, connector_id)
+    logger.info("MCP POST from tenant=%s connector=%s method=%s", tenant_slug, connector_id, body.get("method") if isinstance(body, dict) else "batch")
 
     # JSON-RPC batching: detect array payload
     if isinstance(body, list):

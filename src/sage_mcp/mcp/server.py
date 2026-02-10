@@ -125,11 +125,14 @@ class MCPServer:
                     text=f"Connector not found or not enabled for tool: {name}"
                 )]
 
+            logger.info("Tool call: %s (connector=%s, action=%s)", name, connector.connector_type.value, action)
+
             # Execute the tool call
             try:
                 result = await self._execute_tool(connector, action, arguments)
                 return [types.TextContent(type="text", text=result)]
             except Exception as e:
+                logger.error("Tool execution failed: %s — %s", name, str(e))
                 return [types.TextContent(
                     type="text",
                     text=f"Error executing tool: {str(e)}"
@@ -275,6 +278,8 @@ class MCPServer:
         if needs_oauth:
             oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
 
+        logger.info("Executing tool %s on connector %s (has_oauth=%s)", action, connector.connector_type.value, oauth_cred is not None)
+
         connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
             return f"Connector plugin not found: {connector.connector_type.value}"
@@ -282,6 +287,7 @@ class MCPServer:
         try:
             return await connector_plugin.execute_tool(connector, action, arguments, oauth_cred)
         except Exception as e:
+            logger.error("Tool %s on %s failed: %s", action, connector.connector_type.value, str(e))
             return f"Error executing tool: {str(e)}"
 
     async def _read_connector_resource(self, connector: Connector, path: str) -> str:
@@ -312,7 +318,7 @@ class MCPServer:
 
         # If user token provided, create a temporary OAuthCredential with it
         if self.user_token:
-            logger.debug("Using user-provided token from header (length: %d)", len(self.user_token))
+            logger.info("Using user-provided OAuth token for provider=%s (length=%d)", provider, len(self.user_token))
             temp_cred = OAuthCredential(
                 provider=provider,
                 tenant_id=tenant_id,
@@ -325,9 +331,8 @@ class MCPServer:
             return temp_cred
 
         # Fallback to tenant-level credential from database
-        logger.debug("No user token provided, querying database for tenant-level credential")
-
         provider_lower = provider.lower()
+        logger.info("No user token, querying DB for tenant-level credential: provider=%s", provider_lower)
 
         async with get_db_context() as session:
             from sqlalchemy import func
@@ -340,5 +345,5 @@ class MCPServer:
                 )
             )
             cred = result.scalar_one_or_none()
-            logger.debug("Database query result: %s", "Found" if cred else "Not found")
+            logger.info("DB credential lookup: provider=%s result=%s", provider_lower, "found" if cred else "NOT_FOUND")
             return cred
