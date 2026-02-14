@@ -7,6 +7,7 @@ from .oauth_config import OAuthConfig
 from .connector import Connector, ConnectorType, ConnectorRuntimeType
 from .connector_tool_state import ConnectorToolState
 from .mcp_process import MCPProcess, ProcessStatus
+from .tool_usage_daily import ToolUsageDaily
 
 __all__ = [
     "Base",
@@ -19,4 +20,5 @@ __all__ = [
     "ConnectorToolState",
     "MCPProcess",
     "ProcessStatus",
+    "ToolUsageDaily",
 ]

@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -61,7 +61,11 @@ class MCPTransport:
 
         return success
 
-    async def handle_websocket(self, websocket: WebSocket):
+    async def handle_websocket(
+        self,
+        websocket: WebSocket,
+        on_activity: Optional[Callable[[], None]] = None,
+    ):
         """Handle WebSocket connection for MCP protocol."""
         if not await self.initialize():
             await websocket.close(code=4004, reason="Tenant not found or inactive")
@@ -74,6 +78,8 @@ class MCPTransport:
             while True:
                 try:
                     data = await websocket.receive_text()
+                    if on_activity:
+                        on_activity()
                     message = json.loads(data)
 
                     # Check for extension method to set user token

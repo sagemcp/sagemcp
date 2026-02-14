@@ -7,6 +7,7 @@ connector_type and tool_name are labels (bounded).
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ def _get_prom():
 # --- Metric singletons (created on first access) ---
 
 _metrics = {}
+_tool_calls_day = None
+_tool_calls_today_count = 0
 
 
 def _metric(name, metric_type, description, labelnames=()):
@@ -138,12 +141,33 @@ def record_pool_miss():
 
 
 def record_tool_call(connector_type: str, tool_name: str, status: str, duration: float):
+    _increment_tool_calls_today()
     tc = tool_calls_total()
     if tc:
         tc.labels(connector_type=connector_type, status=status).inc()
     tcd = tool_call_duration()
     if tcd:
         tcd.labels(connector_type=connector_type, tool_name=tool_name, status=status).observe(duration)
+
+
+def _increment_tool_calls_today() -> None:
+    """Increment in-memory daily tool call counter (UTC day)."""
+    global _tool_calls_day, _tool_calls_today_count
+    today = datetime.now(timezone.utc).date()
+    if _tool_calls_day != today:
+        _tool_calls_day = today
+        _tool_calls_today_count = 0
+    _tool_calls_today_count += 1
+
+
+def get_tool_calls_today() -> int:
+    """Return in-memory daily tool call count (UTC day)."""
+    global _tool_calls_day, _tool_calls_today_count
+    today = datetime.now(timezone.utc).date()
+    if _tool_calls_day != today:
+        _tool_calls_day = today
+        _tool_calls_today_count = 0
+    return _tool_calls_today_count
 
 
 def set_active_sessions(count: int):

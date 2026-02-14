@@ -1,7 +1,9 @@
 """Unit tests for MCPServer tool/resource routing behavior."""
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 from pydantic import AnyUrl, TypeAdapter
 
 from sage_mcp.mcp.server import MCPServer
@@ -81,3 +83,40 @@ def test_resolve_resource_target_accepts_anyurl_for_external_connector():
 
     assert resolved_conn is conn
     assert resource_arg == "hass://entities"
+
+
+@pytest.mark.asyncio
+async def test_increment_daily_tool_calls_retries_after_integrity_error(monkeypatch):
+    server = MCPServer("tenant-a", "connector-a")
+
+    class _Result:
+        rowcount = 0
+
+    class _Ctx:
+        def __init__(self):
+            self.execute = AsyncMock(side_effect=[_Result(), _Result()])
+            self.commit = AsyncMock(side_effect=[Exception("integrity"), None])
+            self.rollback = AsyncMock()
+            self.add = Mock()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    ctx = _Ctx()
+
+    class _IntegrityError(Exception):
+        pass
+
+    monkeypatch.setattr("sage_mcp.mcp.server.get_db_context", lambda: ctx)
+    monkeypatch.setattr("sage_mcp.mcp.server.IntegrityError", _IntegrityError)
+    ctx.commit = AsyncMock(side_effect=[_IntegrityError("race"), None])
+
+    await server._increment_daily_tool_calls()
+
+    assert ctx.add.call_count == 1
+    assert ctx.rollback.await_count == 1
+    assert ctx.execute.await_count == 2
+    assert ctx.commit.await_count == 2
