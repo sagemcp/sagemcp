@@ -61,7 +61,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   // Skip query if this is a native connector
   const isExternal = runtimeType !== ConnectorRuntimeType.NATIVE
 
-  const { data: processStatus, isLoading, error, refetch } = useQuery({
+  const { data: processStatus, isLoading, refetch } = useQuery({
     queryKey: ['process-status', connectorId],
     queryFn: () => processApi.getStatus(connectorId).then(res => res.data),
     enabled: isExternal,

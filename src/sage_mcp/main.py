@@ -1,5 +1,6 @@
 """Main FastAPI application for Sage MCP."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -89,6 +90,17 @@ async def lifespan(app: FastAPI):
     # Set MCP allowed origins (Phase 2.4)
     app.state.mcp_allowed_origins = settings.get_mcp_allowed_origins()
 
+    # Initialize and periodically flush in-memory daily tool-call counter.
+    from .observability.metrics import (
+        bootstrap_tool_calls_today_from_db,
+        run_tool_usage_flush_loop,
+    )
+    await bootstrap_tool_calls_today_from_db()
+    app.state.tool_usage_flush_stop = asyncio.Event()
+    app.state.tool_usage_flush_task = asyncio.create_task(
+        run_tool_usage_flush_loop(app.state.tool_usage_flush_stop, interval_seconds=60.0)
+    )
+
     logger.info("%s v%s started", settings.app_name, settings.app_version)
     logger.info("Environment: %s", settings.environment)
     logger.info("Database: Connected")
@@ -98,6 +110,16 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down Sage MCP...")
+
+    # Stop periodic flush loop and persist remaining daily counter increments.
+    from .observability.metrics import flush_tool_calls_today_to_db
+    flush_stop = getattr(app.state, "tool_usage_flush_stop", None)
+    flush_task = getattr(app.state, "tool_usage_flush_task", None)
+    if flush_stop is not None:
+        flush_stop.set()
+    if flush_task is not None:
+        await flush_task
+    await flush_tool_calls_today_to_db()
 
     # Shut down server pool
     if app.state.server_pool:

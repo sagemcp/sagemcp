@@ -7,7 +7,6 @@ import pytest
 
 from sage_mcp.api.admin_stats import get_platform_stats
 from sage_mcp.api import mcp as mcp_api
-from sage_mcp.runtime import process_manager
 
 
 class _FakeResult:
@@ -32,27 +31,20 @@ class _FakeContext:
 @pytest.mark.asyncio
 async def test_get_platform_stats_uses_process_fallbacks(monkeypatch):
     fake_session = SimpleNamespace(
-        execute=AsyncMock(side_effect=[_FakeResult(1), _FakeResult(3), _FakeResult(7)])
+        execute=AsyncMock(side_effect=[_FakeResult(1), _FakeResult(3)])
     )
     monkeypatch.setattr(
         "sage_mcp.database.connection.get_db_context",
         lambda: _FakeContext(fake_session),
     )
+    monkeypatch.setattr("sage_mcp.api.admin_stats.get_tool_calls_today", lambda: 7)
 
-    original_processes = process_manager.processes
-    process_manager.processes = {
-        "t1:c1": object(),
-        "t1:c2": object(),
-    }
-    try:
-        request = SimpleNamespace(
-            app=SimpleNamespace(
-                state=SimpleNamespace(server_pool=None, session_manager=None)
-            )
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(server_pool=None, session_manager=None)
         )
-        stats = await get_platform_stats(request)
-    finally:
-        process_manager.processes = original_processes
+    )
+    stats = await get_platform_stats(request)
 
     assert stats["tenants"] == 1
     assert stats["connectors"] == 3
@@ -64,12 +56,13 @@ async def test_get_platform_stats_uses_process_fallbacks(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_platform_stats_uses_recent_activity_when_sessions_disabled(monkeypatch):
     fake_session = SimpleNamespace(
-        execute=AsyncMock(side_effect=[_FakeResult(1), _FakeResult(1), _FakeResult(2)])
+        execute=AsyncMock(side_effect=[_FakeResult(1), _FakeResult(1)])
     )
     monkeypatch.setattr(
         "sage_mcp.database.connection.get_db_context",
         lambda: _FakeContext(fake_session),
     )
+    monkeypatch.setattr("sage_mcp.api.admin_stats.get_tool_calls_today", lambda: 2)
 
     request = SimpleNamespace(
         app=SimpleNamespace(
@@ -86,6 +79,7 @@ async def test_get_platform_stats_uses_recent_activity_when_sessions_disabled(mo
 
     stats = await get_platform_stats(request)
     assert stats["active_sessions"] == 1
+    assert stats["tool_calls_today"] == 2
 
 
 def test_record_websocket_activity_counts_toward_recent_sessions(monkeypatch):

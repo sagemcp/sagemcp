@@ -2,13 +2,11 @@
 
 import logging
 import time
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from mcp import types
 from mcp.server import Server
-from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_context
@@ -17,7 +15,6 @@ from ..models.connector import Connector
 from ..models.connector import ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.oauth_credential import OAuthCredential
-from ..models.tool_usage_daily import ToolUsageDaily
 from ..connectors.registry import connector_registry
 from ..observability.metrics import record_tool_call
 
@@ -130,7 +127,6 @@ class MCPServer:
                     status="success",
                     duration=time.perf_counter() - start,
                 )
-                await self._increment_daily_tool_calls()
                 return [types.TextContent(type="text", text=result)]
             except Exception as e:
                 record_tool_call(
@@ -139,7 +135,6 @@ class MCPServer:
                     status="error",
                     duration=time.perf_counter() - start,
                 )
-                await self._increment_daily_tool_calls()
                 logger.error("Tool execution failed: %s - %s", name, str(e))
                 return [types.TextContent(
                     type="text",
@@ -355,34 +350,6 @@ class MCPServer:
             return await connector_plugin.read_resource(connector, path, oauth_cred)
         except Exception as e:
             return f"Error reading resource: {str(e)}"
-
-    async def _increment_daily_tool_calls(self) -> None:
-        """Increment persistent daily tool call counter (UTC day)."""
-        day = datetime.now(timezone.utc).date()
-        try:
-            async with get_db_context() as session:
-                # Atomic increment path for existing rows.
-                update_result = await session.execute(
-                    update(ToolUsageDaily)
-                    .where(ToolUsageDaily.day == day)
-                    .values(tool_calls_count=ToolUsageDaily.tool_calls_count + 1)
-                )
-                if (update_result.rowcount or 0) == 0:
-                    session.add(ToolUsageDaily(day=day, tool_calls_count=1))
-
-                try:
-                    await session.commit()
-                except IntegrityError:
-                    # Concurrent insert race: roll back and retry as update.
-                    await session.rollback()
-                    await session.execute(
-                        update(ToolUsageDaily)
-                        .where(ToolUsageDaily.day == day)
-                        .values(tool_calls_count=ToolUsageDaily.tool_calls_count + 1)
-                    )
-                    await session.commit()
-        except Exception as e:
-            logger.warning("Failed to increment daily tool usage counter: %s", e)
 
     async def _get_oauth_credential(self, tenant_id: str, provider: str) -> Optional[OAuthCredential]:
         """Get OAuth credential for a tenant and provider.
