@@ -19,6 +19,7 @@ from .database.migrations import (
     upgrade_add_process_status_values,
     upgrade_remove_connector_unique_constraint,
     upgrade_add_mcp_server_registry,
+    upgrade_add_missing_connector_types,
 )
 from .observability.logging import configure_logging
 
@@ -53,6 +54,7 @@ async def lifespan(app: FastAPI):
     await upgrade_add_process_status_values()
     await upgrade_remove_connector_unique_constraint()
     await upgrade_add_mcp_server_registry()
+    await upgrade_add_missing_connector_types()
 
     # Warm up HTTP client (creates connection pool)
     from .connectors.http_client import get_http_client
