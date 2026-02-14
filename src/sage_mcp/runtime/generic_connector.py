@@ -59,11 +59,37 @@ class GenericMCPConnector(BaseConnector):
         self._stderr_task: Optional[asyncio.Task] = None
         self._stderr_buffer: List[str] = []
         self._stderr_buffer_max = 50
+        self._stdout_buffer = b""
+        self._stdout_buffer_max = 1024 * 1024  # 1MB safety cap
+
+    @staticmethod
+    def _classify_stderr_level(line: str) -> int:
+        """Infer appropriate log level for external process stderr lines."""
+        lowered = line.lower()
+        if "[debug]" in lowered or " debug " in lowered or lowered.startswith("debug:"):
+            return logging.DEBUG
+        if "traceback" in lowered or "[error]" in lowered or " error " in lowered or lowered.startswith("error:"):
+            return logging.ERROR
+        if "[warning]" in lowered or " warning " in lowered or lowered.startswith("warning:"):
+            return logging.WARNING
+        if "[info]" in lowered or " info " in lowered or lowered.startswith("info:"):
+            return logging.INFO
+        # Many MCP SDK/server loggers write normal operational logs to stderr.
+        # Default to INFO to avoid false warning noise in UI.
+        return logging.INFO
 
     @property
     def display_name(self) -> str:
         """Display name for this connector."""
         return f"External MCP Server ({self.runtime_type})"
+
+    @property
+    def description(self) -> str:
+        """Connector description."""
+        return (
+            "Runs an external MCP server process over stdio and proxies "
+            "tools/resources into SageMCP."
+        )
 
     @property
     def requires_oauth(self) -> bool:
@@ -89,13 +115,35 @@ class GenericMCPConnector(BaseConnector):
         if self.process and self.process.returncode is None:
             return  # Already running
 
+        if not self.command:
+            raise Exception("runtime_command is required for external MCP connectors")
+
         # Pre-validate that the command executable exists on PATH
-        cmd_name = self.command[0]
+        cmd_name = str(self.command[0]).strip()
+        if not cmd_name:
+            raise Exception("runtime_command must start with a non-empty executable name")
+
+        resolved_cmd = shutil.which(cmd_name)
         if not shutil.which(cmd_name):
             raise Exception(
                 f"MCP server command '{cmd_name}' not found on PATH. "
                 f"Ensure the runtime is installed (e.g., Node.js for npx, Python for uvx)."
             )
+        exec_command = [resolved_cmd, *self.command[1:]]
+        exec_name = os.path.basename(resolved_cmd)
+
+        # npx can block waiting for install confirmation in non-interactive mode.
+        if exec_name == "npx":
+            has_yes_flag = any(arg in ("-y", "--yes") for arg in exec_command[1:])
+            if not has_yes_flag:
+                exec_command.insert(1, "-y")
+
+        # Normalize and validate working directory.
+        cwd = self.working_dir.strip() if self.working_dir else None
+        if cwd == "":
+            cwd = None
+        if cwd and not os.path.isdir(cwd):
+            raise Exception(f"Configured package_path does not exist in container: '{cwd}'")
 
         # Prepare environment with SageMCP injections
         process_env = {
@@ -112,6 +160,20 @@ class GenericMCPConnector(BaseConnector):
             "SAGEMCP_API_BASE": os.getenv("BASE_URL", "http://localhost:8000"),
         }
 
+        # Ensure HOME and cache paths are writable in containers where appuser home
+        # may not exist or may not be writable.
+        home_dir = process_env.get("HOME")
+        if not home_dir or not os.path.isdir(home_dir) or not os.access(home_dir, os.W_OK):
+            process_env["HOME"] = "/tmp"
+            home_dir = "/tmp"
+
+        xdg_cache_home = process_env.get("XDG_CACHE_HOME") or os.path.join(home_dir, ".cache")
+        process_env["XDG_CACHE_HOME"] = xdg_cache_home
+
+        # uvx uses uv cache under HOME/XDG cache by default; force a writable cache path.
+        if exec_name == "uvx" and "UV_CACHE_DIR" not in process_env:
+            process_env["UV_CACHE_DIR"] = os.path.join(xdg_cache_home, "uv")
+
         # Add user-defined config as environment variables
         if tenant_config:
             for key, value in tenant_config.items():
@@ -122,15 +184,18 @@ class GenericMCPConnector(BaseConnector):
         # Start process
         try:
             self.process = await asyncio.create_subprocess_exec(
-                *self.command,
+                *exec_command,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=process_env,
-                cwd=self.working_dir,
+                cwd=cwd,
             )
         except Exception as e:
-            raise Exception(f"Failed to start MCP server process: {str(e)}")
+            raise Exception(
+                f"Failed to start MCP server process: {str(e)} "
+                f"(command={exec_command}, cwd={cwd})"
+            )
 
         # Start background tasks to read stdout and stderr
         self._read_task = asyncio.create_task(self._read_stdout())
@@ -159,12 +224,12 @@ class GenericMCPConnector(BaseConnector):
 
         # Initialize MCP session
         try:
-            await self._initialize_mcp()
+            await self._initialize_mcp(exec_name=exec_name)
         except Exception as e:
             await self.stop_process()
             raise Exception(f"Failed to initialize MCP session: {str(e)}")
 
-    async def _initialize_mcp(self):
+    async def _initialize_mcp(self, exec_name: Optional[str] = None):
         """Send MCP initialize request."""
         await self._send_request(
             "initialize",
@@ -173,13 +238,14 @@ class GenericMCPConnector(BaseConnector):
                 "capabilities": {"roots": {"listChanged": True}, "sampling": {}},
                 "clientInfo": {"name": "SageMCP", "version": "1.0.0"},
             },
+            timeout=90.0 if exec_name == "npx" else 30.0,
         )
         self._initialized = True
 
         # Send initialized notification
         await self._send_notification("notifications/initialized")
 
-    async def _send_request(self, method: str, params: Dict) -> Dict:
+    async def _send_request(self, method: str, params: Dict, timeout: float = 30.0) -> Dict:
         """Send JSON-RPC request and wait for response.
 
         Args:
@@ -206,7 +272,7 @@ class GenericMCPConnector(BaseConnector):
 
         # Wait for response (with timeout)
         try:
-            response = await asyncio.wait_for(future, timeout=30.0)
+            response = await asyncio.wait_for(future, timeout=timeout)
             if "error" in response:
                 error = response["error"]
                 error_msg = error.get("message", "Unknown error")
@@ -214,6 +280,9 @@ class GenericMCPConnector(BaseConnector):
             return response.get("result", {})
         except asyncio.TimeoutError:
             self._pending_requests.pop(request_id, None)
+            stderr_tail = "\n".join(self._stderr_buffer[-20:])
+            if stderr_tail:
+                raise Exception(f"MCP request timeout: {method}\nstderr:\n{stderr_tail}")
             raise Exception(f"MCP request timeout: {method}")
 
     async def _send_notification(self, method: str, params: Optional[Dict] = None):
@@ -238,12 +307,85 @@ class GenericMCPConnector(BaseConnector):
         if not self.process or not self.process.stdin:
             raise Exception("Process not started")
 
-        data = json.dumps(message) + "\n"
+        data = (json.dumps(message) + "\n").encode("utf-8")
         try:
-            self.process.stdin.write(data.encode())
+            self.process.stdin.write(data)
             await self.process.stdin.drain()
         except Exception as e:
             raise Exception(f"Failed to write to MCP server: {str(e)}")
+
+    def _process_incoming_message(self, message: Dict):
+        """Handle parsed JSON-RPC messages from stdout."""
+        # Handle response to request
+        if "id" in message and message["id"] in self._pending_requests:
+            future = self._pending_requests.pop(message["id"])
+            if not future.done():
+                future.set_result(message)
+        # Handle notifications; keep silent by default.
+
+    def _try_parse_stdout_frames(self):
+        """Parse as many framed/line JSON messages as possible from buffer."""
+        while self._stdout_buffer:
+            buf = self._stdout_buffer.lstrip(b"\r\n")
+            if buf is not self._stdout_buffer:
+                self._stdout_buffer = buf
+            if not self._stdout_buffer:
+                return
+
+            # MCP stdio framing path: Content-Length headers + JSON body
+            lower = self._stdout_buffer.lower()
+            if lower.startswith(b"content-length:"):
+                sep = self._stdout_buffer.find(b"\r\n\r\n")
+                if sep == -1:
+                    return
+                headers_blob = self._stdout_buffer[:sep].decode("ascii", errors="replace")
+                content_length = None
+                for header_line in headers_blob.split("\r\n"):
+                    if ":" not in header_line:
+                        continue
+                    key, value = header_line.split(":", 1)
+                    if key.strip().lower() == "content-length":
+                        try:
+                            content_length = int(value.strip())
+                        except ValueError:
+                            content_length = None
+                        break
+
+                if content_length is None:
+                    logger.error("Invalid MCP frame header: %s", headers_blob)
+                    self._stdout_buffer = self._stdout_buffer[sep + 4:]
+                    continue
+
+                start = sep + 4
+                end = start + content_length
+                if len(self._stdout_buffer) < end:
+                    return
+
+                payload = self._stdout_buffer[start:end]
+                self._stdout_buffer = self._stdout_buffer[end:]
+                try:
+                    self._process_incoming_message(json.loads(payload.decode("utf-8")))
+                except Exception as e:
+                    logger.error("Error processing framed stdout payload: %s", e)
+                continue
+
+            # Backward-compat path: line-delimited JSON
+            newline_idx = self._stdout_buffer.find(b"\n")
+            if newline_idx == -1:
+                return
+
+            line = self._stdout_buffer[:newline_idx].decode("utf-8", errors="replace").strip()
+            self._stdout_buffer = self._stdout_buffer[newline_idx + 1:]
+
+            if not line:
+                continue
+            try:
+                self._process_incoming_message(json.loads(line))
+            except json.JSONDecodeError:
+                # Non-JSON stdout text: ignore.
+                continue
+            except Exception as e:
+                logger.error("Error processing stdout line: %s", e)
 
     async def _read_stdout(self):
         """Background task to read and parse stdout."""
@@ -251,30 +393,20 @@ class GenericMCPConnector(BaseConnector):
             return
 
         try:
-            async for line in self.process.stdout:
-                try:
-                    line_str = line.decode().strip()
-                    if not line_str:
-                        continue
+            while True:
+                chunk = await self.process.stdout.read(4096)
+                if not chunk:
+                    break
 
-                    message = json.loads(line_str)
+                self._stdout_buffer += chunk
+                if len(self._stdout_buffer) > self._stdout_buffer_max:
+                    logger.error(
+                        "MCP stdout buffer exceeded %d bytes without a complete frame; trimming",
+                        self._stdout_buffer_max,
+                    )
+                    self._stdout_buffer = self._stdout_buffer[-self._stdout_buffer_max:]
 
-                    # Handle response to request
-                    if "id" in message and message["id"] in self._pending_requests:
-                        future = self._pending_requests.pop(message["id"])
-                        if not future.done():
-                            future.set_result(message)
-
-                    # Handle notification from server
-                    elif "method" in message:
-                        # Log notifications (tools/listChanged, etc.)
-                        pass  # Could log here if needed
-
-                except json.JSONDecodeError:
-                    # Not JSON, might be debug output
-                    pass
-                except Exception as e:
-                    logger.error("Error processing MCP message: %s", e)
+                self._try_parse_stdout_frames()
         except Exception as e:
             logger.error("Error reading stdout: %s", e)
 
@@ -287,7 +419,12 @@ class GenericMCPConnector(BaseConnector):
             async for line in self.process.stderr:
                 stderr_line = line.decode().strip()
                 if stderr_line:
-                    logger.warning("MCP stderr [%s]: %s", self.runtime_type, stderr_line)
+                    logger.log(
+                        self._classify_stderr_level(stderr_line),
+                        "MCP stderr [%s]: %s",
+                        self.runtime_type,
+                        stderr_line,
+                    )
                     if len(self._stderr_buffer) < self._stderr_buffer_max:
                         self._stderr_buffer.append(stderr_line)
         except Exception:
@@ -461,6 +598,7 @@ class GenericMCPConnector(BaseConnector):
             self._initialized = False
             self._pending_requests.clear()
             self._stderr_buffer.clear()
+            self._stdout_buffer = b""
 
     def __del__(self):
         """Cleanup on garbage collection."""

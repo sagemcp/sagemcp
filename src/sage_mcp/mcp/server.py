@@ -1,7 +1,7 @@
 """MCP Server implementation for multi-tenant support."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from mcp import types
 from mcp.server import Server
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database.connection import get_db_context
 from ..models.tenant import Tenant
 from ..models.connector import Connector
+from ..models.connector import ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.oauth_credential import OAuthCredential
 from ..connectors.registry import connector_registry
@@ -104,20 +105,7 @@ class MCPServer:
             if not arguments:
                 arguments = {}
 
-            # Parse tool name to determine connector and action
-            connector = None
-            action = None
-
-            # Try to match tool name against connector types (longest match first)
-            sorted_connectors = sorted(self.connectors, key=lambda c: len(c.connector_type.value), reverse=True)
-
-            for conn in sorted_connectors:
-                if conn.is_enabled:
-                    connector_prefix = conn.connector_type.value.lower() + "_"
-                    if name.lower().startswith(connector_prefix):
-                        connector = conn
-                        action = name[len(connector_prefix):]
-                        break
+            connector, action = self._resolve_tool_target(name)
 
             if not connector or not action:
                 return [types.TextContent(
@@ -156,21 +144,62 @@ class MCPServer:
         async def handle_read_resource(uri: str) -> str:
             """Read a specific resource."""
             try:
-                scheme, path = uri.split("://", 1)
+                connector, resource_arg = self._resolve_resource_target(uri)
 
-                connector = None
-                for conn in self.connectors:
-                    if conn.connector_type.value == scheme and conn.is_enabled:
-                        connector = conn
-                        break
+                if not connector or not resource_arg:
+                    raise ValueError(f"Connector not found for resource: {uri}")
 
-                if not connector:
-                    raise ValueError(f"Connector not found: {scheme}")
-
-                return await self._read_connector_resource(connector, path)
+                return await self._read_connector_resource(connector, resource_arg)
 
             except Exception as e:
                 raise ValueError(f"Error reading resource {uri}: {str(e)}")
+
+    def _resolve_tool_target(self, tool_name: str) -> Tuple[Optional[Connector], Optional[str]]:
+        """Resolve a tool call into (connector, action)."""
+        enabled_connectors = [c for c in self.connectors if c.is_enabled]
+
+        # Try prefixed form first (e.g., github_list_repos).
+        sorted_connectors = sorted(enabled_connectors, key=lambda c: len(c.connector_type.value), reverse=True)
+        for conn in sorted_connectors:
+            connector_prefix = conn.connector_type.value.lower() + "_"
+            if tool_name.lower().startswith(connector_prefix):
+                return conn, tool_name[len(connector_prefix):]
+
+        # In single-connector mode, accept unprefixed tool names from external MCP servers.
+        if len(enabled_connectors) == 1:
+            return enabled_connectors[0], tool_name
+
+        return None, None
+
+    def _resolve_resource_target(self, uri: Any) -> Tuple[Optional[Connector], Optional[str]]:
+        """Resolve a resource URI into (connector, resource argument)."""
+        enabled_connectors = [c for c in self.connectors if c.is_enabled]
+        if not enabled_connectors:
+            return None, None
+
+        uri_str = str(uri)
+
+        if "://" in uri_str:
+            scheme, path = uri_str.split("://", 1)
+
+            for conn in enabled_connectors:
+                if conn.connector_type.value == scheme:
+                    return conn, path
+
+            # External MCP servers can expose arbitrary URI schemes (e.g., n8n://...).
+            # In single-connector mode, route anyway and pass full URI to external runtimes.
+            if len(enabled_connectors) == 1:
+                connector = enabled_connectors[0]
+                if connector.runtime_type != ConnectorRuntimeType.NATIVE:
+                    return connector, uri_str
+
+            return None, None
+
+        # Non-URI path: route to single connector if unambiguous.
+        if len(enabled_connectors) == 1:
+            return enabled_connectors[0], uri_str
+
+        return None, None
 
     async def _get_tenant(self, session: AsyncSession, tenant_slug: str) -> Optional[Tenant]:
         """Get tenant by slug."""

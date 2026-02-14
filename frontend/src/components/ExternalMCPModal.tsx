@@ -156,9 +156,12 @@ export default function ExternalMCPModal({
         if (key && value) configuration[key] = value
       })
 
+      const packagePath = data.package_path?.trim()
+
       return connectorsApi.create(tenant_slug, {
         connector_type: ConnectorType.CUSTOM,
         ...data,
+        package_path: packagePath || undefined,
         runtime_env,
         configuration
       })
