@@ -119,6 +119,72 @@ const DeleteConfirmDialog = ({
   </Dialog>
 )
 
+type ClientConfigPreset = 'mcp_json' | 'vscode_json'
+type TransportMode = 'direct' | 'mcp_remote'
+
+const CONFIG_PRESETS: Record<
+  ClientConfigPreset,
+  {
+    label: string
+    description: string
+    locationHint: string
+  }
+> = {
+  mcp_json: {
+    label: 'Claude Desktop/Code, Codex, Gemini CLI/Antigravity',
+    description: 'JSON config using top-level "mcpServers".',
+    locationHint: 'Use this in the client MCP JSON configuration file.',
+  },
+  vscode_json: {
+    label: 'VS Code, Cursor, Windsurf',
+    description: 'VS Code-style settings using "mcp.servers".',
+    locationHint: 'Use this in settings.json (or the equivalent settings UI JSON editor).',
+  },
+}
+
+function buildTenantConfigCode(
+  connectors: any[],
+  tenantSlug: string,
+  preset: ClientConfigPreset,
+  transportMode: TransportMode
+): string {
+  const serverEntries = Object.fromEntries(
+    connectors.map((c: any) => {
+      const endpoint = `${window.location.protocol}//${window.location.host}/api/v1/${tenantSlug}/connectors/${c.id}/mcp`
+      const entry =
+        transportMode === 'mcp_remote'
+          ? {
+              command: 'npx',
+              args: ['-y', 'mcp-remote', endpoint],
+            }
+          : {
+              url: endpoint,
+            }
+      return [c.name, entry]
+    })
+  )
+
+  if (preset === 'vscode_json') {
+    return JSON.stringify(
+      {
+        mcp: {
+          servers: serverEntries,
+        },
+      },
+      null,
+      2
+    )
+  }
+
+  return JSON.stringify(
+    {
+      mcpServers: serverEntries,
+    },
+    null,
+    2
+  )
+}
+
 const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: string }) => {
   const [showMenu, setShowMenu] = useState(false)
   const [showConnectionInfo, setShowConnectionInfo] = useState(false)
@@ -349,6 +415,8 @@ export default function TenantDetail() {
   const [showConnectorModal, setShowConnectorModal] = useState(false)
   const [showExternalMCPModal, setShowExternalMCPModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [configPreset, setConfigPreset] = useState<ClientConfigPreset>('mcp_json')
+  const [transportMode, setTransportMode] = useState<TransportMode>('direct')
 
   const { data: tenant, isLoading: tenantLoading } = useQuery({
     queryKey: ['tenant', slug],
@@ -487,21 +555,44 @@ export default function TenantDetail() {
             {/* Claude Desktop config */}
             {connectors.length > 0 && (
               <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-6">
-                <h3 className="text-sm font-medium text-zinc-200 mb-3">Claude Desktop Config</h3>
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-3">
+                  <div>
+                    <h3 className="text-sm font-medium text-zinc-200">Client Config</h3>
+                    <p className="text-xs text-zinc-500 mt-1">{CONFIG_PRESETS[configPreset].description}</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full md:w-auto md:min-w-[420px]">
+                    <label className="text-xs text-zinc-400">
+                      Client preset
+                      <select
+                        value={configPreset}
+                        onChange={(e) => setConfigPreset(e.target.value as ClientConfigPreset)}
+                        className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-200"
+                      >
+                        {Object.entries(CONFIG_PRESETS).map(([value, item]) => (
+                          <option key={value} value={value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs text-zinc-400">
+                      Connection mode
+                      <select
+                        value={transportMode}
+                        onChange={(e) => setTransportMode(e.target.value as TransportMode)}
+                        className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-200"
+                      >
+                        <option value="direct">Direct Streamable HTTP/WS</option>
+                        <option value="mcp_remote">Via mcp-remote</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
                 <CodeBlock
                   language="json"
-                  code={JSON.stringify({
-                    mcpServers: Object.fromEntries(
-                      connectors.map((c: any) => [
-                        c.name,
-                        {
-                          command: 'npx',
-                          args: ['-y', 'mcp-remote', `${window.location.protocol}//${window.location.host}/api/v1/${tenant.slug}/connectors/${c.id}/mcp`]
-                        }
-                      ])
-                    )
-                  }, null, 2)}
+                  code={buildTenantConfigCode(connectors, tenant.slug, configPreset, transportMode)}
                 />
+                <p className="text-xs text-zinc-500 mt-2">{CONFIG_PRESETS[configPreset].locationHint}</p>
               </div>
             )}
           </div>
