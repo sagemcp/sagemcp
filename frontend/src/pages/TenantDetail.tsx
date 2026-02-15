@@ -172,7 +172,7 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
         tenantSlug={tenantSlug}
       />
 
-      <div className="rounded-lg border border-zinc-800 bg-surface-elevated">
+      <div className="rounded-lg border border-zinc-800 bg-surface-elevated self-start">
         <div className="p-4">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
@@ -525,7 +525,7 @@ export default function TenantDetail() {
             </div>
 
             {connectors.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
                 {connectors.map((connector: any) => (
                   <ConnectorCard key={connector.id} connector={connector} tenantSlug={slug!} />
                 ))}

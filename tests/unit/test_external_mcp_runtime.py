@@ -126,6 +126,34 @@ async def test_process_manager_normalizes_blank_package_path():
 
 
 @pytest.mark.asyncio
+async def test_process_manager_infers_nodejs_runtime_from_npx_command():
+    manager = MCPProcessManager()
+    manager._health_check_task = SimpleNamespace(done=lambda: False)
+    manager._update_process_status = AsyncMock()
+
+    fake_connector = SimpleNamespace(
+        id="connector-1",
+        tenant_id="tenant-1",
+        runtime_type=SimpleNamespace(value="external_python"),
+        runtime_command='["npx", "@modelcontextprotocol/server-filesystem"]',
+        runtime_env={},
+        package_path=None,
+        configuration={},
+    )
+
+    fake_process_instance = Mock()
+    fake_process_instance.start_process = AsyncMock()
+    fake_process_instance.process = SimpleNamespace(pid=123)
+
+    with patch("sage_mcp.runtime.process_manager.GenericMCPConnector", return_value=fake_process_instance):
+        await manager.get_or_create(fake_connector, oauth_cred=None)
+
+    # First call is terminal error path guard for start failure; second is RUNNING update.
+    running_call = manager._update_process_status.await_args_list[-1]
+    assert running_call.kwargs["runtime_type"] == "external_nodejs"
+
+
+@pytest.mark.asyncio
 async def test_process_manager_rejects_blank_runtime_command_executable():
     manager = MCPProcessManager()
 
@@ -300,7 +328,7 @@ def test_generic_connector_parses_content_length_frames():
 
 
 @pytest.mark.asyncio
-async def test_generic_connector_write_message_uses_json_lines():
+async def test_generic_connector_write_message_uses_json_lines_by_default():
     connector = GenericMCPConnector(runtime_type="external_python", command=["python", "server.py"])
     fake_stdin = _FakeStdin()
     connector.process = SimpleNamespace(stdin=fake_stdin, returncode=0)
@@ -310,3 +338,48 @@ async def test_generic_connector_write_message_uses_json_lines():
     assert fake_stdin.buf.endswith(b"\n")
     payload = json.loads(fake_stdin.buf.decode("utf-8"))
     assert payload["method"] == "tools/list"
+
+
+@pytest.mark.asyncio
+async def test_generic_connector_write_message_uses_content_length_when_selected():
+    connector = GenericMCPConnector(runtime_type="external_python", command=["python", "server.py"])
+    connector._stdio_framing = "content_length"
+    fake_stdin = _FakeStdin()
+    connector.process = SimpleNamespace(stdin=fake_stdin, returncode=0)
+
+    await connector._write_message({"jsonrpc": "2.0", "id": "1", "method": "tools/list", "params": {}})
+
+    header, payload_bytes = fake_stdin.buf.split(b"\r\n\r\n", 1)
+    assert header.startswith(b"Content-Length:")
+    payload = json.loads(payload_bytes.decode("utf-8"))
+    assert payload["method"] == "tools/list"
+
+
+def test_generic_connector_parses_content_length_frames_with_lf_separator():
+    connector = GenericMCPConnector(runtime_type="external_python", command=["python", "server.py"])
+
+    future = SimpleNamespace(done=lambda: False, set_result=Mock())
+    connector._pending_requests["1"] = future
+    payload = b'{"jsonrpc":"2.0","id":"1","result":{"ok":true}}'
+    connector._stdout_buffer = (
+        b"Content-Length: " + str(len(payload)).encode("ascii") + b"\n\n" + payload
+    )
+
+    connector._try_parse_stdout_frames()
+
+    assert connector._stdout_buffer == b""
+    future.set_result.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_generic_connector_initialize_falls_back_to_content_length_framing():
+    connector = GenericMCPConnector(runtime_type="external_python", command=["python", "server.py"])
+    connector._send_notification = AsyncMock()
+    connector._send_request = AsyncMock(side_effect=[Exception("init timeout"), {}])
+
+    await connector._initialize_mcp(exec_name="uvx")
+
+    assert connector._initialized is True
+    assert connector._stdio_framing == "content_length"
+    assert connector._send_request.await_count == 2
+    connector._send_notification.assert_awaited_once_with("notifications/initialized")

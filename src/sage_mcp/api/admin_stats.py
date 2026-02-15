@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database.connection import get_db_session
 from ..models.tenant import Tenant
 from ..models.connector import Connector
+from ..observability.metrics import get_tool_calls_today
+from .mcp import get_recent_active_session_count
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +39,19 @@ async def get_platform_stats(request: Request):
         pool_hits = pool.hits
         pool_misses = pool.misses
     else:
+        # Active instances is pool-only. Show 0 when pool is disabled.
         active_instances = 0
         pool_hits = 0
         pool_misses = 0
 
     # Session stats
     sm = getattr(request.app.state, "session_manager", None)
-    active_sessions = sm.active_session_count if sm else 0
+    # If session manager is disabled, fall back to recently active MCP clients.
+    active_sessions = (
+        sm.active_session_count
+        if sm
+        else get_recent_active_session_count(request.app, ttl_seconds=60.0)
+    )
 
     return {
         "tenants": tenant_count,
@@ -52,6 +60,6 @@ async def get_platform_stats(request: Request):
         "active_sessions": active_sessions,
         "pool_hits": pool_hits,
         "pool_misses": pool_misses,
-        "tool_calls_today": 0,  # Placeholder until metrics tracking is wired
+        "tool_calls_today": get_tool_calls_today(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

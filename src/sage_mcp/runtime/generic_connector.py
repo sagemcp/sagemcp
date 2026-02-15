@@ -61,6 +61,7 @@ class GenericMCPConnector(BaseConnector):
         self._stderr_buffer_max = 50
         self._stdout_buffer = b""
         self._stdout_buffer_max = 1024 * 1024  # 1MB safety cap
+        self._stdio_framing = "json_line"
 
     @staticmethod
     def _classify_stderr_level(line: str) -> int:
@@ -231,15 +232,27 @@ class GenericMCPConnector(BaseConnector):
 
     async def _initialize_mcp(self, exec_name: Optional[str] = None):
         """Send MCP initialize request."""
-        await self._send_request(
-            "initialize",
-            {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {"roots": {"listChanged": True}, "sampling": {}},
-                "clientInfo": {"name": "SageMCP", "version": "1.0.0"},
-            },
-            timeout=90.0 if exec_name == "npx" else 30.0,
-        )
+        timeout = 90.0 if exec_name == "npx" else 30.0
+        init_params = {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {"roots": {"listChanged": True}, "sampling": {}},
+            "clientInfo": {"name": "SageMCP", "version": "1.0.0"},
+        }
+        try:
+            await self._send_request("initialize", init_params, timeout=timeout)
+        except Exception as e:
+            # Some MCP servers require MCP stdio Content-Length framing.
+            # Retry initialize once with header framing for compatibility.
+            if self._stdio_framing == "json_line":
+                logger.info(
+                    "Retrying MCP initialize with content_length framing for %s after error: %s",
+                    self.runtime_type,
+                    e,
+                )
+                self._stdio_framing = "content_length"
+                await self._send_request("initialize", init_params, timeout=timeout)
+            else:
+                raise
         self._initialized = True
 
         # Send initialized notification
@@ -307,7 +320,12 @@ class GenericMCPConnector(BaseConnector):
         if not self.process or not self.process.stdin:
             raise Exception("Process not started")
 
-        data = (json.dumps(message) + "\n").encode("utf-8")
+        if self._stdio_framing == "json_line":
+            data = (json.dumps(message) + "\n").encode("utf-8")
+        else:
+            payload = json.dumps(message).encode("utf-8")
+            header = f"Content-Length: {len(payload)}\r\n\r\n".encode("ascii")
+            data = header + payload
         try:
             self.process.stdin.write(data)
             await self.process.stdin.drain()
@@ -336,11 +354,15 @@ class GenericMCPConnector(BaseConnector):
             lower = self._stdout_buffer.lower()
             if lower.startswith(b"content-length:"):
                 sep = self._stdout_buffer.find(b"\r\n\r\n")
+                sep_len = 4
+                if sep == -1:
+                    sep = self._stdout_buffer.find(b"\n\n")
+                    sep_len = 2
                 if sep == -1:
                     return
                 headers_blob = self._stdout_buffer[:sep].decode("ascii", errors="replace")
                 content_length = None
-                for header_line in headers_blob.split("\r\n"):
+                for header_line in headers_blob.replace("\r\n", "\n").split("\n"):
                     if ":" not in header_line:
                         continue
                     key, value = header_line.split(":", 1)
@@ -353,10 +375,10 @@ class GenericMCPConnector(BaseConnector):
 
                 if content_length is None:
                     logger.error("Invalid MCP frame header: %s", headers_blob)
-                    self._stdout_buffer = self._stdout_buffer[sep + 4:]
+                    self._stdout_buffer = self._stdout_buffer[sep + sep_len:]
                     continue
 
-                start = sep + 4
+                start = sep + sep_len
                 end = start + content_length
                 if len(self._stdout_buffer) < end:
                     return
@@ -421,7 +443,7 @@ class GenericMCPConnector(BaseConnector):
                 if stderr_line:
                     logger.log(
                         self._classify_stderr_level(stderr_line),
-                        "MCP stderr [%s]: %s",
+                        "MCP process log [%s]: %s",
                         self.runtime_type,
                         stderr_line,
                     )

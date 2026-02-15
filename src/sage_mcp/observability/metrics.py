@@ -7,6 +7,8 @@ connector_type and tool_name are labels (bounded).
 import logging
 import os
 import time
+import asyncio
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,9 @@ def _get_prom():
 # --- Metric singletons (created on first access) ---
 
 _metrics = {}
+_tool_calls_day = None
+_tool_calls_today_count = 0
+_tool_calls_flushed_count = 0
 
 
 def _metric(name, metric_type, description, labelnames=()):
@@ -138,12 +143,121 @@ def record_pool_miss():
 
 
 def record_tool_call(connector_type: str, tool_name: str, status: str, duration: float):
+    _increment_tool_calls_today()
     tc = tool_calls_total()
     if tc:
         tc.labels(connector_type=connector_type, status=status).inc()
     tcd = tool_call_duration()
     if tcd:
         tcd.labels(connector_type=connector_type, tool_name=tool_name, status=status).observe(duration)
+
+
+def _increment_tool_calls_today() -> None:
+    """Increment in-memory daily tool call counter (UTC day)."""
+    global _tool_calls_day, _tool_calls_today_count, _tool_calls_flushed_count
+    today = datetime.now(timezone.utc).date()
+    if _tool_calls_day != today:
+        _tool_calls_day = today
+        _tool_calls_today_count = 0
+        _tool_calls_flushed_count = 0
+    _tool_calls_today_count += 1
+
+
+def get_tool_calls_today() -> int:
+    """Return in-memory daily tool call count (UTC day)."""
+    global _tool_calls_day, _tool_calls_today_count
+    today = datetime.now(timezone.utc).date()
+    if _tool_calls_day != today:
+        _tool_calls_day = today
+        _tool_calls_today_count = 0
+    return _tool_calls_today_count
+
+
+async def bootstrap_tool_calls_today_from_db() -> int:
+    """Load today's persisted counter and seed in-memory metrics state."""
+    from sqlalchemy import select
+
+    from ..database.connection import get_db_context
+    from ..models.tool_usage_daily import ToolUsageDaily
+
+    global _tool_calls_day, _tool_calls_today_count, _tool_calls_flushed_count
+
+    today = datetime.now(timezone.utc).date()
+    try:
+        async with get_db_context() as session:
+            persisted_count = (
+                await session.execute(
+                    select(ToolUsageDaily.tool_calls_count).where(ToolUsageDaily.day == today)
+                )
+            ).scalar() or 0
+    except Exception as e:
+        logger.warning("Failed to bootstrap daily tool usage counter: %s", e)
+        persisted_count = 0
+
+    _tool_calls_day = today
+    _tool_calls_today_count = persisted_count
+    _tool_calls_flushed_count = persisted_count
+    return persisted_count
+
+
+async def flush_tool_calls_today_to_db() -> int:
+    """Flush unpersisted in-memory tool-call increments to database."""
+    from sqlalchemy import update
+    from sqlalchemy.exc import IntegrityError
+
+    from ..database.connection import get_db_context
+    from ..models.tool_usage_daily import ToolUsageDaily
+
+    global _tool_calls_day, _tool_calls_today_count, _tool_calls_flushed_count
+
+    today = datetime.now(timezone.utc).date()
+    if _tool_calls_day != today:
+        _tool_calls_day = today
+        _tool_calls_today_count = 0
+        _tool_calls_flushed_count = 0
+        return 0
+
+    delta = _tool_calls_today_count - _tool_calls_flushed_count
+    if delta <= 0:
+        return 0
+
+    try:
+        async with get_db_context() as session:
+            update_result = await session.execute(
+                update(ToolUsageDaily)
+                .where(ToolUsageDaily.day == today)
+                .values(tool_calls_count=ToolUsageDaily.tool_calls_count + delta)
+            )
+            if (update_result.rowcount or 0) == 0:
+                session.add(ToolUsageDaily(day=today, tool_calls_count=delta))
+
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                await session.execute(
+                    update(ToolUsageDaily)
+                    .where(ToolUsageDaily.day == today)
+                    .values(tool_calls_count=ToolUsageDaily.tool_calls_count + delta)
+                )
+                await session.commit()
+    except Exception as e:
+        logger.warning("Failed to flush daily tool usage counter: %s", e)
+        return 0
+
+    _tool_calls_flushed_count += delta
+    return delta
+
+
+async def run_tool_usage_flush_loop(
+    stop_event: asyncio.Event, interval_seconds: float = 60.0
+) -> None:
+    """Background loop to periodically persist the in-memory tool-call counter."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval_seconds)
+        except asyncio.TimeoutError:
+            await flush_tool_calls_today_to_db()
 
 
 def set_active_sessions(count: int):

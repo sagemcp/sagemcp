@@ -1,8 +1,11 @@
 """MCP API routes for multi-tenant support."""
 
 import asyncio
+import hashlib
 import json
 import logging
+import time
+from typing import Any
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, Response
@@ -18,6 +21,69 @@ router = APIRouter()
 # Simple in-memory message queues for routing responses to SSE streams
 # Key: f"{tenant_slug}:{connector_id}"
 _message_queues: Dict[str, asyncio.Queue] = {}
+
+
+def _build_activity_key(
+    tenant_slug: str,
+    connector_id: str,
+    headers: Any,
+    client_host: str,
+) -> str:
+    """Build best-effort client fingerprint key for activity tracking."""
+    session_id = headers.get("mcp-session-id")
+    user_token = headers.get("x-user-oauth-token")
+    auth_header = headers.get("authorization")
+    forwarded_for = headers.get("x-forwarded-for")
+    user_agent = headers.get("user-agent", "")
+
+    identity = session_id or user_token or auth_header or forwarded_for or (client_host or "unknown")
+    identity_hash = hashlib.sha1(identity.encode("utf-8", errors="ignore")).hexdigest()[:12]
+    ua_hash = hashlib.sha1(user_agent.encode("utf-8", errors="ignore")).hexdigest()[:8]
+    return f"{tenant_slug}:{connector_id}:{identity_hash}:{ua_hash}"
+
+
+def _record_activity_for_app(app: Any, activity_key: str, ttl_seconds: float = 60.0) -> None:
+    """Record activity timestamp and cleanup stale entries for app-scoped tracker."""
+    now = time.monotonic()
+    tracker = getattr(app.state, "mcp_recent_activity", None)
+    if tracker is None:
+        tracker = {}
+        app.state.mcp_recent_activity = tracker
+    tracker[activity_key] = now
+
+    # Opportunistic cleanup of stale keys.
+    cutoff = now - ttl_seconds
+    stale_keys = [k for k, ts in tracker.items() if ts < cutoff]
+    for stale_key in stale_keys:
+        tracker.pop(stale_key, None)
+
+
+def _record_activity(request: Request, tenant_slug: str, connector_id: str) -> None:
+    """Record HTTP activity timestamp for active-session fallback stats."""
+    client_host = request.client.host if request.client else "unknown"
+    key = _build_activity_key(tenant_slug, connector_id, request.headers, client_host)
+    _record_activity_for_app(request.app, key)
+
+
+def _record_websocket_activity(websocket: WebSocket, tenant_slug: str, connector_id: str) -> None:
+    """Record WebSocket activity timestamp for active-session fallback stats."""
+    client_host = websocket.client.host if websocket.client else "unknown"
+    key = _build_activity_key(tenant_slug, connector_id, websocket.headers, client_host)
+    _record_activity_for_app(websocket.app, key)
+
+
+def get_recent_active_session_count(app, ttl_seconds: float = 60.0) -> int:
+    """Return number of recently active MCP clients within TTL window."""
+    tracker = getattr(app.state, "mcp_recent_activity", None)
+    if not tracker:
+        return 0
+
+    now = time.monotonic()
+    cutoff = now - ttl_seconds
+    stale_keys = [k for k, ts in tracker.items() if ts < cutoff]
+    for stale_key in stale_keys:
+        tracker.pop(stale_key, None)
+    return len(tracker)
 
 
 def _validate_origin(request: Request) -> Optional[Response]:
@@ -90,7 +156,10 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
 
     transport = MCPTransport(tenant_slug, connector_id, user_token=user_token)
 
-    await transport.handle_websocket(websocket)
+    await transport.handle_websocket(
+        websocket,
+        on_activity=lambda: _record_websocket_activity(websocket, tenant_slug, connector_id),
+    )
 
 
 @router.post("/{tenant_slug}/connectors/{connector_id}/mcp")
@@ -139,6 +208,7 @@ async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
             user_token = auth_header[7:]
 
     logger.info("MCP POST from tenant=%s connector=%s method=%s", tenant_slug, connector_id, body.get("method") if isinstance(body, dict) else "batch")
+    _record_activity(request, tenant_slug, connector_id)
 
     # JSON-RPC batching: detect array payload
     if isinstance(body, list):

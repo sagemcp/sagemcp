@@ -1,6 +1,7 @@
 """MCP Server implementation for multi-tenant support."""
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from mcp import types
@@ -15,6 +16,7 @@ from ..models.connector import ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.oauth_credential import OAuthCredential
 from ..connectors.registry import connector_registry
+from ..observability.metrics import record_tool_call
 
 logger = logging.getLogger(__name__)
 
@@ -116,11 +118,24 @@ class MCPServer:
             logger.info("Tool call: %s (connector=%s, action=%s)", name, connector.connector_type.value, action)
 
             # Execute the tool call
+            start = time.perf_counter()
             try:
                 result = await self._execute_tool(connector, action, arguments)
+                record_tool_call(
+                    connector_type=connector.connector_type.value,
+                    tool_name=action,
+                    status="success",
+                    duration=time.perf_counter() - start,
+                )
                 return [types.TextContent(type="text", text=result)]
             except Exception as e:
-                logger.error("Tool execution failed: %s — %s", name, str(e))
+                record_tool_call(
+                    connector_type=connector.connector_type.value,
+                    tool_name=action,
+                    status="error",
+                    duration=time.perf_counter() - start,
+                )
+                logger.error("Tool execution failed: %s - %s", name, str(e))
                 return [types.TextContent(
                     type="text",
                     text=f"Error executing tool: {str(e)}"

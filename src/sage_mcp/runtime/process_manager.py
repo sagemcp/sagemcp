@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
@@ -61,6 +62,16 @@ class MCPProcessManager:
         except Exception:
             return value
 
+    @staticmethod
+    def _infer_runtime_type(executable: str, configured_runtime_type: str) -> str:
+        """Infer runtime type from executable name, fallback to configured value."""
+        exec_name = os.path.basename(str(executable or "")).lower()
+        if exec_name in {"npx", "node", "npm", "pnpm", "yarn"}:
+            return "external_nodejs"
+        if exec_name in {"python", "python3", "uvx", "uv", "pip", "pipx"}:
+            return "external_python"
+        return configured_runtime_type
+
     async def get_or_create(
         self, connector: Connector, oauth_cred: Optional[OAuthCredential] = None
     ) -> GenericMCPConnector:
@@ -97,6 +108,9 @@ class MCPProcessManager:
             raise Exception("runtime_command is required for external MCP connectors")
         if not isinstance(command[0], str) or not command[0].strip():
             raise Exception("runtime_command must start with a non-empty executable name")
+        detected_runtime_type = self._infer_runtime_type(
+            command[0], connector.runtime_type.value
+        )
 
         # Normalize package_path: treat empty strings as unset.
         working_dir = connector.package_path.strip() if connector.package_path else None
@@ -126,6 +140,7 @@ class MCPProcessManager:
                 connector.id,
                 ProcessStatus.ERROR,
                 error_message=str(e),
+                runtime_type=detected_runtime_type,
             )
             raise
 
@@ -138,6 +153,7 @@ class MCPProcessManager:
             connector.id,
             ProcessStatus.RUNNING,
             pid=process.process.pid if process.process else None,
+            runtime_type=detected_runtime_type,
         )
 
         # Start health check task if not running
@@ -343,6 +359,7 @@ class MCPProcessManager:
         pid: Optional[int] = None,
         error_message: Optional[str] = None,
         restart_count: Optional[int] = None,
+        runtime_type: Optional[str] = None,
     ):
         """Update process status in database.
 
@@ -353,6 +370,7 @@ class MCPProcessManager:
             pid: Process ID (optional)
             error_message: Error message (optional)
             restart_count: Restart count (optional)
+            runtime_type: Runtime type label to persist (optional)
         """
         async with get_db_context() as session:
             tenant_uuid = self._coerce_uuid(tenant_id)
@@ -372,11 +390,24 @@ class MCPProcessManager:
                 update_values = {"status": status}
                 if pid is not None:
                     update_values["pid"] = pid
+                elif status != ProcessStatus.RUNNING:
+                    update_values["pid"] = None
                 if error_message is not None:
                     update_values["error_message"] = error_message
+                elif status in {
+                    ProcessStatus.STARTING,
+                    ProcessStatus.RUNNING,
+                    ProcessStatus.RESTARTING,
+                    ProcessStatus.STOPPED,
+                }:
+                    # Clear stale error after successful recovery/start/stop.
+                    update_values["error_message"] = None
                 if restart_count is not None:
                     update_values["restart_count"] = restart_count
+                if runtime_type is not None:
+                    update_values["runtime_type"] = runtime_type
                 if status == ProcessStatus.RUNNING:
+                    update_values["started_at"] = datetime.utcnow()
                     update_values["last_health_check"] = datetime.utcnow()
 
                 await session.execute(
@@ -394,7 +425,7 @@ class MCPProcessManager:
                 )
                 connector = result.scalar_one_or_none()
 
-                runtime_type = (
+                persisted_runtime_type = runtime_type or (
                     connector.runtime_type.value if connector else "external_custom"
                 )
 
@@ -402,7 +433,7 @@ class MCPProcessManager:
                     connector_id=connector_uuid,
                     tenant_id=tenant_uuid,
                     pid=pid,
-                    runtime_type=runtime_type,
+                    runtime_type=persisted_runtime_type,
                     status=status,
                     started_at=datetime.utcnow(),
                     last_health_check=(

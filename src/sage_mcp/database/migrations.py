@@ -7,6 +7,7 @@ from ..models.base import Base
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.mcp_process import MCPProcess
 from ..models.mcp_server_registry import MCPServerRegistry, DiscoveryJob, MCPInstallation
+from ..models.tool_usage_daily import ToolUsageDaily
 from .connection import db_manager
 
 

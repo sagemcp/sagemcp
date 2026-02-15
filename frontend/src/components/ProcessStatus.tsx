@@ -61,12 +61,12 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   // Skip query if this is a native connector
   const isExternal = runtimeType !== ConnectorRuntimeType.NATIVE
 
-  const { data: processStatus, isLoading, error, refetch } = useQuery({
+  const { data: processStatus, isLoading, refetch } = useQuery({
     queryKey: ['process-status', connectorId],
     queryFn: () => processApi.getStatus(connectorId).then(res => res.data),
     enabled: isExternal,
     refetchInterval: 10000, // Refresh every 10 seconds
-    retry: 1
+    retry: 1,
   })
 
   const restartMutation = useMutation({
@@ -105,7 +105,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
     )
   }
 
-  if (isLoading) {
+  if (isLoading && !processStatus) {
     return (
       <div className="flex items-center space-x-2">
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700">
@@ -116,7 +116,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
     )
   }
 
-  if (error || !processStatus) {
+  if (!processStatus) {
     return (
       <div className="flex items-center space-x-2">
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700">
@@ -135,6 +135,10 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   const lastHealthCheck = processStatus.last_health_check
     ? formatDistanceToNow(new Date(processStatus.last_health_check), { addSuffix: true })
     : 'Never'
+  const normalizedStatus = String(processStatus.status).toLowerCase()
+  const isRunningLike = ['running', 'starting', 'restarting'].includes(normalizedStatus)
+  const canTerminate = isRunningLike
+  const canRestart = ['running', 'starting', 'restarting', 'stopped', 'error'].includes(normalizedStatus)
 
   return (
     <div className="space-y-3">
@@ -151,6 +155,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
           <div className="flex items-center space-x-2">
             <button
               onClick={() => refetch()}
+              disabled={isLoading}
               className="text-xs text-zinc-400 hover:text-zinc-100 flex items-center"
               title="Refresh status"
             >
@@ -159,7 +164,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
             </button>
             <button
               onClick={() => restartMutation.mutate()}
-              disabled={restartMutation.isPending}
+              disabled={restartMutation.isPending || !canRestart}
               className="btn-secondary text-xs py-1 px-2"
               title="Restart process"
             >
@@ -168,7 +173,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
             </button>
             <button
               onClick={() => terminateMutation.mutate()}
-              disabled={terminateMutation.isPending}
+              disabled={terminateMutation.isPending || !canTerminate}
               className="btn-secondary text-xs py-1 px-2 text-error-600 hover:text-error-700"
               title="Terminate process"
             >
@@ -200,7 +205,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
       </div>
 
       {/* Error Message */}
-      {processStatus.error_message && (
+      {processStatus.status === ProcessStatusEnum.ERROR && processStatus.error_message && (
         <div className="flex items-start space-x-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
           <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">

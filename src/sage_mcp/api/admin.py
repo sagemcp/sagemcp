@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database.connection import get_db_session
 from ..models.connector import Connector, ConnectorType, ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
-from ..models.mcp_process import MCPProcess
+from ..models.mcp_process import MCPProcess, ProcessStatus
 from ..models.tenant import Tenant
 from ..connectors.registry import connector_registry
 from ..runtime import process_manager
@@ -1108,6 +1108,50 @@ async def get_process_status(
     if not process:
         return None
 
+    has_db_changes = False
+    key = f"{process.tenant_id}:{process.connector_id}"
+    managed_process = process_manager.processes.get(key)
+    is_live = (
+        managed_process is not None
+        and managed_process.process is not None
+        and managed_process.process.returncode is None
+    )
+
+    # Reconcile stale DB state after app/container restart.
+    # If process manager has no live process for this connector, it cannot be running.
+    if process.status in {
+        ProcessStatus.RUNNING,
+        ProcessStatus.STARTING,
+        ProcessStatus.RESTARTING,
+    }:
+        if not is_live:
+            process.status = ProcessStatus.STOPPED
+            process.pid = None
+            process.error_message = None
+            process.last_health_check = None
+            has_db_changes = True
+
+    # Normalize stale metadata for stopped records.
+    if process.status == ProcessStatus.STOPPED:
+        if process.pid is not None:
+            process.pid = None
+            has_db_changes = True
+        if process.last_health_check is not None:
+            process.last_health_check = None
+            has_db_changes = True
+        if process.error_message is not None:
+            process.error_message = None
+            has_db_changes = True
+
+    if has_db_changes:
+        await session.commit()
+        await session.refresh(process)
+
+    # API contract: non-active external processes are represented as null.
+    # Frontend treats null as "Not Started".
+    if process.status == ProcessStatus.STOPPED:
+        return None
+
     return ProcessStatusResponse(
         connector_id=process.connector_id,
         tenant_id=process.tenant_id,
@@ -1127,7 +1171,7 @@ async def restart_process(
     session: AsyncSession = Depends(get_db_session)
 ):
     """Restart an external MCP server process."""
-    from sqlalchemy import select
+    from sqlalchemy import select, update, func
 
     # Get connector
     connector_result = await session.execute(
@@ -1150,6 +1194,37 @@ async def restart_process(
         await process_manager.terminate(str(connector.tenant_id), str(connector.id))
     except Exception as e:
         logger.warning("Failed to terminate process: %s", e)
+
+    # Count manual restart attempts even when restart is lazy (starts on next request).
+    update_result = await session.execute(
+        update(MCPProcess)
+        .where(
+            MCPProcess.connector_id == connector.id,
+            MCPProcess.tenant_id == connector.tenant_id,
+        )
+        .values(
+            status=ProcessStatus.STOPPED,
+            pid=None,
+            error_message=None,
+            last_health_check=None,
+            restart_count=func.coalesce(MCPProcess.restart_count, 0) + 1,
+        )
+    )
+    if (update_result.rowcount or 0) == 0:
+        session.add(
+            MCPProcess(
+                connector_id=connector.id,
+                tenant_id=connector.tenant_id,
+                pid=None,
+                runtime_type=connector.runtime_type.value,
+                status=ProcessStatus.STOPPED,
+                started_at=datetime.utcnow(),
+                last_health_check=None,
+                error_message=None,
+                restart_count=1,
+            )
+        )
+    await session.commit()
 
     # Process will be restarted on next request via process_manager.get_or_create()
     return {
