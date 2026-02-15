@@ -28,6 +28,17 @@ Sage MCP is a production-ready platform that enables you to run multiple isolate
 - Prometheus metrics, structured JSON logging, and Kubernetes health probes
 - Progressive rollout via feature flags (`SAGEMCP_ENABLE_*`)
 
+## Screenshots
+
+<div align="center">
+  <img src="docs/images/connectors.png" alt="Connectors Management" width="800" />
+  <p><em>Manage 19+ native connectors with OAuth integration</em></p>
+  <img src="docs/images/tool-policy.png" alt="Tool Policy" width="800" />
+  <p><em>Fine-grained tool enable/disable per connector</em></p>
+  <img src="docs/images/mcp-testing.png" alt="MCP Protocol Testing" width="800" />
+  <p><em>Built-in MCP protocol testing with WebSocket and HTTP support</em></p>
+</div>
+
 ## Architecture
 
 <div align="center">
