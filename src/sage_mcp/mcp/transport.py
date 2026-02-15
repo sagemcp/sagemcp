@@ -325,7 +325,9 @@ class MCPTransport:
                             if resources_list:
                                 for resource in resources_list:
                                     clean_resource = {
-                                        "uri": resource.uri,
+                                        # Some MCP SDK implementations return AnyUrl for uri.
+                                        # Convert to plain string to keep JSON serialization safe.
+                                        "uri": str(resource.uri),
                                         "name": resource.name,
                                         "description": resource.description
                                     }
@@ -350,15 +352,75 @@ class MCPTransport:
             elif method == "resources/read":
                 uri = params.get("uri")
 
-                if hasattr(self.mcp_server.server, '_read_resource_handlers'):
+                if hasattr(self.mcp_server.server, "request_handlers"):
+                    handlers = self.mcp_server.server.request_handlers
+                    from mcp.types import ReadResourceRequest
+
+                    if ReadResourceRequest in handlers:
+                        handler = handlers[ReadResourceRequest]
+                        try:
+                            request_obj = ReadResourceRequest(
+                                method="resources/read",
+                                params=params or {},
+                            )
+                            result = await handler(request_obj)
+
+                            contents = None
+                            if hasattr(result, "contents"):
+                                contents = result.contents
+                            elif hasattr(result, "root") and hasattr(result.root, "contents"):
+                                contents = result.root.contents
+                            elif isinstance(result, dict) and "contents" in result:
+                                contents = result["contents"]
+
+                            if contents is not None:
+                                clean_contents = []
+                                for content in contents:
+                                    if isinstance(content, dict):
+                                        safe_content = dict(content)
+                                        if "uri" in safe_content:
+                                            safe_content["uri"] = str(safe_content["uri"])
+                                        # Ensure dict payload is JSON-serializable.
+                                        try:
+                                            json.dumps(safe_content)
+                                        except TypeError:
+                                            safe_content = json.loads(
+                                                json.dumps(safe_content, default=str)
+                                            )
+                                        clean_contents.append(safe_content)
+                                        continue
+
+                                    clean_item = {
+                                        "uri": str(getattr(content, "uri", "")),
+                                        "mimeType": getattr(content, "mimeType", None),
+                                    }
+                                    if hasattr(content, "text"):
+                                        clean_item["type"] = "text"
+                                        clean_item["text"] = content.text
+                                    elif hasattr(content, "blob"):
+                                        clean_item["type"] = "blob"
+                                        clean_item["blob"] = content.blob
+                                    else:
+                                        clean_item["type"] = "text"
+                                        clean_item["text"] = str(content)
+                                    clean_contents.append(clean_item)
+
+                                return {
+                                    "jsonrpc": "2.0",
+                                    "id": message_id,
+                                    "result": {"contents": clean_contents},
+                                }
+                        except Exception as e:
+                            return _error_response(message_id, -32603, f"Error reading resource: {str(e)}")
+
+                # Backward compatibility with older MCP SDK internals.
+                if hasattr(self.mcp_server.server, "_read_resource_handlers"):
                     for handler in self.mcp_server.server._read_resource_handlers.values():
                         result = await handler(uri)
                         return {
                             "jsonrpc": "2.0",
                             "id": message_id,
-                            "result": {
-                                "contents": [{"type": "text", "text": result}]
-                            }
+                            "result": {"contents": [{"type": "text", "text": result}]},
                         }
 
                 return _error_response(message_id, -32601, f"Resource not found: {uri}")

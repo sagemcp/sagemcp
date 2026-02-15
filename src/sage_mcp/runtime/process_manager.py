@@ -4,7 +4,8 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
+from uuid import UUID
 
 from sqlalchemy import select, update
 
@@ -32,6 +33,9 @@ class MCPProcessManager:
         """Initialize the process manager."""
         self.processes: Dict[str, GenericMCPConnector] = {}  # key: tenant_id:connector_id
         self.health_check_interval = 30  # seconds
+        self.protocol_probe_interval = 300  # seconds
+        self.health_failure_threshold = 3
+        self._health_state: Dict[str, Dict[str, Any]] = {}
         self._health_check_task: Optional[asyncio.Task] = None
         self._shutdown = False
 
@@ -46,6 +50,16 @@ class MCPProcessManager:
             Unique key string
         """
         return f"{tenant_id}:{connector_id}"
+
+    @staticmethod
+    def _coerce_uuid(value):
+        """Best-effort UUID coercion for DB filters/assignments."""
+        if isinstance(value, UUID):
+            return value
+        try:
+            return UUID(str(value))
+        except Exception:
+            return value
 
     async def get_or_create(
         self, connector: Connector, oauth_cred: Optional[OAuthCredential] = None
@@ -67,7 +81,7 @@ class MCPProcessManager:
         # Return existing if healthy
         if key in self.processes:
             process = self.processes[key]
-            if await self._is_healthy(process):
+            if await self._is_healthy(key, process):
                 return process
             else:
                 # Unhealthy, restart
@@ -79,15 +93,22 @@ class MCPProcessManager:
         except json.JSONDecodeError:
             raise Exception(f"Invalid runtime_command JSON: {connector.runtime_command}")
 
-        if not command:
+        if not isinstance(command, list) or not command:
             raise Exception("runtime_command is required for external MCP connectors")
+        if not isinstance(command[0], str) or not command[0].strip():
+            raise Exception("runtime_command must start with a non-empty executable name")
+
+        # Normalize package_path: treat empty strings as unset.
+        working_dir = connector.package_path.strip() if connector.package_path else None
+        if working_dir == "":
+            working_dir = None
 
         # Create new process
         process = GenericMCPConnector(
             runtime_type=connector.runtime_type.value,
             command=command,
             env=connector.runtime_env or {},
-            working_dir=connector.package_path,
+            working_dir=working_dir,
         )
 
         # Start the process
@@ -137,6 +158,7 @@ class MCPProcessManager:
             process = self.processes[key]
             await process.stop_process()
             del self.processes[key]
+            self._health_state.pop(key, None)
 
             # Update database
             await self._update_process_status(
@@ -160,10 +182,19 @@ class MCPProcessManager:
             tenant_id, connector_id = key.split(":")
             await self.terminate(tenant_id, connector_id)
 
-    async def _is_healthy(self, process: GenericMCPConnector) -> bool:
+    async def _protocol_probe(self, process: GenericMCPConnector) -> None:
+        """Run a lightweight MCP protocol-level probe."""
+        try:
+            await process._send_request("resources/list", {})
+        except Exception:
+            # Some servers may not implement resources. Fall back to tools list.
+            await process._send_request("tools/list", {})
+
+    async def _is_healthy(self, key: str, process: GenericMCPConnector) -> bool:
         """Check if process is healthy.
 
         Args:
+            key: Process key (tenant_id:connector_id)
             process: GenericMCPConnector instance
 
         Returns:
@@ -172,12 +203,33 @@ class MCPProcessManager:
         if not process.process or process.process.returncode is not None:
             return False
 
-        try:
-            # Send ping notification (doesn't require response)
-            await asyncio.wait_for(process._send_notification("ping"), timeout=5.0)
+        loop = asyncio.get_running_loop()
+        now = loop.time()
+        state = self._health_state.setdefault(
+            key,
+            {"last_protocol_probe_at": 0.0, "consecutive_failures": 0},
+        )
+
+        # Cheap fast path: avoid expensive probes every interval.
+        if (now - float(state["last_protocol_probe_at"])) < self.protocol_probe_interval:
             return True
-        except Exception:
-            return False
+
+        try:
+            await asyncio.wait_for(self._protocol_probe(process), timeout=5.0)
+            state["last_protocol_probe_at"] = now
+            state["consecutive_failures"] = 0
+            return True
+        except Exception as e:
+            state["last_protocol_probe_at"] = now
+            state["consecutive_failures"] = int(state["consecutive_failures"]) + 1
+            logger.warning(
+                "Protocol probe failed for %s (%d/%d): %s",
+                key,
+                state["consecutive_failures"],
+                self.health_failure_threshold,
+                e,
+            )
+            return state["consecutive_failures"] < self.health_failure_threshold
 
     async def _health_check_loop(self):
         """Background task for periodic health checks."""
@@ -186,7 +238,7 @@ class MCPProcessManager:
                 await asyncio.sleep(self.health_check_interval)
 
                 for key, process in list(self.processes.items()):
-                    if not await self._is_healthy(process):
+                    if not await self._is_healthy(key, process):
                         tenant_id, connector_id = key.split(":")
 
                         # Get restart count from database
@@ -303,11 +355,14 @@ class MCPProcessManager:
             restart_count: Restart count (optional)
         """
         async with get_db_context() as session:
+            tenant_uuid = self._coerce_uuid(tenant_id)
+            connector_uuid = self._coerce_uuid(connector_id)
+
             # Check if record exists
             result = await session.execute(
                 select(MCPProcess).where(
-                    MCPProcess.tenant_id == tenant_id,
-                    MCPProcess.connector_id == connector_id,
+                    MCPProcess.tenant_id == tenant_uuid,
+                    MCPProcess.connector_id == connector_uuid,
                 )
             )
             mcp_process = result.scalar_one_or_none()
@@ -327,36 +382,38 @@ class MCPProcessManager:
                 await session.execute(
                     update(MCPProcess)
                     .where(
-                        MCPProcess.tenant_id == tenant_id,
-                        MCPProcess.connector_id == connector_id,
+                        MCPProcess.tenant_id == tenant_uuid,
+                        MCPProcess.connector_id == connector_uuid,
                     )
                     .values(**update_values)
                 )
             else:
                 # Create new record
-                async with get_db_context() as session:
-                    result = await session.execute(
-                        select(Connector).where(Connector.id == connector_id)
-                    )
-                    connector = result.scalar_one_or_none()
+                result = await session.execute(
+                    select(Connector).where(Connector.id == connector_uuid)
+                )
+                connector = result.scalar_one_or_none()
 
-                    if connector:
-                        new_process = MCPProcess(
-                            connector_id=connector_id,
-                            tenant_id=tenant_id,
-                            pid=pid,
-                            runtime_type=connector.runtime_type.value,
-                            status=status,
-                            started_at=datetime.utcnow(),
-                            last_health_check=(
-                                datetime.utcnow()
-                                if status == ProcessStatus.RUNNING
-                                else None
-                            ),
-                            error_message=error_message,
-                            restart_count=restart_count or 0,
-                        )
-                        session.add(new_process)
+                runtime_type = (
+                    connector.runtime_type.value if connector else "external_custom"
+                )
+
+                new_process = MCPProcess(
+                    connector_id=connector_uuid,
+                    tenant_id=tenant_uuid,
+                    pid=pid,
+                    runtime_type=runtime_type,
+                    status=status,
+                    started_at=datetime.utcnow(),
+                    last_health_check=(
+                        datetime.utcnow()
+                        if status == ProcessStatus.RUNNING
+                        else None
+                    ),
+                    error_message=error_message,
+                    restart_count=restart_count or 0,
+                )
+                session.add(new_process)
 
             await session.commit()
 

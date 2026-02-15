@@ -608,9 +608,14 @@ async def list_connector_tools(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     # Get connector
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
     connector_result = await session.execute(
         select(Connector).where(
-            Connector.id == connector_id,
+            Connector.id == connector_uuid,
             Connector.tenant_id == tenant.id
         )
     )
@@ -619,8 +624,10 @@ async def list_connector_tools(
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
 
-    # Get connector plugin to fetch tool definitions
-    connector_plugin = connector_registry.get_connector(connector.connector_type)
+    # Resolve connector plugin/runtime (supports both native and external connectors)
+    connector_plugin = await connector_registry.get_connector_for_config(
+        connector, oauth_cred=None
+    )
     if not connector_plugin:
         raise HTTPException(status_code=404, detail="Connector plugin not found")
 
@@ -664,6 +671,44 @@ async def list_connector_tools(
             "disabled": disabled_count
         }
     )
+
+
+@router.get(
+    "/connectors/{connector_id}/tools",
+    response_model=ToolsListResponse
+)
+async def list_connector_tools_legacy(
+    connector_id: str,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Legacy endpoint: list tools by connector ID only.
+
+    Backward-compatible alias for older frontend bundles that call:
+    /admin/connectors/{connector_id}/tools
+    """
+    from sqlalchemy import select
+
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    connector_result = await session.execute(
+        select(Connector).where(Connector.id == connector_uuid)
+    )
+    connector = connector_result.scalar_one_or_none()
+
+    if not connector:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    tenant_result = await session.execute(
+        select(Tenant).where(Tenant.id == connector.tenant_id)
+    )
+    tenant = tenant_result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    return await list_connector_tools(tenant.slug, connector_id, session)
 
 
 @router.patch(
@@ -952,8 +997,10 @@ async def sync_connector_tools(
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
 
-    # Get connector plugin
-    connector_plugin = connector_registry.get_connector(connector.connector_type)
+    # Resolve connector plugin/runtime (supports both native and external connectors)
+    connector_plugin = await connector_registry.get_connector_for_config(
+        connector, oauth_cred=None
+    )
     if not connector_plugin:
         raise HTTPException(status_code=404, detail="Connector plugin not found")
 
