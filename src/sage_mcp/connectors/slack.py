@@ -44,7 +44,7 @@ class SlackConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 1000,
-                            "default": 100,
+                            "default": 20,
                             "description": "Number of messages to return"
                         },
                         "cursor": {
@@ -86,7 +86,7 @@ class SlackConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 1000,
-                            "default": 100,
+                            "default": 20,
                             "description": "Number of messages to return"
                         },
                         "cursor": {
@@ -195,7 +195,7 @@ class SlackConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 1000,
-                            "default": 100,
+                            "default": 20,
                             "description": "Number of channels to return"
                         },
                         "cursor": {
@@ -244,7 +244,7 @@ class SlackConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 1000,
-                            "default": 100,
+                            "default": 20,
                             "description": "Number of users to return"
                         },
                         "cursor": {
@@ -494,7 +494,7 @@ class SlackConnector(BaseConnector):
         """Get conversation history."""
         payload = {
             "channel": arguments["channel_id"],
-            "limit": arguments.get("limit", 100)
+            "limit": arguments.get("limit", 20)
         }
 
         if "cursor" in arguments:
@@ -528,7 +528,7 @@ class SlackConnector(BaseConnector):
         payload = {
             "channel": arguments["channel_id"],
             "ts": arguments["thread_ts"],
-            "limit": arguments.get("limit", 100)
+            "limit": arguments.get("limit", 20)
         }
 
         if "cursor" in arguments:
@@ -617,7 +617,7 @@ class SlackConnector(BaseConnector):
     async def _conversations_list(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """List conversations."""
         payload = {
-            "limit": arguments.get("limit", 100),
+            "limit": arguments.get("limit", 20),
             "types": arguments.get("types", "public_channel"),
             "exclude_archived": arguments.get("exclude_archived", False)
         }
@@ -665,7 +665,7 @@ class SlackConnector(BaseConnector):
     async def _users_list(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """List users."""
         payload = {
-            "limit": arguments.get("limit", 100),
+            "limit": arguments.get("limit", 20),
             "include_locale": arguments.get("include_locale", False)
         }
 

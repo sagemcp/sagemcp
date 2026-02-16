@@ -52,7 +52,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     }
@@ -104,7 +104,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -280,7 +280,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -312,7 +312,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -389,7 +389,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -466,7 +466,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -509,7 +509,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of events per page"
                         }
                     },
@@ -548,7 +548,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -591,7 +591,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -625,7 +625,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -672,7 +672,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -875,7 +875,7 @@ class GitHubConnector(BaseConnector):
         params = {
             "type": arguments.get("type", "all"),
             "sort": arguments.get("sort", "updated"),
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         try:
@@ -931,7 +931,7 @@ class GitHubConnector(BaseConnector):
 
         params = {
             "state": arguments.get("state", "open"),
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         if "labels" in arguments:
@@ -1125,7 +1125,7 @@ class GitHubConnector(BaseConnector):
 
         params = {
             "state": arguments.get("state", "open"),
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         response = await self._make_authenticated_request(
@@ -1155,7 +1155,7 @@ class GitHubConnector(BaseConnector):
         """Search for repositories."""
         params = {
             "q": arguments["q"],
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         if "sort" in arguments:
@@ -1327,7 +1327,7 @@ class GitHubConnector(BaseConnector):
         repo = arguments["repo"]
 
         params = {
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         # Add optional filters
@@ -1458,7 +1458,7 @@ class GitHubConnector(BaseConnector):
         repo = arguments["repo"]
 
         params = {
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         if "protected" in arguments:
@@ -1511,7 +1511,7 @@ class GitHubConnector(BaseConnector):
     async def _get_user_activity(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """Get user's recent activity events."""
         username = arguments["username"]
-        per_page = arguments.get("per_page", 30)
+        per_page = arguments.get("per_page", 10)
 
         response = await self._make_authenticated_request(
             "GET",
@@ -1651,7 +1651,7 @@ class GitHubConnector(BaseConnector):
             "GET",
             f"https://api.github.com/repos/{owner}/{repo}/contributors",
             oauth_cred,
-            params={"per_page": arguments.get("per_page", 30)}
+            params={"per_page": arguments.get("per_page", 10)}
         )
 
         contributors = response.json()
@@ -1740,7 +1740,7 @@ class GitHubConnector(BaseConnector):
             "GET",
             f"https://api.github.com/repos/{owner}/{repo}/actions/workflows",
             oauth_cred,
-            params={"per_page": arguments.get("per_page", 30)}
+            params={"per_page": arguments.get("per_page", 10)}
         )
 
         data = response.json()
@@ -1763,7 +1763,7 @@ class GitHubConnector(BaseConnector):
         owner = arguments["owner"]
         repo = arguments["repo"]
 
-        params = {"per_page": arguments.get("per_page", 30)}
+        params = {"per_page": arguments.get("per_page", 10)}
 
         if "status" in arguments:
             params["status"] = arguments["status"]
@@ -1844,7 +1844,7 @@ class GitHubConnector(BaseConnector):
             "GET",
             f"https://api.github.com/repos/{owner}/{repo}/releases",
             oauth_cred,
-            params={"per_page": arguments.get("per_page", 30)}
+            params={"per_page": arguments.get("per_page", 10)}
         )
 
         releases = response.json()
