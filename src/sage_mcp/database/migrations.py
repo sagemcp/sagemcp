@@ -394,3 +394,62 @@ async def upgrade_add_mcp_server_registry(engine: AsyncEngine = None):
             print("✓ Added registry_id and installed_version columns to connectors table")
         else:
             print("✓ registry_id column already exists in connectors table")
+
+
+async def upgrade_add_missing_connector_types(engine: AsyncEngine = None):
+    """Migration: Add missing ConnectorType enum values.
+
+    The Python ConnectorType enum has grown to include google_calendar,
+    google_sheets, gmail, google_slides, bitbucket, zoom, outlook, excel,
+    powerpoint, copilot, claude_code, codex, cursor, windsurf — but the
+    PostgreSQL connectortype enum was never updated.
+
+    Safe to run on existing databases - checks each value individually.
+    """
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    # All values that should exist in the enum (from ConnectorType)
+    expected_values = [
+        'github', 'gitlab', 'bitbucket',
+        'google_docs', 'google_calendar', 'google_sheets', 'gmail', 'google_slides',
+        'notion', 'confluence',
+        'jira', 'linear',
+        'slack', 'teams', 'discord', 'zoom',
+        'outlook', 'excel', 'powerpoint',
+        'copilot', 'claude_code', 'codex', 'cursor', 'windsurf',
+        'custom',
+    ]
+
+    async with engine.begin() as conn:
+        # Check if enum type exists
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'connectortype')"
+        ))
+        enum_exists = result.scalar()
+
+        if not enum_exists:
+            print("✓ connectortype enum doesn't exist yet (will be created with tables)")
+            return
+
+        # Get current enum values
+        result = await conn.execute(text(
+            "SELECT e.enumlabel FROM pg_enum e "
+            "JOIN pg_type t ON e.enumtypid = t.oid "
+            "WHERE t.typname = 'connectortype'"
+        ))
+        existing_values = {row[0] for row in result.fetchall()}
+
+        added = 0
+        for value in expected_values:
+            if value not in existing_values:
+                await conn.execute(text(
+                    f"ALTER TYPE connectortype ADD VALUE '{value}'"
+                ))
+                print(f"✓ Added '{value}' to connectortype enum")
+                added += 1
+
+        if added == 0:
+            print("✓ All connector types already exist in connectortype enum")
