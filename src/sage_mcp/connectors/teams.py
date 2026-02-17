@@ -303,6 +303,20 @@ class TeamsConnector(BaseConnector):
                 }
             ),
             types.Tool(
+                name="teams_get_user_by_email",
+                description="Look up a Microsoft 365 user by email address using Microsoft Graph",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email address to look up"
+                        }
+                    },
+                    "required": ["email"]
+                }
+            ),
+            types.Tool(
                 name="teams_list_channel_members",
                 description="List members of a specific channel in a team",
                 inputSchema={
@@ -378,6 +392,8 @@ class TeamsConnector(BaseConnector):
                 return await self._search_messages(arguments, oauth_cred)
             elif tool_name == "list_channel_members":
                 return await self._list_channel_members(arguments, oauth_cred)
+            elif tool_name == "get_user_by_email":
+                return await self._get_user_by_email(arguments, oauth_cred)
             else:
                 return f"Unknown tool: {tool_name}"
 
@@ -899,3 +915,35 @@ class TeamsConnector(BaseConnector):
 
         except Exception as e:
             return f"Error listing channel members: {str(e)}"
+
+    async def _get_user_by_email(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Look up a Microsoft 365 user by email address via Microsoft Graph."""
+        email = arguments["email"]
+
+        try:
+            response = await self._make_authenticated_request(
+                "GET",
+                f"{GRAPH_API_BASE}/users",
+                oauth_cred,
+                params={
+                    "$filter": f"mail eq '{email}' or userPrincipalName eq '{email}'",
+                    "$select": "id,displayName,mail,userPrincipalName,jobTitle,department"
+                }
+            )
+            data = response.json()
+
+            users = []
+            for user in data.get("value", []):
+                users.append({
+                    "id": user.get("id"),
+                    "displayName": user.get("displayName"),
+                    "mail": user.get("mail"),
+                    "userPrincipalName": user.get("userPrincipalName"),
+                    "jobTitle": user.get("jobTitle"),
+                    "department": user.get("department")
+                })
+
+            return json.dumps({"users": users, "count": len(users)}, indent=2)
+
+        except Exception as e:
+            return f"Error looking up user by email: {str(e)}"

@@ -279,6 +279,20 @@ class SlackConnector(BaseConnector):
                 }
             ),
             types.Tool(
+                name="slack_users_lookup_by_email",
+                description="Look up a Slack user by their email address. Requires the users:read.email scope.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email address to look up"
+                        }
+                    },
+                    "required": ["email"]
+                }
+            ),
+            types.Tool(
                 name="slack_reactions_add",
                 description="Add an emoji reaction to a message",
                 inputSchema={
@@ -423,6 +437,8 @@ class SlackConnector(BaseConnector):
                 return await self._users_list(arguments, oauth_cred)
             elif tool_name == "users_info":
                 return await self._users_info(arguments, oauth_cred)
+            elif tool_name == "users_lookup_by_email":
+                return await self._users_lookup_by_email(arguments, oauth_cred)
             elif tool_name == "reactions_add":
                 return await self._reactions_add(arguments, oauth_cred)
             elif tool_name == "reactions_remove":
@@ -705,6 +721,32 @@ class SlackConnector(BaseConnector):
         data = response.json()
         if data.get("ok"):
             return json.dumps(data.get("user", {}), indent=2)
+        else:
+            return f"Error: {data.get('error')}"
+
+    async def _users_lookup_by_email(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Look up a user by email address."""
+        email = arguments["email"]
+
+        response = await self._make_authenticated_request(
+            "GET",
+            "https://slack.com/api/users.lookupByEmail",
+            oauth_cred,
+            params={"email": email}
+        )
+
+        data = response.json()
+        if data.get("ok"):
+            user = data.get("user", {})
+            profile = user.get("profile", {})
+            return json.dumps({
+                "id": user.get("id"),
+                "name": user.get("name"),
+                "real_name": user.get("real_name"),
+                "display_name": profile.get("display_name"),
+                "email": profile.get("email"),
+                "title": profile.get("title")
+            }, indent=2)
         else:
             return f"Error: {data.get('error')}"
 

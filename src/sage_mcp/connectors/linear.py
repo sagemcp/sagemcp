@@ -416,6 +416,22 @@ query ListUsers($first: Int!, $after: String) {
 }
 """
 
+_GET_USER_BY_EMAIL_QUERY = """
+query GetUserByEmail($email: String!) {
+  users(filter: { email: { eq: $email } }) {
+    nodes {
+      id
+      name
+      displayName
+      email
+      active
+      admin
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
+
 
 # ---------------------------------------------------------------------------
 # Connector implementation
@@ -805,6 +821,21 @@ class LinearConnector(BaseConnector):
                     "properties": {},
                 },
             ),
+            # 19. get_user_by_email
+            types.Tool(
+                name="linear_get_user_by_email",
+                description="Look up a Linear organization member by their email address",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email address to look up",
+                        },
+                    },
+                    "required": ["email"],
+                },
+            ),
         ]
 
     async def get_resources(
@@ -867,6 +898,8 @@ class LinearConnector(BaseConnector):
                 return await self._list_comments(arguments, oauth_cred)
             elif tool_name == "list_users":
                 return await self._list_users(arguments, oauth_cred)
+            elif tool_name == "get_user_by_email":
+                return await self._get_user_by_email(arguments, oauth_cred)
             else:
                 return f"Unknown tool: {tool_name}"
 
@@ -1157,4 +1190,15 @@ class LinearConnector(BaseConnector):
         users = await client.collect_connection(
             _LIST_USERS_QUERY, connection_path="users"
         )
+        return json.dumps(users, indent=2)
+
+    async def _get_user_by_email(
+        self, arguments: Dict[str, Any], oauth_cred: OAuthCredential
+    ) -> str:
+        """Look up a user by email address."""
+        client = self._get_client(oauth_cred)
+        data = await client.execute(
+            _GET_USER_BY_EMAIL_QUERY, {"email": arguments["email"]}
+        )
+        users = data.get("users", {}).get("nodes", [])
         return json.dumps(users, indent=2)
