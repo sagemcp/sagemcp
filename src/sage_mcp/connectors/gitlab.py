@@ -3,8 +3,8 @@
 Supports GitLab REST API v4 for both gitlab.com and self-hosted instances.
 Self-hosted URL is read from connector.configuration["gitlab_url"].
 
-22 tools covering projects, merge requests, issues, pipelines, branches,
-commits, groups, milestones, labels, and repository operations.
+23 tools covering projects, merge requests, issues, pipelines, branches,
+commits, groups, milestones, labels, repository operations, and user search.
 """
 
 import base64
@@ -69,7 +69,7 @@ class GitLabConnector(BaseConnector):
         connector: Connector,
         oauth_cred: Optional[OAuthCredential] = None,
     ) -> List[types.Tool]:
-        """Return the 22 GitLab tools.
+        """Return the 23 GitLab tools.
 
         All tool names are prefixed with ``gitlab_``.  The prefix is stripped
         before dispatching in ``execute_tool``.
@@ -663,7 +663,29 @@ class GitLabConnector(BaseConnector):
                     "required": ["project_id"],
                 },
             ),
-            # 22. retry_pipeline
+            # 22. search_users
+            types.Tool(
+                name="gitlab_search_users",
+                description="Search GitLab users by email or username. For non-admin tokens, only matches public emails.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "search": {
+                            "type": "string",
+                            "description": "Email or username to search for",
+                        },
+                        "per_page": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 10,
+                            "description": "Number of results per page",
+                        },
+                    },
+                    "required": ["search"],
+                },
+            ),
+            # 23. retry_pipeline
             types.Tool(
                 name="gitlab_retry_pipeline",
                 description="Retry all failed jobs in a pipeline",
@@ -767,6 +789,7 @@ class GitLabConnector(BaseConnector):
             "list_labels": self._list_labels,
             "get_repository_tree": self._get_repository_tree,
             "retry_pipeline": self._retry_pipeline,
+            "search_users": self._search_users,
         }
 
         handler = dispatch.get(tool_name)
@@ -1511,4 +1534,34 @@ class GitLabConnector(BaseConnector):
             "web_url": pipeline["web_url"],
             "message": "Pipeline retry initiated",
         }
+        return json.dumps(result, indent=2)
+
+    async def _search_users(
+        self,
+        connector: Connector,
+        arguments: Dict[str, Any],
+        oauth_cred: OAuthCredential,
+    ) -> str:
+        """Search users (GET /users?search={query})."""
+        base = self._base_url(connector)
+        params: Dict[str, Any] = {
+            "search": arguments["search"],
+            "per_page": arguments.get("per_page", 10),
+        }
+
+        response = await self._make_authenticated_request(
+            "GET", f"{base}/users", oauth_cred, params=params
+        )
+        users = response.json()
+
+        result = []
+        for user in users:
+            result.append({
+                "id": user["id"],
+                "username": user["username"],
+                "name": user["name"],
+                "state": user["state"],
+                "web_url": user.get("web_url"),
+            })
+
         return json.dumps(result, indent=2)

@@ -352,6 +352,27 @@ class GitHubConnector(BaseConnector):
                 }
             ),
             types.Tool(
+                name="github_search_users_by_email",
+                description="Search for GitHub users by email address. Only matches users who have set their email as public on GitHub.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email address to search for"
+                        },
+                        "per_page": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 30,
+                            "default": 5,
+                            "description": "Number of results per page"
+                        }
+                    },
+                    "required": ["email"]
+                }
+            ),
+            types.Tool(
                 name="github_list_commits",
                 description="List commits for a repository or branch",
                 inputSchema={
@@ -783,6 +804,8 @@ class GitHubConnector(BaseConnector):
                 return await self._list_organizations(oauth_cred)
             elif tool_name == "get_user_info":
                 return await self._get_user_info(arguments, oauth_cred)
+            elif tool_name == "search_users_by_email":
+                return await self._search_users_by_email(arguments, oauth_cred)
             elif tool_name == "list_commits":
                 return await self._list_commits(arguments, oauth_cred)
             elif tool_name == "get_commit":
@@ -1320,6 +1343,34 @@ class GitHubConnector(BaseConnector):
 
         except Exception as e:
             return f"Error getting user info for {username}: {str(e)}"
+
+    async def _search_users_by_email(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Search for GitHub users by email address."""
+        email = arguments["email"]
+        per_page = arguments.get("per_page", 5)
+
+        response = await self._make_authenticated_request(
+            "GET",
+            "https://api.github.com/search/users",
+            oauth_cred,
+            params={"q": f"{email} in:email", "per_page": per_page}
+        )
+
+        search_results = response.json()
+        result = {
+            "total_count": search_results.get("total_count", 0),
+            "users": []
+        }
+
+        for user in search_results.get("items", []):
+            result["users"].append({
+                "login": user["login"],
+                "id": user["id"],
+                "html_url": user["html_url"],
+                "type": user["type"]
+            })
+
+        return json.dumps(result, indent=2)
 
     async def _list_commits(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """List commits for a repository."""
