@@ -52,12 +52,15 @@ async def bootstrap_admin_key() -> None:
         await session.commit()
 
         if not bootstrap_key:
-            # Only print when auto-generated — the user needs to save it
-            logger.warning(
-                "No API keys found. Auto-generated platform admin key:\n"
-                "  %s\n"
-                "Save this key — it cannot be retrieved later.",
-                raw_key,
+            # Only print to stdout — never log raw key material to log aggregators.
+            print(
+                "\n"
+                "  ============================================================\n"
+                "  No API keys found. Auto-generated platform admin key:\n"
+                f"    {raw_key}\n"
+                "  Save this key — it cannot be retrieved later.\n"
+                "  ============================================================\n"
             )
+            logger.info("Auto-generated platform admin key (see stdout)")
         else:
             logger.info("Bootstrapped platform admin key from SAGEMCP_BOOTSTRAP_ADMIN_KEY")

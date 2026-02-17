@@ -37,6 +37,8 @@ def _derive_key(secret: str) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(secret.encode("utf-8")))
 
 
+# NOTE: lru_cache(maxsize=1) means key rotation requires a process restart
+# to pick up a new SECRET_KEY value.
 @lru_cache(maxsize=1)
 def get_fernet() -> Fernet:
     """Return a process-cached Fernet instance keyed from SECRET_KEY."""
@@ -60,8 +62,9 @@ def decrypt_value(ciphertext: str) -> str:
     f = get_fernet()
     try:
         return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
-    except (InvalidToken, Exception):
+    except InvalidToken:
         # Legacy plaintext — return raw value so existing data keeps working.
+        logger.debug("decrypt_value: value is not a valid Fernet token, returning as plaintext")
         return ciphertext
 
 

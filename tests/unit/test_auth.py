@@ -23,6 +23,7 @@ from sage_mcp.security.auth import (
     generate_api_key,
     hash_api_key,
     invalidate_cache_for_key,
+    require_scope,
     verify_api_key,
 )
 
@@ -195,3 +196,47 @@ class TestAuthContext:
             tenant_id="some-uuid",
         )
         assert ctx.tenant_id == "some-uuid"
+
+
+class TestRequireScope:
+    """Test require_scope dependency factory enforces scope hierarchy correctly."""
+
+    @pytest.mark.asyncio
+    async def test_platform_admin_passes_tenant_user_check(self):
+        """Platform admin should pass a tenant_user scope check."""
+        check_fn = require_scope(APIKeyScope.TENANT_USER)
+        ctx = AuthContext(
+            key_id="id", name="admin", scope=APIKeyScope.PLATFORM_ADMIN, tenant_id=None
+        )
+        # Should not raise
+        await check_fn(auth=ctx)
+
+    @pytest.mark.asyncio
+    async def test_tenant_user_fails_tenant_admin_check(self):
+        """Tenant user should be rejected by a tenant_admin scope check (403)."""
+        from fastapi import HTTPException
+
+        check_fn = require_scope(APIKeyScope.TENANT_ADMIN)
+        ctx = AuthContext(
+            key_id="id", name="user", scope=APIKeyScope.TENANT_USER, tenant_id="t1"
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await check_fn(auth=ctx)
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_auth_none_passes_all_checks(self):
+        """When auth is disabled (None), all scope checks pass through."""
+        check_fn = require_scope(APIKeyScope.PLATFORM_ADMIN)
+        # Should not raise
+        await check_fn(auth=None)
+
+    @pytest.mark.asyncio
+    async def test_tenant_admin_passes_tenant_user_check(self):
+        """Tenant admin should pass a tenant_user scope check."""
+        check_fn = require_scope(APIKeyScope.TENANT_USER)
+        ctx = AuthContext(
+            key_id="id", name="ta", scope=APIKeyScope.TENANT_ADMIN, tenant_id="t1"
+        )
+        # Should not raise
+        await check_fn(auth=ctx)

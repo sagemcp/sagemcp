@@ -5,11 +5,14 @@ On read, decrypts and deserialises back to a dict.
 """
 
 import json
+import logging
 from typing import Any, Dict, Optional
 
 from sqlalchemy import Text, TypeDecorator
 
 from .encryption import encrypt_value, decrypt_value
+
+logger = logging.getLogger(__name__)
 
 
 class EncryptedJSON(TypeDecorator):
@@ -32,4 +35,8 @@ class EncryptedJSON(TypeDecorator):
         if value is None:
             return None
         decrypted = decrypt_value(value)
-        return json.loads(decrypted)
+        try:
+            return json.loads(decrypted)
+        except json.JSONDecodeError:
+            logger.warning("EncryptedJSON: failed to parse decrypted value as JSON, returning None")
+            return None

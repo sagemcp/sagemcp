@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from ..mcp.transport import MCPTransport
-from ..security.auth import require_tenant_access
+from ..security.auth import require_tenant_access, validate_websocket_auth
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,19 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
       "method": "auth/setUserToken",
       "params": {"token": "<user_token>"}
     }
+
+    Authentication: When SAGEMCP_ENABLE_AUTH=true, requires an ``api_key``
+    query parameter or ``Authorization: Bearer <key>`` header.  The ``api_key``
+    param is separate from the ``token`` param (which carries the OAuth user token).
     """
+    from starlette.websockets import WebSocketDisconnect
+
+    try:
+        await validate_websocket_auth(websocket)
+    except WebSocketDisconnect as exc:
+        await websocket.close(code=exc.code, reason=exc.reason)
+        return
+
     user_token = websocket.query_params.get('token')
 
     transport = MCPTransport(tenant_slug, connector_id, user_token=user_token)

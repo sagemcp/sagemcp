@@ -8,18 +8,20 @@ Hot-path optimisation: SHA256-keyed LRU cache avoids repeated bcrypt verifies (~
 import hashlib
 import logging
 import secrets
+import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, WebSocket
+from starlette.websockets import WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
-from ..database.connection import get_db_session
+from ..database.connection import get_db_context, get_db_session
 from ..models.api_key import APIKey, APIKeyScope
 
 logger = logging.getLogger(__name__)
@@ -67,6 +69,7 @@ _CACHE_MAX = 1000
 _CACHE_TTL = 300  # 5 minutes
 
 _cache: OrderedDict[str, tuple[AuthContext, float]] = OrderedDict()
+_cache_lock = threading.Lock()
 
 
 def _cache_key(raw_key: str) -> str:
@@ -74,34 +77,38 @@ def _cache_key(raw_key: str) -> str:
 
 
 def _cache_get(raw_key: str) -> Optional[AuthContext]:
-    ck = _cache_key(raw_key)
-    entry = _cache.get(ck)
-    if entry is None:
-        return None
-    ctx, ts = entry
-    if time.monotonic() - ts > _CACHE_TTL:
-        _cache.pop(ck, None)
-        return None
-    _cache.move_to_end(ck)
-    return ctx
+    with _cache_lock:
+        ck = _cache_key(raw_key)
+        entry = _cache.get(ck)
+        if entry is None:
+            return None
+        ctx, ts = entry
+        if time.monotonic() - ts > _CACHE_TTL:
+            _cache.pop(ck, None)
+            return None
+        _cache.move_to_end(ck)
+        return ctx
 
 
 def _cache_put(raw_key: str, ctx: AuthContext) -> None:
-    ck = _cache_key(raw_key)
-    _cache[ck] = (ctx, time.monotonic())
-    _cache.move_to_end(ck)
-    while len(_cache) > _CACHE_MAX:
-        _cache.popitem(last=False)
+    with _cache_lock:
+        ck = _cache_key(raw_key)
+        _cache[ck] = (ctx, time.monotonic())
+        _cache.move_to_end(ck)
+        while len(_cache) > _CACHE_MAX:
+            _cache.popitem(last=False)
 
 
 def invalidate_cache_for_key(raw_key: str) -> None:
     """Remove a specific key from the auth cache."""
-    _cache.pop(_cache_key(raw_key), None)
+    with _cache_lock:
+        _cache.pop(_cache_key(raw_key), None)
 
 
 def clear_auth_cache() -> None:
     """Clear the entire auth cache (used on key revocation)."""
-    _cache.clear()
+    with _cache_lock:
+        _cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -131,25 +138,15 @@ def verify_api_key(raw_key: str, hashed: str) -> bool:
 # FastAPI dependencies
 # ---------------------------------------------------------------------------
 
-async def get_auth_context(
-    request: Request,
-    session: AsyncSession = Depends(get_db_session),
+async def _authenticate_raw_key(
+    raw_key: str,
+    session: AsyncSession,
 ) -> Optional[AuthContext]:
-    """Extract and validate API key from Authorization header.
+    """Authenticate a raw API key string against the database.
 
-    Returns ``None`` when auth is disabled.
-    Raises 401 when auth is enabled but no valid key is provided.
+    Returns an ``AuthContext`` on success. Returns ``None`` if the key is invalid.
+    Uses the SHA-256 LRU cache to avoid repeated bcrypt verifies.
     """
-    settings = get_settings()
-    if not settings.enable_auth:
-        return None
-
-    auth_header = request.headers.get("authorization", "")
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-
-    raw_key = auth_header[7:]
-
     # Check cache first
     cached = _cache_get(raw_key)
     if cached is not None:
@@ -179,6 +176,31 @@ async def get_auth_context(
             _cache_put(raw_key, ctx)
             return ctx
 
+    return None
+
+
+async def get_auth_context(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> Optional[AuthContext]:
+    """Extract and validate API key from Authorization header.
+
+    Returns ``None`` when auth is disabled.
+    Raises 401 when auth is enabled but no valid key is provided.
+    """
+    settings = get_settings()
+    if not settings.enable_auth:
+        return None
+
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
+    raw_key = auth_header[7:]
+    ctx = await _authenticate_raw_key(raw_key, session)
+    if ctx is not None:
+        return ctx
+
     raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -191,10 +213,8 @@ def require_scope(*allowed_scopes: APIKeyScope):
         if auth is None:
             return  # Auth disabled
         for scope in allowed_scopes:
-            if auth.scope in SCOPE_HIERARCHY.get(auth.scope, set()):
-                # Check if the auth's scope *covers* the required scope
-                if scope in SCOPE_HIERARCHY.get(auth.scope, set()):
-                    return
+            if scope in SCOPE_HIERARCHY.get(auth.scope, set()):
+                return
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     return _check
@@ -239,3 +259,34 @@ def require_tenant_access(slug_param: str = "tenant_slug"):
             raise HTTPException(status_code=403, detail="Access denied to this tenant")
 
     return _check
+
+
+async def validate_websocket_auth(websocket: WebSocket) -> Optional[AuthContext]:
+    """Authenticate a WebSocket connection via API key.
+
+    Extracts the API key from the ``api_key`` query parameter or the
+    ``Authorization: Bearer <key>`` header.
+
+    Returns ``None`` when auth is disabled, ``AuthContext`` when valid.
+    Raises ``WebSocketDisconnect(4401)`` on authentication failure.
+    """
+    settings = get_settings()
+    if not settings.enable_auth:
+        return None
+
+    # Try query param first, then Authorization header
+    raw_key = websocket.query_params.get("api_key")
+    if not raw_key:
+        auth_header = websocket.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            raw_key = auth_header[7:]
+
+    if not raw_key:
+        raise WebSocketDisconnect(code=4401, reason="Missing API key")
+
+    async with get_db_context() as session:
+        ctx = await _authenticate_raw_key(raw_key, session)
+        if ctx is not None:
+            return ctx
+
+    raise WebSocketDisconnect(code=4401, reason="Invalid API key")

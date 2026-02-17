@@ -26,7 +26,7 @@ class APIKey(Base):
     __tablename__ = "api_keys"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    key_prefix: Mapped[str] = mapped_column(String(20), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     key_hash: Mapped[str] = mapped_column(Text, nullable=False)
 
     scope: Mapped[APIKeyScope] = mapped_column(

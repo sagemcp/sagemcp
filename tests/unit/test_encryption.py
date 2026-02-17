@@ -179,3 +179,33 @@ class TestEncryptedJSONTypeDecorator:
         encrypted = self.type_decorator.process_bind_param(data, None)
         decrypted = self.type_decorator.process_result_value(encrypted, None)
         assert decrypted == data
+
+    def test_corrupt_ciphertext_returns_none(self):
+        """EncryptedJSON.process_result_value returns None on corrupt/non-JSON ciphertext."""
+        # "not-valid-json" is not a Fernet token, so decrypt_value returns it as-is.
+        # json.loads("not-valid-json") raises JSONDecodeError -> returns None.
+        result = self.type_decorator.process_result_value("not-valid-json", None)
+        assert result is None
+
+    def test_legacy_plaintext_json_parses_correctly(self):
+        """Legacy unencrypted JSON strings should still parse correctly."""
+        raw_json = '{"legacy": true, "count": 42}'
+        result = self.type_decorator.process_result_value(raw_json, None)
+        assert result == {"legacy": True, "count": 42}
+
+
+class TestDecryptValueEdgeCases:
+    """Edge cases for decrypt_value error propagation."""
+
+    def test_non_invalid_token_exceptions_propagate(self):
+        """Exceptions other than InvalidToken should propagate, not be swallowed."""
+        from unittest.mock import patch, MagicMock
+        from cryptography.fernet import Fernet
+
+        # Patch get_fernet to return a Fernet instance whose .decrypt raises TypeError
+        mock_fernet = MagicMock(spec=Fernet)
+        mock_fernet.decrypt.side_effect = TypeError("unexpected error")
+
+        with patch("sage_mcp.security.encryption.get_fernet", return_value=mock_fernet):
+            with pytest.raises(TypeError, match="unexpected error"):
+                decrypt_value("some-ciphertext")
