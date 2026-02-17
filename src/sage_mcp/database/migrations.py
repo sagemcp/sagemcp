@@ -1,5 +1,7 @@
 """Database migration utilities."""
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy import text
 
@@ -9,6 +11,8 @@ from ..models.mcp_process import MCPProcess
 from ..models.mcp_server_registry import MCPServerRegistry, DiscoveryJob, MCPInstallation
 from ..models.tool_usage_daily import ToolUsageDaily
 from .connection import db_manager
+
+logger = logging.getLogger(__name__)
 
 
 async def create_tables(engine: AsyncEngine = None):
@@ -394,3 +398,107 @@ async def upgrade_add_mcp_server_registry(engine: AsyncEngine = None):
             print("✓ Added registry_id and installed_version columns to connectors table")
         else:
             print("✓ registry_id column already exists in connectors table")
+
+
+async def upgrade_encrypt_existing_secrets(engine: AsyncEngine = None):
+    """Migration: Encrypt existing plaintext secrets in-place.
+
+    Reads rows via raw SQL to avoid TypeDecorator double-encryption, then
+    encrypts plaintext values and updates them. Skips already-encrypted
+    values (Fernet ``gAAAAB`` prefix).
+
+    Safe to run multiple times — idempotent.
+    """
+    from ..security.encryption import encrypt_value, is_encrypted
+
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    encrypted_count = 0
+
+    async with engine.begin() as conn:
+        # --- oauth_credentials: access_token, refresh_token ---
+        rows = await conn.execute(text(
+            "SELECT id, access_token, refresh_token FROM oauth_credentials"
+        ))
+        for row in rows:
+            updates = {}
+            row_id = row[0]
+            access_token = row[1]
+            refresh_token = row[2]
+
+            if access_token and not is_encrypted(access_token):
+                updates["access_token"] = encrypt_value(access_token)
+            if refresh_token and not is_encrypted(refresh_token):
+                updates["refresh_token"] = encrypt_value(refresh_token)
+
+            if updates:
+                set_clause = ", ".join(f"{k} = :val_{k}" for k in updates)
+                params = {f"val_{k}": v for k, v in updates.items()}
+                params["row_id"] = row_id
+                await conn.execute(
+                    text(f"UPDATE oauth_credentials SET {set_clause} WHERE id = :row_id"),
+                    params,
+                )
+                encrypted_count += len(updates)
+
+        # --- oauth_configs: client_secret ---
+        rows = await conn.execute(text(
+            "SELECT id, client_secret FROM oauth_configs"
+        ))
+        for row in rows:
+            row_id, client_secret = row[0], row[1]
+            if client_secret and not is_encrypted(client_secret):
+                await conn.execute(
+                    text("UPDATE oauth_configs SET client_secret = :val WHERE id = :row_id"),
+                    {"val": encrypt_value(client_secret), "row_id": row_id},
+                )
+                encrypted_count += 1
+
+        # --- connectors: configuration, runtime_env ---
+        rows = await conn.execute(text(
+            "SELECT id, configuration, runtime_env FROM connectors"
+        ))
+        for row in rows:
+            updates = {}
+            row_id = row[0]
+            configuration = row[1]
+            runtime_env = row[2]
+
+            if configuration and not is_encrypted(configuration):
+                updates["configuration"] = encrypt_value(configuration)
+            if runtime_env and not is_encrypted(runtime_env):
+                updates["runtime_env"] = encrypt_value(runtime_env)
+
+            if updates:
+                set_clause = ", ".join(f"{k} = :val_{k}" for k in updates)
+                params = {f"val_{k}": v for k, v in updates.items()}
+                params["row_id"] = row_id
+                await conn.execute(
+                    text(f"UPDATE connectors SET {set_clause} WHERE id = :row_id"),
+                    params,
+                )
+                encrypted_count += len(updates)
+
+    if encrypted_count:
+        logger.info("Encrypted %d plaintext secret fields", encrypted_count)
+    else:
+        logger.debug("No plaintext secrets to encrypt (all already encrypted or empty)")
+
+
+async def upgrade_create_api_keys_table(engine: AsyncEngine = None):
+    """Migration: Create the api_keys table for API key authentication."""
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    from ..models.api_key import APIKey
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            lambda sync_conn: APIKey.__table__.create(sync_conn, checkfirst=True)
+        )
+    logger.debug("api_keys table ready")

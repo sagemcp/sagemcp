@@ -4,13 +4,16 @@ import asyncio
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
+
+from ..models.api_key import APIKeyScope
+from ..security.auth import require_scope
 
 router = APIRouter()
 
 
-@router.get("/logs/recent")
+@router.get("/logs/recent", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def recent_logs(
     request: Request,
     count: int = Query(default=100, le=1000),
@@ -37,7 +40,7 @@ async def recent_logs(
     return [e.to_dict() for e in entries]
 
 
-@router.get("/logs/stream")
+@router.get("/logs/stream", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def stream_logs(
     request: Request,
     level: Optional[str] = Query(default=None),

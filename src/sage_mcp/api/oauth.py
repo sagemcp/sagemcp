@@ -15,9 +15,11 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..models.api_key import APIKeyScope
 from ..models.oauth_credential import OAuthCredential
 from ..models.oauth_config import OAuthConfig
 from ..models.tenant import Tenant
+from ..security.auth import require_scope, require_tenant_access
 
 router = APIRouter()
 
@@ -570,7 +572,13 @@ class OAuthConfigResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/{tenant_slug}/auth/{provider}")
+@router.get(
+    "/{tenant_slug}/auth/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def initiate_oauth(
     tenant_slug: str,
     provider: str,
@@ -1083,7 +1091,13 @@ async def oauth_callback(
     return RedirectResponse(url=success_url)
 
 
-@router.delete("/{tenant_slug}/auth/{provider}")
+@router.delete(
+    "/{tenant_slug}/auth/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def revoke_oauth(
     tenant_slug: str,
     provider: str,
@@ -1189,7 +1203,13 @@ async def list_oauth_configs(
     return list(configs)
 
 
-@router.post("/{tenant_slug}/config")
+@router.post(
+    "/{tenant_slug}/config",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def create_oauth_config(
     tenant_slug: str,
     config_data: OAuthConfigCreate,
@@ -1242,7 +1262,13 @@ async def create_oauth_config(
         return new_config
 
 
-@router.delete("/{tenant_slug}/config/{provider}")
+@router.delete(
+    "/{tenant_slug}/config/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def delete_oauth_config(
     tenant_slug: str,
     provider: str,
