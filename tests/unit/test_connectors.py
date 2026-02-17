@@ -2987,7 +2987,7 @@ class TestTeamsConnector:
 
         tools = await connector.get_tools(sample_connector, sample_oauth_credential)
 
-        assert len(tools) == 14
+        assert len(tools) == 15
 
     @pytest.mark.asyncio
     async def test_tool_names(self, sample_connector, sample_oauth_credential):
@@ -4182,7 +4182,7 @@ class TestGitLabConnector:
 
         tools = await connector.get_tools(sample_connector, sample_oauth_credential)
 
-        assert len(tools) == 22
+        assert len(tools) == 23
 
     @pytest.mark.asyncio
     async def test_tool_names(self, sample_connector, sample_oauth_credential):
@@ -4783,7 +4783,7 @@ class TestLinearConnector:
 
         tools = await connector.get_tools(sample_connector, sample_oauth_credential)
 
-        assert len(tools) == 18
+        assert len(tools) == 19
 
     @pytest.mark.asyncio
     async def test_tool_names(self, sample_connector, sample_oauth_credential):
@@ -5313,7 +5313,7 @@ class TestLinearConnector:
     async def test_tool_count(self, sample_connector):
         connector = LinearConnector()
         tools = await connector.get_tools(sample_connector)
-        assert len(tools) == 18
+        assert len(tools) == 19
 
     @pytest.mark.asyncio
     async def test_tool_names(self, sample_connector):
@@ -5327,6 +5327,7 @@ class TestLinearConnector:
             "linear_get_project", "linear_create_project", "linear_list_cycles",
             "linear_get_cycle", "linear_list_labels", "linear_list_workflow_states",
             "linear_add_comment", "linear_list_comments", "linear_list_users",
+            "linear_get_user_by_email",
         }
         assert names == expected
 
