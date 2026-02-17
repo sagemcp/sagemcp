@@ -31,7 +31,7 @@ class TestSettings:
     def test_default_settings(self):
         """Test default settings values."""
         # Clear environment variables that might interfere
-        env_vars = {"SECRET_KEY": "test-secret"}
+        env_vars = {"SECRET_KEY": "test-secret-key-min16"}
         # Only patch specific vars, don't modify existing environment
         with patch.dict(os.environ, env_vars, clear=True):
             # Create settings without loading .env file
@@ -69,7 +69,7 @@ class TestSettings:
             "ENVIRONMENT": "testing",
             "HOST": "127.0.0.1",
             "PORT": "9000",
-            "SECRET_KEY": "test-secret-key",
+            "SECRET_KEY": "test-secret-key-x",
             "GITHUB_CLIENT_ID": "test-github-id",
             "GITHUB_CLIENT_SECRET": "test-github-secret",
             "BASE_URL": "http://test.example.com"
@@ -82,7 +82,7 @@ class TestSettings:
             assert settings.environment == "testing"
             assert settings.host == "127.0.0.1"
             assert settings.port == 9000
-            assert settings.secret_key == "test-secret-key"
+            assert settings.secret_key == "test-secret-key-x"
             assert settings.github_client_id == "test-github-id"
             assert settings.github_client_secret == "test-github-secret"
             assert settings.base_url == "http://test.example.com"
@@ -91,16 +91,21 @@ class TestSettings:
         """Test secret key validation and generation."""
         # Test with empty secret key (should generate one)
         settings = Settings()
-        assert len(settings.secret_key) > 0
+        assert len(settings.secret_key) >= 16
 
-        # Test with provided secret key
-        settings = Settings(secret_key="my-secret")
-        assert settings.secret_key == "my-secret"
+        # Test with valid secret key (>= 16 chars)
+        settings = Settings(secret_key="my-secret-key-for-testing")
+        assert settings.secret_key == "my-secret-key-for-testing"
+
+        # Test that short secret key is rejected
+        import pytest as _pytest
+        with _pytest.raises(Exception):
+            Settings(secret_key="too-short")
 
     def test_database_url_validation(self):
         """Test database URL validation."""
         settings = Settings(
-            secret_key="test",
+            secret_key="test-secret-key-min16",
             database_url="postgresql://user:pass@localhost:5432/testdb"
         )
         assert "postgresql://user:pass@localhost:5432/testdb" in str(settings.database_url)
@@ -108,7 +113,7 @@ class TestSettings:
     def test_oauth_settings(self):
         """Test OAuth settings."""
         settings = Settings(
-            secret_key="test",
+            secret_key="test-secret-key-min16",
             github_client_id="github-id",
             gitlab_client_id="gitlab-id",
             google_client_id="google-id"

@@ -3,12 +3,15 @@
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
+
+from ..models.api_key import APIKeyScope
+from ..security.auth import require_scope
 
 router = APIRouter()
 
 
-@router.get("/pool")
+@router.get("/pool", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def list_pool_entries(request: Request, tenant_slug: Optional[str] = Query(None)):
     """List all entries in the server pool."""
     pool = getattr(request.app.state, "server_pool", None)
@@ -40,7 +43,7 @@ async def list_pool_entries(request: Request, tenant_slug: Optional[str] = Query
     return entries
 
 
-@router.get("/pool/summary")
+@router.get("/pool/summary", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def pool_summary(request: Request):
     """Get aggregated pool statistics."""
     pool = getattr(request.app.state, "server_pool", None)
@@ -87,7 +90,7 @@ async def pool_summary(request: Request):
     }
 
 
-@router.delete("/pool/{tenant_slug}/{connector_id}")
+@router.delete("/pool/{tenant_slug}/{connector_id}", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def evict_pool_entry(request: Request, tenant_slug: str, connector_id: str):
     """Evict a specific entry from the pool."""
     pool = getattr(request.app.state, "server_pool", None)
@@ -98,7 +101,7 @@ async def evict_pool_entry(request: Request, tenant_slug: str, connector_id: str
     return {"evicted": True, "pool_size": pool.size}
 
 
-@router.post("/pool/evict-idle")
+@router.post("/pool/evict-idle", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def evict_idle(request: Request, idle_seconds: float = Query(default=600)):
     """Evict entries idle longer than the given threshold."""
     pool = getattr(request.app.state, "server_pool", None)

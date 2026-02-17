@@ -179,14 +179,29 @@ class Settings(BaseSettings):
     enable_server_pool: bool = Field(default=False, env="SAGEMCP_ENABLE_SERVER_POOL")
     enable_session_management: bool = Field(default=False, env="SAGEMCP_ENABLE_SESSION_MANAGEMENT")
     enable_metrics: bool = Field(default=False, env="SAGEMCP_ENABLE_METRICS")
+    enable_auth: bool = Field(default=False, env="SAGEMCP_ENABLE_AUTH")
+
+    # Auth bootstrap
+    bootstrap_admin_key: Optional[str] = Field(default=None, env="SAGEMCP_BOOTSTRAP_ADMIN_KEY")
 
     @field_validator("secret_key", mode="before")
     @classmethod
     def validate_secret_key(cls, v):
+        import logging as _logging
+        _logger = _logging.getLogger("sage_mcp.config")
         if not v:
-            # Generate a random secret key for development
             import secrets
+            _logger.warning(
+                "SECRET_KEY not set — generating ephemeral key. "
+                "Encrypted data will be UNRECOVERABLE after restart. "
+                "Set SECRET_KEY in production."
+            )
             return secrets.token_urlsafe(32)
+        if len(v) < 16:
+            raise ValueError(
+                "SECRET_KEY must be at least 16 characters. "
+                "It is used to derive encryption keys for secrets at rest."
+            )
         return v
 
     @field_validator("database_url", mode="before")

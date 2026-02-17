@@ -4,14 +4,17 @@ import logging
 import time
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
+
+from ..models.api_key import APIKeyScope
+from ..security.auth import require_scope
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/sessions")
+@router.get("/sessions", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def list_sessions(
     request: Request,
     tenant_slug: Optional[str] = Query(None, description="Filter by tenant slug"),
@@ -41,7 +44,7 @@ async def list_sessions(
     return sessions
 
 
-@router.delete("/sessions/{session_id}")
+@router.delete("/sessions/{session_id}", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def terminate_session(request: Request, session_id: str):
     """Terminate an active MCP session."""
     sm = getattr(request.app.state, "session_manager", None)

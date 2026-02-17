@@ -8,11 +8,12 @@ import time
 from typing import Any
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, WebSocket, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, Response
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from ..mcp.transport import MCPTransport
+from ..security.auth import require_tenant_access, validate_websocket_auth
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,19 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
       "method": "auth/setUserToken",
       "params": {"token": "<user_token>"}
     }
+
+    Authentication: When SAGEMCP_ENABLE_AUTH=true, requires an ``api_key``
+    query parameter or ``Authorization: Bearer <key>`` header.  The ``api_key``
+    param is separate from the ``token`` param (which carries the OAuth user token).
     """
+    from starlette.websockets import WebSocketDisconnect
+
+    try:
+        await validate_websocket_auth(websocket)
+    except WebSocketDisconnect as exc:
+        await websocket.close(code=exc.code, reason=exc.reason)
+        return
+
     user_token = websocket.query_params.get('token')
 
     transport = MCPTransport(tenant_slug, connector_id, user_token=user_token)
@@ -162,7 +175,10 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
     )
 
 
-@router.post("/{tenant_slug}/connectors/{connector_id}/mcp")
+@router.post(
+    "/{tenant_slug}/connectors/{connector_id}/mcp",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
     """HTTP POST endpoint for MCP protocol communication (Streamable HTTP transport).
 
@@ -346,7 +362,10 @@ async def _handle_batch(
     )
 
 
-@router.get("/{tenant_slug}/connectors/{connector_id}/mcp")
+@router.get(
+    "/{tenant_slug}/connectors/{connector_id}/mcp",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_http_get(tenant_slug: str, connector_id: str, request: Request):
     """HTTP GET endpoint for SSE server-initiated messages.
 
@@ -437,7 +456,10 @@ async def mcp_http_get(tenant_slug: str, connector_id: str, request: Request):
     )
 
 
-@router.get("/{tenant_slug}/connectors/{connector_id}/mcp/sse")
+@router.get(
+    "/{tenant_slug}/connectors/{connector_id}/mcp/sse",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_sse(tenant_slug: str, connector_id: str):
     """DEPRECATED: Old HTTP+SSE endpoint (protocol version 2024-11-05)."""
 
@@ -473,7 +495,10 @@ async def mcp_sse(tenant_slug: str, connector_id: str):
     )
 
 
-@router.get("/{tenant_slug}/connectors/{connector_id}/mcp/info")
+@router.get(
+    "/{tenant_slug}/connectors/{connector_id}/mcp/info",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_info(tenant_slug: str, connector_id: str):
     """Get MCP server information for a specific connector."""
     transport = MCPTransport(tenant_slug, connector_id)

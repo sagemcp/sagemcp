@@ -8,6 +8,7 @@ from .connector import Connector, ConnectorType, ConnectorRuntimeType
 from .connector_tool_state import ConnectorToolState
 from .mcp_process import MCPProcess, ProcessStatus
 from .tool_usage_daily import ToolUsageDaily
+from .api_key import APIKey, APIKeyScope
 
 __all__ = [
     "Base",
@@ -21,4 +22,6 @@ __all__ = [
     "MCPProcess",
     "ProcessStatus",
     "ToolUsageDaily",
+    "APIKey",
+    "APIKeyScope",
 ]

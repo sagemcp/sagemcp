@@ -1,5 +1,6 @@
 """OAuth API routes for connector authentication."""
 
+import logging
 import os
 import secrets
 import urllib.parse
@@ -15,9 +16,13 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..models.api_key import APIKeyScope
 from ..models.oauth_credential import OAuthCredential
 from ..models.oauth_config import OAuthConfig
 from ..models.tenant import Tenant
+from ..security.auth import require_scope, require_tenant_access
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -570,7 +575,13 @@ class OAuthConfigResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/{tenant_slug}/auth/{provider}")
+@router.get(
+    "/{tenant_slug}/auth/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def initiate_oauth(
     tenant_slug: str,
     provider: str,
@@ -677,7 +688,7 @@ async def initiate_oauth(
             f"{base_url}/api/v1/oauth/{tenant_slug}/callback/{provider}"
         )
 
-    print(f"DEBUG: Final redirect_uri = {redirect_uri}")
+    logger.debug("Final redirect_uri = %s", redirect_uri)
 
     # Build authorization URL
     params = {
@@ -978,8 +989,8 @@ async def oauth_callback(
     state_param = params.get("state", "")
     cli_session_id = None
 
-    print(f"DEBUG: Callback received state parameter: '{state_param}'")
-    print(f"DEBUG: Full query params: {params}")
+    logger.debug("Callback received state parameter: '%s'", state_param)
+    logger.debug("Full query params: %s", params)
 
     # Try to extract cli_session from state parameter
     # State could be JSON encoded or contain cli_session directly
@@ -992,24 +1003,24 @@ async def oauth_callback(
                 decoded = base64.urlsafe_b64decode(state_param + "==").decode()
                 state_data = json.loads(decoded)
                 cli_session_id = state_data.get("cli_session")
-                print(f"DEBUG: Extracted cli_session from JSON: {cli_session_id}")
+                logger.debug("Extracted cli_session from JSON: %s", cli_session_id)
             except Exception as e:
                 # Not base64/JSON, check if state itself contains cli-session prefix
-                print(f"DEBUG: Not base64/JSON (error: {e}), checking for cli-session prefix")
+                logger.debug("Not base64/JSON (error: %s), checking for cli-session prefix", e)
                 if state_param.startswith("cli-session-"):
                     cli_session_id = state_param
-                    print(f"DEBUG: Found CLI session ID: {cli_session_id}")
+                    logger.debug("Found CLI session ID: %s", cli_session_id)
                 else:
-                    print(f"DEBUG: State does not start with 'cli-session-': '{state_param[:50]}'")
+                    logger.debug("State does not start with 'cli-session-': '%s'", state_param[:50])
         except Exception as e:
-            print(f"DEBUG: Outer exception: {e}")
+            logger.debug("Outer exception: %s", e)
             pass
 
     # If this is a CLI session, store the result for polling
     if cli_session_id:
         from sage_mcp.utils.cli_session_storage import cli_session_storage
 
-        print(f"DEBUG: Storing CLI session result for session ID: {cli_session_id}")
+        logger.debug("Storing CLI session result for session ID: %s", cli_session_id)
 
         # Store successful OAuth result
         session_data = {
@@ -1023,7 +1034,7 @@ async def oauth_callback(
             "tenant_slug": tenant_slug
         }
         cli_session_storage.store(cli_session_id, session_data)
-        print(f"DEBUG: Successfully stored session data: {session_data}")
+        logger.debug("Successfully stored session data: %s", session_data)
 
         # For CLI sessions, return simple success page instead of redirecting to frontend
         html = f"""
@@ -1050,7 +1061,7 @@ async def oauth_callback(
         from fastapi.responses import HTMLResponse
         return HTMLResponse(content=html)
     else:
-        print("DEBUG: Not a CLI session (cli_session_id is None)")
+        logger.debug("Not a CLI session (cli_session_id is None)")
 
     # Standard web flow: Redirect to frontend with success message
     # Use same logic as redirect URI generation for consistency
@@ -1078,12 +1089,18 @@ async def oauth_callback(
         f"{frontend_url}/oauth/success?provider={provider}&"
         f"tenant={tenant_slug}"
     )
-    print(f"DEBUG: OAuth success redirect URL = {success_url}")
+    logger.debug("OAuth success redirect URL = %s", success_url)
 
     return RedirectResponse(url=success_url)
 
 
-@router.delete("/{tenant_slug}/auth/{provider}")
+@router.delete(
+    "/{tenant_slug}/auth/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def revoke_oauth(
     tenant_slug: str,
     provider: str,
@@ -1124,7 +1141,11 @@ async def revoke_oauth(
 
 @router.get(
     "/{tenant_slug}/auth",
-    response_model=List[OAuthCredentialResponse]
+    response_model=List[OAuthCredentialResponse],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.TENANT_USER)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def list_oauth_credentials(
     tenant_slug: str,
@@ -1166,7 +1187,13 @@ async def list_oauth_providers():
     return providers
 
 
-@router.get("/{tenant_slug}/config")
+@router.get(
+    "/{tenant_slug}/config",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def list_oauth_configs(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -1189,7 +1216,13 @@ async def list_oauth_configs(
     return list(configs)
 
 
-@router.post("/{tenant_slug}/config")
+@router.post(
+    "/{tenant_slug}/config",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def create_oauth_config(
     tenant_slug: str,
     config_data: OAuthConfigCreate,
@@ -1242,7 +1275,13 @@ async def create_oauth_config(
         return new_config
 
 
-@router.delete("/{tenant_slug}/config/{provider}")
+@router.delete(
+    "/{tenant_slug}/config/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def delete_oauth_config(
     tenant_slug: str,
     provider: str,
@@ -1282,6 +1321,9 @@ async def delete_oauth_config(
     }
 
 
+# NOTE: This endpoint is intentionally unauthenticated. The CLI OAuth flow
+# needs to poll for the result *before* the client has obtained an API key.
+# The session_id is an unguessable random token that acts as a bearer secret.
 @router.get("/cli-sessions/{session_id}")
 async def get_cli_session_result(session_id: str):
     """Get OAuth result for CLI session.
@@ -1289,6 +1331,9 @@ async def get_cli_session_result(session_id: str):
     This endpoint allows CLI clients to poll for OAuth authorization results.
     The session is created when the OAuth flow is initiated with a cli_session
     parameter in the state, and the result is stored when the callback completes.
+
+    Intentionally unauthenticated — the CLI needs this before it has an API key.
+    The session_id is a high-entropy random token that acts as a capability.
 
     Args:
         session_id: CLI session identifier
@@ -1301,20 +1346,20 @@ async def get_cli_session_result(session_id: str):
     """
     from sage_mcp.utils.cli_session_storage import cli_session_storage
 
-    print(f"DEBUG: Polling for CLI session ID: {session_id}")
+    logger.debug("Polling for CLI session ID: %s", session_id)
 
     # Get storage stats for debugging
     stats = cli_session_storage.get_stats()
-    print(f"DEBUG: Session storage stats: {stats}")
+    logger.debug("Session storage stats: %s", stats)
 
     result = cli_session_storage.get(session_id, delete_after_read=True)
 
     if not result:
-        print(f"DEBUG: Session not found or expired: {session_id}")
+        logger.debug("Session not found or expired: %s", session_id)
         raise HTTPException(
             status_code=404,
             detail="Session not found or expired. It may have already been retrieved or timed out after 5 minutes."
         )
 
-    print(f"DEBUG: Found session result: {result}")
+    logger.debug("Found session result: %s", result)
     return result

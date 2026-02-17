@@ -5,6 +5,7 @@ from sqlalchemy.sql import func
 import uuid
 
 from .base import Base
+from ..security.types import EncryptedText
 
 
 class OAuthConfig(Base):
@@ -15,7 +16,7 @@ class OAuthConfig(Base):
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     provider = Column(String(50), nullable=False)  # github, slack
     client_id = Column(String(255), nullable=False)
-    client_secret = Column(Text, nullable=False)  # Encrypted in production
+    client_secret = Column(EncryptedText, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
