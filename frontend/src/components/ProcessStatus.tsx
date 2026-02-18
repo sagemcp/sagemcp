@@ -32,7 +32,7 @@ const StatusBadge = ({ status }: { status: ProcessStatusEnum }) => {
     [ProcessStatusEnum.STOPPED]: {
       icon: Square,
       label: 'Stopped',
-      className: 'bg-zinc-800 text-zinc-200 border-zinc-700'
+      className: 'bg-theme-elevated text-theme-primary border-theme-default'
     },
     [ProcessStatusEnum.ERROR]: {
       icon: XCircle,
@@ -108,7 +108,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   if (isLoading && !processStatus) {
     return (
       <div className="flex items-center space-x-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-elevated text-theme-primary border border-theme-default">
           <Clock className="h-3 w-3 mr-1 animate-spin" />
           Loading...
         </span>
@@ -119,11 +119,11 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   if (!processStatus) {
     return (
       <div className="flex items-center space-x-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-elevated text-theme-primary border border-theme-default">
           <Square className="h-3 w-3 mr-1" />
           Not Started
         </span>
-        <p className="text-xs text-zinc-500">Will start on first tool request</p>
+        <p className="text-xs text-theme-muted">Will start on first tool request</p>
       </div>
     )
   }
@@ -146,8 +146,8 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
         <div className="flex items-center space-x-3">
           <StatusBadge status={processStatus.status} />
           {processStatus.pid && (
-            <span className="text-xs text-zinc-500">
-              PID: <code className="bg-zinc-800 px-1 rounded">{processStatus.pid}</code>
+            <span className="text-xs text-theme-muted">
+              PID: <code className="bg-theme-elevated px-1 rounded">{processStatus.pid}</code>
             </span>
           )}
         </div>
@@ -156,7 +156,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
             <button
               onClick={() => refetch()}
               disabled={isLoading}
-              className="text-xs text-zinc-400 hover:text-zinc-100 flex items-center"
+              className="text-xs text-theme-secondary hover:text-theme-primary flex items-center"
               title="Refresh status"
             >
               <RotateCw className="h-3 w-3 mr-1" />
@@ -185,22 +185,22 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
       </div>
 
       {/* Process Details */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-zinc-900 rounded-lg text-xs">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-theme-surface rounded-lg text-xs">
         <div>
-          <div className="text-zinc-500 mb-1">Started</div>
-          <div className="font-medium text-zinc-100">{uptime}</div>
+          <div className="text-theme-muted mb-1">Started</div>
+          <div className="font-medium text-theme-primary">{uptime}</div>
         </div>
         <div>
-          <div className="text-zinc-500 mb-1">Last Health Check</div>
-          <div className="font-medium text-zinc-100">{lastHealthCheck}</div>
+          <div className="text-theme-muted mb-1">Last Health Check</div>
+          <div className="font-medium text-theme-primary">{lastHealthCheck}</div>
         </div>
         <div>
-          <div className="text-zinc-500 mb-1">Restart Count</div>
-          <div className="font-medium text-zinc-100">{processStatus.restart_count}</div>
+          <div className="text-theme-muted mb-1">Restart Count</div>
+          <div className="font-medium text-theme-primary">{processStatus.restart_count}</div>
         </div>
         <div>
-          <div className="text-zinc-500 mb-1">Runtime</div>
-          <div className="font-medium text-zinc-100">{processStatus.runtime_type}</div>
+          <div className="text-theme-muted mb-1">Runtime</div>
+          <div className="font-medium text-theme-primary">{processStatus.runtime_type}</div>
         </div>
       </div>
 

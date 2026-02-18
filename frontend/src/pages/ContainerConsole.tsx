@@ -106,9 +106,9 @@ export default function ContainerConsole() {
       pending: 'bg-amber-500/10 text-amber-400',
       failed: 'bg-red-500/10 text-red-400',
       succeeded: 'bg-blue-500/10 text-blue-400',
-      unknown: 'bg-zinc-700 text-zinc-300'
+      unknown: 'bg-theme-elevated text-theme-secondary'
     }
-    return colors[status?.toLowerCase()] || 'bg-zinc-700 text-zinc-300'
+    return colors[status?.toLowerCase()] || 'bg-theme-elevated text-theme-secondary'
   }
 
   if (!tenantId) {
@@ -137,11 +137,11 @@ export default function ContainerConsole() {
 
       {/* Header */}
       {installation && (
-        <div className="bg-surface-elevated rounded-lg border border-zinc-800 p-6">
+        <div className="bg-surface-elevated rounded-lg border border-theme-default p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-2xl font-bold text-zinc-100">{installation.name}</h1>
+                <h1 className="text-2xl font-bold text-theme-primary">{installation.name}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(installation.container_status)}`}>
                   {installation.container_status}
                 </span>
@@ -149,20 +149,20 @@ export default function ContainerConsole() {
 
               <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
                 <div>
-                  <dt className="text-zinc-400">Version</dt>
-                  <dd className="font-medium text-zinc-200">{installation.installed_version || 'N/A'}</dd>
+                  <dt className="text-theme-secondary">Version</dt>
+                  <dd className="font-medium text-theme-primary">{installation.installed_version || 'N/A'}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-400">Container IP</dt>
-                  <dd className="font-medium font-mono text-zinc-200">{installation.container_ip || 'N/A'}</dd>
+                  <dt className="text-theme-secondary">Container IP</dt>
+                  <dd className="font-medium font-mono text-theme-primary">{installation.container_ip || 'N/A'}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-400">Connector ID</dt>
-                  <dd className="font-medium font-mono text-xs text-zinc-200">{installation.connector_id}</dd>
+                  <dt className="text-theme-secondary">Connector ID</dt>
+                  <dd className="font-medium font-mono text-xs text-theme-primary">{installation.connector_id}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-400">Last Check</dt>
-                  <dd className="font-medium text-zinc-200">
+                  <dt className="text-theme-secondary">Last Check</dt>
+                  <dd className="font-medium text-theme-primary">
                     {installation.last_health_check
                       ? new Date(installation.last_health_check).toLocaleTimeString()
                       : 'N/A'}
@@ -184,9 +184,9 @@ export default function ContainerConsole() {
       )}
 
       {/* Console */}
-      <div className="bg-surface-elevated rounded-lg border border-zinc-800">
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-100">Container Logs</h2>
+      <div className="bg-surface-elevated rounded-lg border border-theme-default">
+        <div className="p-4 border-b border-theme-default flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-theme-primary">Container Logs</h2>
 
           <div className="flex items-center space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -194,9 +194,9 @@ export default function ContainerConsole() {
                 type="checkbox"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-accent bg-zinc-700 border-zinc-600"
+                className="w-4 h-4 text-blue-600 rounded focus:ring-accent bg-theme-elevated border-theme-hover"
               />
-              <span className="text-sm font-medium text-zinc-300">
+              <span className="text-sm font-medium text-theme-secondary">
                 Auto-refresh
               </span>
             </label>
@@ -204,7 +204,7 @@ export default function ContainerConsole() {
             <button
               onClick={loadLogs}
               disabled={loading}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500"
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-theme-elevated disabled:text-theme-muted"
             >
               {loading ? 'Loading...' : 'Refresh'}
             </button>

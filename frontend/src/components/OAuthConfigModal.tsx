@@ -143,9 +143,9 @@ export default function OAuthConfigModal({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
-        <div className="relative bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl max-w-lg w-full">
+        <div className="relative bg-theme-surface border border-theme-default rounded-lg shadow-2xl max-w-lg w-full">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-theme-default">
             <div className="flex items-center space-x-3">
               <div className={cn(
                 'p-2 rounded-lg',
@@ -158,15 +158,15 @@ export default function OAuthConfigModal({
                 <ProviderIcon provider={provider} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-zinc-100">
+                <h3 className="text-lg font-semibold text-theme-primary">
                   Configure {providerName} OAuth
                 </h3>
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-theme-secondary">
                   Set up your {providerName} OAuth application credentials
                 </p>
               </div>
             </div>
-            <button onClick={handleClose} className="text-zinc-500 hover:text-zinc-300">
+            <button onClick={handleClose} className="text-theme-muted hover:text-theme-secondary">
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -195,7 +195,7 @@ export default function OAuthConfigModal({
 
               {/* Client ID */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Client ID *
                 </label>
                 <input
@@ -210,7 +210,7 @@ export default function OAuthConfigModal({
 
               {/* Client Secret */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Client Secret *
                 </label>
                 <input
@@ -225,7 +225,7 @@ export default function OAuthConfigModal({
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end space-x-3 pt-4 border-t border-zinc-800">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-theme-default">
                 <button
                   type="button"
                   onClick={handleClose}

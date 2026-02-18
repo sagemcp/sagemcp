@@ -2,7 +2,7 @@ import { cn } from '@/utils/cn'
 import type { LogEntry } from '@/hooks/use-logs'
 
 const levelColors: Record<string, string> = {
-  DEBUG: 'text-zinc-500',
+  DEBUG: 'text-theme-muted',
   INFO: 'text-blue-400',
   WARNING: 'text-amber-400',
   ERROR: 'text-red-400',
@@ -10,7 +10,7 @@ const levelColors: Record<string, string> = {
 }
 
 const levelBg: Record<string, string> = {
-  DEBUG: 'bg-zinc-800',
+  DEBUG: 'bg-theme-elevated',
   INFO: 'bg-blue-500/10',
   WARNING: 'bg-amber-500/10',
   ERROR: 'bg-red-500/10',
@@ -26,31 +26,31 @@ function formatTimestamp(ts: number): string {
 export function LogLine({ entry }: { entry: LogEntry }) {
   return (
     <div className={cn(
-      'flex items-start gap-3 px-3 py-1.5 font-mono text-xs leading-relaxed hover:bg-zinc-800/30',
+      'flex items-start gap-3 px-3 py-1.5 font-mono text-xs leading-relaxed hover:bg-theme-elevated/30',
       levelBg[entry.level] || ''
     )}>
       {/* Timestamp */}
-      <span className="text-zinc-600 shrink-0 w-[90px]">
+      <span className="text-theme-muted shrink-0 w-[90px]">
         {formatTimestamp(entry.timestamp)}
       </span>
 
       {/* Level badge */}
       <span className={cn(
         'shrink-0 w-[52px] text-center rounded px-1',
-        levelColors[entry.level] || 'text-zinc-400'
+        levelColors[entry.level] || 'text-theme-secondary'
       )}>
         {entry.level}
       </span>
 
       {/* Context */}
       {(entry.tenant_slug || entry.connector_id) && (
-        <span className="text-zinc-600 shrink-0">
+        <span className="text-theme-muted shrink-0">
           [{entry.tenant_slug}{entry.connector_id ? `:${entry.connector_id.slice(0, 8)}` : ''}]
         </span>
       )}
 
       {/* Message */}
-      <span className="text-zinc-300 break-all flex-1">{entry.message}</span>
+      <span className="text-theme-secondary break-all flex-1">{entry.message}</span>
     </div>
   )
 }

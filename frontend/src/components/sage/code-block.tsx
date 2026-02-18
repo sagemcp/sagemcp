@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
+import { Highlight, PrismTheme } from 'prism-react-renderer'
+import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/utils/cn'
 
 interface CodeBlockProps {
@@ -10,6 +12,20 @@ interface CodeBlockProps {
 
 export function CodeBlock({ code, language, className }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
+  const { resolvedTheme } = useTheme()
+  const highlightTheme = useMemo<PrismTheme>(() => ({
+    plain: {
+      color: resolvedTheme === 'dark' ? '#fafafa' : '#18181b',
+      backgroundColor: 'transparent',
+    },
+    styles: [
+      { types: ['property'], style: { color: '#dc2626' } },
+      { types: ['string'], style: { color: '#16a34a' } },
+      { types: ['null'], style: { color: '#7e22ce' } },
+      { types: ['boolean', 'number'], style: { color: 'rgb(183, 107, 1)' } },
+      { types: ['punctuation'], style: { color: resolvedTheme === 'dark' ? '#94a3b8' : '#64748b' } },
+    ],
+  }), [resolvedTheme])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)
@@ -18,14 +34,14 @@ export function CodeBlock({ code, language, className }: CodeBlockProps) {
   }
 
   return (
-    <div className={cn('relative rounded-md border border-zinc-800 bg-zinc-950', className)}>
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-800">
+    <div className={cn('relative rounded-md border border-theme-default bg-theme-surface', className)}>
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-default">
         {language && (
-          <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">{language}</span>
+          <span className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">{language}</span>
         )}
         <button
           onClick={handleCopy}
-          className="ml-auto p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+          className="ml-auto p-1 rounded text-theme-muted hover:text-theme-secondary hover:bg-theme-elevated transition-colors"
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-success-400" />
@@ -34,9 +50,28 @@ export function CodeBlock({ code, language, className }: CodeBlockProps) {
           )}
         </button>
       </div>
-      <pre className="p-3 overflow-x-auto text-xs font-mono text-zinc-300 leading-relaxed">
-        <code>{code}</code>
-      </pre>
+      <Highlight
+        theme={highlightTheme}
+        code={code}
+        language={language ?? 'text'}
+      >
+        {({ className: prismClassName, style, tokens, getLineProps, getTokenProps }) => (
+          <pre
+            className={cn('p-3 overflow-x-auto text-xs font-mono leading-relaxed', prismClassName)}
+            style={{ ...style, margin: 0, background: 'transparent' }}
+          >
+            <code>
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line })}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token })} />
+                  ))}
+                </div>
+              ))}
+            </code>
+          </pre>
+        )}
+      </Highlight>
     </div>
   )
 }

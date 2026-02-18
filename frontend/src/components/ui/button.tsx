@@ -10,9 +10,9 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-accent text-zinc-900 hover:bg-accent-hover',
         destructive: 'bg-error-600 text-white hover:bg-error-700',
-        outline: 'border border-zinc-700 bg-transparent text-zinc-200 hover:bg-zinc-800',
-        secondary: 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700',
-        ghost: 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200',
+        outline: 'border border-theme-default bg-transparent text-theme-primary hover:bg-theme-elevated',
+        secondary: 'bg-theme-elevated text-theme-primary hover:bg-theme-hover',
+        ghost: 'text-theme-secondary hover:bg-theme-elevated hover:text-theme-primary',
         link: 'text-accent underline-offset-4 hover:underline',
       },
       size: {

@@ -97,7 +97,7 @@ const TenantSheet = ({
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
           <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Slug *</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Slug *</label>
               <input
                 {...register('slug')}
                 className="input-field"
@@ -108,13 +108,13 @@ const TenantSheet = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Name *</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Name *</label>
               <input {...register('name')} className="input-field" placeholder="My Tenant" />
               {errors.name && <p className="mt-1 text-sm text-error-400">{errors.name.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Description</label>
               <textarea
                 {...register('description')}
                 className="input-field"
@@ -124,7 +124,7 @@ const TenantSheet = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Contact Email</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Contact Email</label>
               <input
                 {...register('contact_email')}
                 type="email"
@@ -177,14 +177,14 @@ const TenantCard = ({ tenant }: { tenant: Tenant }) => {
 
   return (
     <>
-      <div className="rounded-lg border border-zinc-800 bg-surface-elevated hover:border-zinc-700 transition-colors">
+      <div className="rounded-lg border border-theme-default bg-surface-elevated hover:border-theme-hover transition-colors">
         <div className="p-5">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <Link
                   to={`/tenants/${tenant.slug}`}
-                  className="text-base font-semibold text-zinc-100 hover:text-accent transition-colors"
+                  className="text-base font-semibold text-theme-primary hover:text-accent transition-colors"
                 >
                   {tenant.name}
                 </Link>
@@ -192,26 +192,26 @@ const TenantCard = ({ tenant }: { tenant: Tenant }) => {
                   {tenant.is_active ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
-              <p className="text-xs text-zinc-500 font-mono mt-0.5">{tenant.slug}</p>
+              <p className="text-xs text-theme-muted font-mono mt-0.5">{tenant.slug}</p>
               {tenant.description && (
-                <p className="text-sm text-zinc-400 mt-2 line-clamp-2">{tenant.description}</p>
+                <p className="text-sm text-theme-secondary mt-2 line-clamp-2">{tenant.description}</p>
               )}
             </div>
 
             <div className="relative ml-2">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-1 rounded hover:bg-zinc-800 text-zinc-500 transition-colors"
+                className="p-1 rounded hover:bg-theme-elevated text-theme-muted transition-colors"
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                  <div className="absolute right-0 mt-1 w-44 rounded-md bg-zinc-800 border border-zinc-700 py-1 z-20 shadow-elevated">
+                  <div className="absolute right-0 mt-1 w-44 rounded-md bg-theme-elevated border border-theme-default py-1 z-20 shadow-elevated">
                     <Link
                       to={`/tenants/${tenant.slug}`}
-                      className="flex items-center px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                      className="flex items-center px-3 py-2 text-sm text-theme-secondary hover:bg-theme-hover"
                       onClick={() => setShowMenu(false)}
                     >
                       <ExternalLink className="h-3.5 w-3.5 mr-2" />
@@ -219,7 +219,7 @@ const TenantCard = ({ tenant }: { tenant: Tenant }) => {
                     </Link>
                     <button
                       onClick={() => { setShowEditSheet(true); setShowMenu(false) }}
-                      className="flex items-center w-full px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                      className="flex items-center w-full px-3 py-2 text-sm text-theme-secondary hover:bg-theme-hover"
                     >
                       <Edit className="h-3.5 w-3.5 mr-2" />
                       Edit
@@ -227,7 +227,7 @@ const TenantCard = ({ tenant }: { tenant: Tenant }) => {
                     <button
                       onClick={handleDelete}
                       disabled={deleteMutation.isPending}
-                      className="flex items-center w-full px-3 py-2 text-sm text-error-400 hover:bg-zinc-700 disabled:opacity-50"
+                      className="flex items-center w-full px-3 py-2 text-sm text-error-400 hover:bg-theme-hover disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-2" />
                       {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
@@ -239,20 +239,20 @@ const TenantCard = ({ tenant }: { tenant: Tenant }) => {
           </div>
 
           {/* Footer meta */}
-          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-zinc-800">
+          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-theme-default">
             {connectors.length > 0 && (
-              <span className="text-xs text-zinc-500">
-                <span className="text-zinc-400 font-medium">{connectors.length}</span> connector{connectors.length !== 1 ? 's' : ''}
+              <span className="text-xs text-theme-muted">
+                <span className="text-theme-secondary font-medium">{connectors.length}</span> connector{connectors.length !== 1 ? 's' : ''}
               </span>
             )}
             {tenant.contact_email && (
-              <div className="flex items-center gap-1 text-xs text-zinc-500">
+              <div className="flex items-center gap-1 text-xs text-theme-muted">
                 <Mail className="h-3 w-3" />
                 <span className="truncate max-w-[140px]">{tenant.contact_email}</span>
               </div>
             )}
             {tenant.created_at && (
-              <div className="flex items-center gap-1 text-xs text-zinc-500 ml-auto">
+              <div className="flex items-center gap-1 text-xs text-theme-muted ml-auto">
                 <Calendar className="h-3 w-3" />
                 <span>{new Date(tenant.created_at).toLocaleDateString()}</span>
               </div>
@@ -286,8 +286,8 @@ export default function Tenants() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Tenants</h1>
-          <p className="text-sm text-zinc-500 mt-1">Manage your multi-tenant configurations</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Tenants</h1>
+          <p className="text-sm text-theme-muted mt-1">Manage your multi-tenant configurations</p>
         </div>
         <Button onClick={() => setShowCreateSheet(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -298,7 +298,7 @@ export default function Tenants() {
       {/* Search and count */}
       <div className="flex items-center gap-4">
         <div className="flex-1 max-w-md relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-theme-muted" />
           <input
             type="text"
             placeholder="Search tenants..."
@@ -307,7 +307,7 @@ export default function Tenants() {
             className="input-field pl-10"
           />
         </div>
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 text-sm text-theme-muted">
           <Users className="h-4 w-4" />
           <span>{filteredTenants.length} tenant{filteredTenants.length !== 1 ? 's' : ''}</span>
         </div>
@@ -317,7 +317,7 @@ export default function Tenants() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-lg border border-zinc-800 bg-surface-elevated p-5">
+            <div key={i} className="rounded-lg border border-theme-default bg-surface-elevated p-5">
               <Skeleton className="h-5 w-3/4 mb-2" />
               <Skeleton className="h-3 w-1/2 mb-4" />
               <Skeleton className="h-3 w-full" />
