@@ -20,16 +20,16 @@ export function EndpointDisplay({ url, protocol, className }: EndpointDisplayPro
 
   return (
     <div className={cn(
-      'flex items-center gap-2 rounded-md bg-zinc-900 border border-zinc-800 px-3 py-2',
+      'flex items-center gap-2 rounded-md bg-theme-surface border border-theme-default px-3 py-2',
       className
     )}>
-      <code className="text-sm font-mono text-zinc-300 truncate flex-1">{url}</code>
+      <code className="text-sm font-mono text-theme-secondary truncate flex-1">{url}</code>
       {protocol && (
         <Badge variant="accent" className="shrink-0">{protocol}</Badge>
       )}
       <button
         onClick={handleCopy}
-        className="shrink-0 p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="shrink-0 p-1 rounded hover:bg-theme-elevated text-theme-muted hover:text-theme-secondary transition-colors"
       >
         {copied ? (
           <Check className="h-3.5 w-3.5 text-success-400" />

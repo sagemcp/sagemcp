@@ -216,7 +216,7 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2 text-sm text-zinc-400 mb-4">
+      <div className="flex items-center space-x-2 text-sm text-theme-secondary mb-4">
         <Key className="h-4 w-4" />
         <span>
           {filterProvider
@@ -251,13 +251,13 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
                     <ProviderIcon provider={provider.id} />
                   </div>
                   <div>
-                    <h3 className="font-medium text-zinc-100">{provider.name}</h3>
-                    <p className="text-sm text-zinc-500">
+                    <h3 className="font-medium text-theme-primary">{provider.name}</h3>
+                    <p className="text-sm text-theme-muted">
                       Scopes: {provider.scopes.join(', ')}
                     </p>
                     {credential && (
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-xs text-theme-muted">
                           Connected as: {credential.provider_username || credential.provider_user_id}
                         </span>
                         {expired && (
@@ -283,7 +283,7 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
                       Expired
                     </span>
                   ) : (
-                    <span className="status-badge bg-zinc-800 text-zinc-400">
+                    <span className="status-badge bg-theme-elevated text-theme-secondary">
                       Not Connected
                     </span>
                   )}
@@ -354,8 +354,8 @@ export default function OAuthManager({ tenantSlug, onCredentialChange, filterPro
       })}
 
       {providers.length === 0 && (
-        <div className="text-center py-8 text-zinc-500">
-          <Key className="h-12 w-12 mx-auto mb-2 text-zinc-500" />
+        <div className="text-center py-8 text-theme-muted">
+          <Key className="h-12 w-12 mx-auto mb-2 text-theme-muted" />
           <p>No OAuth providers configured</p>
         </div>
       )}

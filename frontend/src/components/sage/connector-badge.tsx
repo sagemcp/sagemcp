@@ -54,17 +54,17 @@ export function ConnectorBadge({ type, name, toolCount, enabled = true, size = '
 
   return (
     <div className={cn(
-      'inline-flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900',
+      'inline-flex items-center gap-2 rounded-md border border-theme-default bg-theme-surface',
       size === 'sm' ? 'px-2 py-1' : 'px-2.5 py-1.5',
       !enabled && 'opacity-50',
       className
     )}>
       <Icon className={cn(
-        'text-zinc-400',
+        'text-theme-secondary',
         size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5'
       )} />
       <span className={cn(
-        'font-medium text-zinc-300',
+        'font-medium text-theme-secondary',
         size === 'sm' ? 'text-[10px]' : 'text-xs'
       )}>{name || meta.label}</span>
       {toolCount !== undefined && (

@@ -39,30 +39,30 @@ export default function OAuthSuccess() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-root)] flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-8 text-center">
+      <div className="max-w-md w-full bg-theme-surface border border-theme-default rounded-lg shadow-2xl p-8 text-center">
         {error ? (
           <>
             <XCircle className="h-16 w-16 text-error-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-zinc-100 mb-2">
+            <h1 className="text-2xl font-bold text-theme-primary mb-2">
               Authentication Failed
             </h1>
-            <p className="text-zinc-400 mb-4">
+            <p className="text-theme-secondary mb-4">
               There was an error connecting to {provider}: {error}
             </p>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-theme-muted">
               This window will close automatically.
             </p>
           </>
         ) : (
           <>
             <CheckCircle className="h-16 w-16 text-success-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-zinc-100 mb-2">
+            <h1 className="text-2xl font-bold text-theme-primary mb-2">
               Successfully Connected!
             </h1>
-            <p className="text-zinc-400 mb-4">
+            <p className="text-theme-secondary mb-4">
               Your {provider} account has been connected to tenant "{tenant}".
             </p>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-theme-muted">
               This window will close automatically in a few seconds.
             </p>
           </>

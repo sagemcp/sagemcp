@@ -68,18 +68,18 @@ export default function ConnectorEditModal({
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Connector Type</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Connector Type</label>
               <input
                 type="text"
                 value={connector.connector_type}
                 readOnly
-                className="input-field bg-zinc-800 text-zinc-500 cursor-not-allowed capitalize"
+                className="input-field bg-theme-elevated text-theme-muted cursor-not-allowed capitalize"
               />
-              <p className="text-xs text-zinc-600 mt-1">Connector type cannot be changed</p>
+              <p className="text-xs text-theme-muted mt-1">Connector type cannot be changed</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-theme-secondary mb-1">
                 Name <span className="text-error-400">*</span>
               </label>
               <input
@@ -93,7 +93,7 @@ export default function ConnectorEditModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Description</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}

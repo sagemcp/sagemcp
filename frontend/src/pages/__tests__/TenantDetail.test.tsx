@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import TenantDetail from '../TenantDetail'
 import * as api from '../../utils/api'
+import { ThemeProvider } from '../../components/theme-provider'
 
 vi.mock('../../utils/api', () => ({
   tenantsApi: {
@@ -37,7 +38,7 @@ describe('TenantDetail config presets', () => {
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { retry: false, cacheTime: 0 },
+        queries: { retry: false, gcTime: 0 },
         mutations: { retry: false },
       },
     })
@@ -76,11 +77,13 @@ describe('TenantDetail config presets', () => {
   const renderPage = () =>
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/tenants/test-tenant']}>
-          <Routes>
-            <Route path="/tenants/:slug" element={<TenantDetail />} />
-          </Routes>
-        </MemoryRouter>
+        <ThemeProvider>
+          <MemoryRouter initialEntries={['/tenants/test-tenant']}>
+            <Routes>
+              <Route path="/tenants/:slug" element={<TenantDetail />} />
+            </Routes>
+          </MemoryRouter>
+        </ThemeProvider>
       </QueryClientProvider>
     )
 

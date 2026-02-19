@@ -87,7 +87,7 @@ const RuntimeTypeCard = ({
         'p-4 border-2 rounded-lg transition-all text-left w-full',
         selected
           ? 'border-accent bg-accent/10'
-          : 'border-zinc-800 hover:border-zinc-700'
+          : 'border-theme-default hover:border-theme-default'
       )}
     >
       <div className="flex items-start space-x-3">
@@ -95,9 +95,9 @@ const RuntimeTypeCard = ({
           <Icon className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-zinc-100">{config.name}</h4>
-          <p className="text-xs text-zinc-500 mt-1">{config.description}</p>
-          <p className="text-xs text-zinc-500 mt-1 font-mono">{config.example}</p>
+          <h4 className="text-sm font-medium text-theme-primary">{config.name}</h4>
+          <p className="text-xs text-theme-muted mt-1">{config.description}</p>
+          <p className="text-xs text-theme-muted mt-1 font-mono">{config.example}</p>
         </div>
       </div>
     </button>
@@ -227,18 +227,18 @@ export default function ExternalMCPModal({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
-        <div className="relative bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="relative bg-theme-surface border border-theme-default rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-theme-default">
             <div>
-              <h3 className="text-lg font-semibold text-zinc-100">
+              <h3 className="text-lg font-semibold text-theme-primary">
                 Add External MCP Server
               </h3>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-theme-secondary">
                 Deploy a custom MCP server from any runtime (Python, Node.js, Go, etc.)
               </p>
             </div>
-            <button onClick={handleClose} className="text-zinc-500 hover:text-zinc-300">
+            <button onClick={handleClose} className="text-theme-muted hover:text-theme-secondary">
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -249,7 +249,7 @@ export default function ExternalMCPModal({
               {/* Tenant Selection (if not preselected) */}
               {!preselectedTenant && (
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  <label className="block text-sm font-medium text-theme-secondary mb-1">
                     Tenant *
                   </label>
                   <select {...register('tenant_slug')} className="input-field">
@@ -268,7 +268,7 @@ export default function ExternalMCPModal({
 
               {/* Runtime Type Selection */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-sm font-medium text-theme-secondary mb-2">
                   Runtime Type *
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -290,7 +290,7 @@ export default function ExternalMCPModal({
 
               {/* Server Name */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Server Name *
                 </label>
                 <input
@@ -305,7 +305,7 @@ export default function ExternalMCPModal({
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Description
                 </label>
                 <textarea
@@ -318,7 +318,7 @@ export default function ExternalMCPModal({
 
               {/* Runtime Command */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Runtime Command * (JSON Array)
                 </label>
                 <input
@@ -329,14 +329,14 @@ export default function ExternalMCPModal({
                 {errors.runtime_command && (
                   <p className="mt-1 text-sm text-error-600">{errors.runtime_command.message}</p>
                 )}
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-theme-muted">
                   JSON array of command and arguments. Example: ["node", "build/server.js"]
                 </p>
               </div>
 
               {/* Package Path */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Package Path (Working Directory)
                 </label>
                 <input
@@ -344,7 +344,7 @@ export default function ExternalMCPModal({
                   className="input-field font-mono text-sm"
                   placeholder="/path/to/mcp-server"
                 />
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-theme-muted">
                   Optional: Working directory for the process
                 </p>
               </div>
@@ -352,7 +352,7 @@ export default function ExternalMCPModal({
               {/* Environment Variables */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-zinc-300">
+                  <label className="block text-sm font-medium text-theme-secondary">
                     Environment Variables
                   </label>
                   <button
@@ -374,7 +374,7 @@ export default function ExternalMCPModal({
                           value={envVar.key}
                           onChange={(e) => updateEnvVar(index, 'key', e.target.value)}
                         />
-                        <span className="text-zinc-500">=</span>
+                        <span className="text-theme-muted">=</span>
                         <input
                           className="input-field flex-1 font-mono text-sm"
                           placeholder="value"
@@ -392,15 +392,15 @@ export default function ExternalMCPModal({
                     ))}
                   </div>
                 )}
-                <p className="mt-1 text-xs text-zinc-500">
-                  Use <code className="bg-zinc-800 px-1 rounded">{"{{OAUTH_TOKEN}}"}</code> to inject OAuth credentials
+                <p className="mt-1 text-xs text-theme-muted">
+                  Use <code className="bg-theme-elevated px-1 rounded">{"{{OAUTH_TOKEN}}"}</code> to inject OAuth credentials
                 </p>
               </div>
 
               {/* Configuration Variables */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-zinc-300">
+                  <label className="block text-sm font-medium text-theme-secondary">
                     Configuration Variables
                   </label>
                   <button
@@ -422,7 +422,7 @@ export default function ExternalMCPModal({
                           value={configVar.key}
                           onChange={(e) => updateConfigVar(index, 'key', e.target.value)}
                         />
-                        <span className="text-zinc-500">=</span>
+                        <span className="text-theme-muted">=</span>
                         <input
                           className="input-field flex-1 font-mono text-sm"
                           placeholder="https://api.example.com"
@@ -440,13 +440,13 @@ export default function ExternalMCPModal({
                     ))}
                   </div>
                 )}
-                <p className="mt-1 text-xs text-zinc-500">
-                  Config vars are exposed as <code className="bg-zinc-800 px-1 rounded">CONFIG_*</code> environment variables
+                <p className="mt-1 text-xs text-theme-muted">
+                  Config vars are exposed as <code className="bg-theme-elevated px-1 rounded">CONFIG_*</code> environment variables
                 </p>
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end space-x-3 pt-4 border-t border-zinc-800">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-theme-default">
                 <button
                   type="button"
                   onClick={handleClose}

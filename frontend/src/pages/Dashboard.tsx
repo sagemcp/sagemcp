@@ -26,8 +26,8 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
-          <p className="text-sm text-zinc-500 mt-1">Platform overview and health</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Dashboard</h1>
+          <p className="text-sm text-theme-muted mt-1">Platform overview and health</p>
         </div>
         <LiveIndicator />
       </div>
@@ -65,10 +65,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pool Health - 2/3 width */}
         <div className="lg:col-span-2">
-          <div className="rounded-lg border border-zinc-800 bg-surface-elevated">
-            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-200">Pool Health</h3>
-              <Link to="/pool" className="text-xs text-zinc-500 hover:text-accent flex items-center gap-1 transition-colors">
+          <div className="rounded-lg border border-theme-default bg-surface-elevated">
+            <div className="px-6 py-4 border-b border-theme-default flex items-center justify-between">
+              <h3 className="text-sm font-medium text-theme-primary">Pool Health</h3>
+              <Link to="/pool" className="text-xs text-theme-muted hover:text-accent flex items-center gap-1 transition-colors">
                 View all <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -78,25 +78,25 @@ export default function Dashboard() {
                   {/* Pool stats summary */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="text-center">
-                      <p className="text-2xl font-mono font-bold text-zinc-100">{stats.active_instances}</p>
-                      <p className="text-xs text-zinc-500 mt-1">Pooled</p>
+                      <p className="text-2xl font-mono font-bold text-theme-primary">{stats.active_instances}</p>
+                      <p className="text-xs text-theme-muted mt-1">Pooled</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-mono font-bold text-success-400">{stats.pool_hits}</p>
-                      <p className="text-xs text-zinc-500 mt-1">Hits</p>
+                      <p className="text-xs text-theme-muted mt-1">Hits</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-mono font-bold text-zinc-400">{stats.pool_misses}</p>
-                      <p className="text-xs text-zinc-500 mt-1">Misses</p>
+                      <p className="text-2xl font-mono font-bold text-theme-secondary">{stats.pool_misses}</p>
+                      <p className="text-xs text-theme-muted mt-1">Misses</p>
                     </div>
                   </div>
                   {/* Hit rate bar */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-zinc-500">Hit Rate</span>
-                      <span className="text-xs font-mono text-zinc-300">{poolHitRate}%</span>
+                      <span className="text-xs text-theme-muted">Hit Rate</span>
+                      <span className="text-xs font-mono text-theme-secondary">{poolHitRate}%</span>
                     </div>
-                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-theme-elevated rounded-full overflow-hidden">
                       <div
                         className="h-full bg-accent rounded-full transition-all duration-500"
                         style={{ width: `${poolHitRate}%` }}
@@ -118,57 +118,57 @@ export default function Dashboard() {
         {/* Quick Actions + System Status - 1/3 width */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <div className="rounded-lg border border-zinc-800 bg-surface-elevated">
-            <div className="px-6 py-4 border-b border-zinc-800">
-              <h3 className="text-sm font-medium text-zinc-200">Quick Actions</h3>
+          <div className="rounded-lg border border-theme-default bg-surface-elevated">
+            <div className="px-6 py-4 border-b border-theme-default">
+              <h3 className="text-sm font-medium text-theme-primary">Quick Actions</h3>
             </div>
             <div className="p-4 space-y-1">
               <Link
                 to="/tenants"
-                className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-800 transition-colors group"
+                className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-theme-elevated transition-colors group"
               >
-                <Building2 className="h-4 w-4 text-zinc-500 group-hover:text-accent" />
+                <Building2 className="h-4 w-4 text-theme-muted group-hover:text-accent" />
                 <div>
-                  <p className="text-sm text-zinc-200">Manage Tenants</p>
-                  <p className="text-xs text-zinc-500">Create and configure tenants</p>
+                  <p className="text-sm text-theme-primary">Manage Tenants</p>
+                  <p className="text-xs text-theme-muted">Create and configure tenants</p>
                 </div>
               </Link>
               <Link
                 to="/mcp-test"
-                className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-800 transition-colors group"
+                className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-theme-elevated transition-colors group"
               >
-                <Activity className="h-4 w-4 text-zinc-500 group-hover:text-accent" />
+                <Activity className="h-4 w-4 text-theme-muted group-hover:text-accent" />
                 <div>
-                  <p className="text-sm text-zinc-200">Test MCP Protocol</p>
-                  <p className="text-xs text-zinc-500">Debug and test connections</p>
+                  <p className="text-sm text-theme-primary">Test MCP Protocol</p>
+                  <p className="text-xs text-theme-muted">Debug and test connections</p>
                 </div>
               </Link>
             </div>
           </div>
 
           {/* System Status */}
-          <div className="rounded-lg border border-zinc-800 bg-surface-elevated">
-            <div className="px-6 py-4 border-b border-zinc-800">
-              <h3 className="text-sm font-medium text-zinc-200">System Status</h3>
+          <div className="rounded-lg border border-theme-default bg-surface-elevated">
+            <div className="px-6 py-4 border-b border-theme-default">
+              <h3 className="text-sm font-medium text-theme-primary">System Status</h3>
             </div>
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-400">API Server</span>
+                <span className="text-sm text-theme-secondary">API Server</span>
                 <div className="flex items-center gap-1.5">
                   <StatusDot variant="healthy" size="sm" />
-                  <span className="text-xs text-zinc-300">Healthy</span>
+                  <span className="text-xs text-theme-secondary">Healthy</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-400">Database</span>
+                <span className="text-sm text-theme-secondary">Database</span>
                 <div className="flex items-center gap-1.5">
                   <StatusDot variant="healthy" size="sm" />
-                  <span className="text-xs text-zinc-300">Connected</span>
+                  <span className="text-xs text-theme-secondary">Connected</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-400">Tenants</span>
-                <span className="text-xs font-mono text-zinc-300">{stats?.tenants ?? '—'}</span>
+                <span className="text-sm text-theme-secondary">Tenants</span>
+                <span className="text-xs font-mono text-theme-secondary">{stats?.tenants ?? '—'}</span>
               </div>
             </div>
           </div>

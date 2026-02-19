@@ -18,9 +18,9 @@ export function AreaChartCard({
   height = 200,
 }: AreaChartCardProps) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-4">
+    <div className="rounded-lg border border-theme-default bg-surface-elevated p-4">
       {title && (
-        <h3 className="text-sm font-medium text-zinc-300 mb-4">{title}</h3>
+        <h3 className="text-sm font-medium text-theme-secondary mb-4">{title}</h3>
       )}
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={data}>
