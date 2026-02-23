@@ -171,6 +171,23 @@ class GenericMCPConnector(BaseConnector):
         xdg_cache_home = process_env.get("XDG_CACHE_HOME") or os.path.join(home_dir, ".cache")
         process_env["XDG_CACHE_HOME"] = xdg_cache_home
 
+        # Isolate npm/npx cache per connector to avoid cross-process cache
+        # corruption/races when multiple external node servers start.
+        if exec_name in {"npx", "npm", "node"}:
+            npm_cache_dir = os.path.join(
+                xdg_cache_home, "sagemcp", "npm", tenant_id, connector_id
+            )
+            process_env["NPM_CONFIG_CACHE"] = npm_cache_dir
+            process_env.setdefault("NPM_CONFIG_UPDATE_NOTIFIER", "false")
+            try:
+                os.makedirs(npm_cache_dir, exist_ok=True)
+                if exec_name == "npx":
+                    # npx extracts runnable bundles into _npx; stale partial
+                    # extracts can cause module resolution failures.
+                    shutil.rmtree(os.path.join(npm_cache_dir, "_npx"), ignore_errors=True)
+            except Exception as e:
+                logger.warning("Failed to prepare npm cache directory %s: %s", npm_cache_dir, e)
+
         # uvx uses uv cache under HOME/XDG cache by default; force a writable cache path.
         if exec_name == "uvx" and "UV_CACHE_DIR" not in process_env:
             process_env["UV_CACHE_DIR"] = os.path.join(xdg_cache_home, "uv")

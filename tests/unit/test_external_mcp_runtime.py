@@ -99,6 +99,29 @@ async def test_generic_connector_uvx_sets_writable_cache_env():
 
 
 @pytest.mark.asyncio
+async def test_generic_connector_npx_uses_connector_scoped_npm_cache():
+    connector = GenericMCPConnector(
+        runtime_type="external_nodejs",
+        command=["npx", "@modelcontextprotocol/server-github"],
+    )
+
+    fake_process = _FakeProcess()
+
+    with patch.dict("os.environ", {"HOME": "/does/not/exist"}, clear=True), \
+         patch("sage_mcp.runtime.generic_connector.shutil.which", return_value="/usr/bin/npx"), \
+         patch("sage_mcp.runtime.generic_connector.asyncio.create_subprocess_exec", new=AsyncMock(return_value=fake_process)) as mock_exec, \
+         patch.object(connector, "_initialize_mcp", new=AsyncMock()), \
+         patch("sage_mcp.runtime.generic_connector.asyncio.sleep", new=AsyncMock()), \
+         patch("sage_mcp.runtime.generic_connector.asyncio.create_task", side_effect=lambda coro: (coro.close(), _FakeTask())[1]):
+        await connector.start_process("tenant-abc", "connector-xyz")
+
+    env = mock_exec.await_args.kwargs["env"]
+    assert env["NPM_CONFIG_CACHE"].endswith(
+        os.path.join("sagemcp", "npm", "tenant-abc", "connector-xyz")
+    )
+
+
+@pytest.mark.asyncio
 async def test_process_manager_normalizes_blank_package_path():
     manager = MCPProcessManager()
     manager._health_check_task = SimpleNamespace(done=lambda: False)
