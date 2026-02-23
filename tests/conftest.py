@@ -23,6 +23,7 @@ from sage_mcp.models.base import Base
 from sage_mcp.models.tenant import Tenant
 from sage_mcp.models.connector import Connector, ConnectorType
 from sage_mcp.models.oauth_credential import OAuthCredential
+from sage_mcp.models.api_key import APIKey
 
 
 # Always use SQLite for tests to avoid PostgreSQL driver dependencies
@@ -98,6 +99,10 @@ def cleanup_db():
         # Delete in correct order to avoid foreign key constraints
         session.query(OAuthCredential).delete()
         session.query(Connector).delete()
+        try:
+            session.query(APIKey).delete()
+        except Exception:
+            session.rollback()
         session.query(Tenant).delete()
         session.commit()
     except Exception:

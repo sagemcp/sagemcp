@@ -11,12 +11,14 @@ from pydantic import BaseModel, field_serializer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..models.api_key import APIKeyScope
 from ..models.connector import Connector, ConnectorType, ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.mcp_process import MCPProcess, ProcessStatus
 from ..models.tenant import Tenant
 from ..connectors.registry import connector_registry
 from ..runtime import process_manager
+from ..security.auth import require_scope, require_tenant_access
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +176,12 @@ async def populate_tools_for_connector(connector: Connector, session: AsyncSessi
         await session.rollback()
 
 
-@router.post("/tenants", response_model=TenantResponse, status_code=201)
+@router.post(
+    "/tenants",
+    response_model=TenantResponse,
+    status_code=201,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def create_tenant(
     tenant_data: TenantCreate,
     session: AsyncSession = Depends(get_db_session)
@@ -204,7 +211,11 @@ async def create_tenant(
     return tenant
 
 
-@router.get("/tenants", response_model=List[TenantResponse])
+@router.get(
+    "/tenants",
+    response_model=List[TenantResponse],
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def list_tenants(
     session: AsyncSession = Depends(get_db_session)
 ):
@@ -217,7 +228,11 @@ async def list_tenants(
     return list(tenants)
 
 
-@router.get("/tenants/{tenant_slug}", response_model=TenantResponse)
+@router.get(
+    "/tenants/{tenant_slug}",
+    response_model=TenantResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def get_tenant(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -236,7 +251,15 @@ async def get_tenant(
     return tenant
 
 
-@router.post("/tenants/{tenant_slug}/connectors", response_model=ConnectorResponse, status_code=201)
+@router.post(
+    "/tenants/{tenant_slug}/connectors",
+    response_model=ConnectorResponse,
+    status_code=201,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def create_connector(
     tenant_slug: str,
     connector_data: ConnectorCreate,
@@ -301,7 +324,11 @@ async def create_connector(
     return connector
 
 
-@router.get("/tenants/{tenant_slug}/connectors", response_model=List[ConnectorResponse])
+@router.get(
+    "/tenants/{tenant_slug}/connectors",
+    response_model=List[ConnectorResponse],
+    dependencies=[Depends(require_tenant_access())],
+)
 async def list_connectors(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -327,7 +354,10 @@ async def list_connectors(
     return list(connectors)
 
 
-@router.delete("/tenants/{tenant_slug}")
+@router.delete(
+    "/tenants/{tenant_slug}",
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def delete_tenant(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -364,7 +394,11 @@ async def delete_tenant(
     }
 
 
-@router.put("/tenants/{tenant_slug}", response_model=TenantResponse)
+@router.put(
+    "/tenants/{tenant_slug}",
+    response_model=TenantResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def update_tenant(
     tenant_slug: str,
     tenant_data: TenantCreate,
@@ -401,7 +435,8 @@ async def update_tenant(
 
 @router.get(
     "/tenants/{tenant_slug}/connectors/{connector_id}",
-    response_model=ConnectorResponse
+    response_model=ConnectorResponse,
+    dependencies=[Depends(require_tenant_access())],
 )
 async def get_connector(
     tenant_slug: str,
@@ -437,7 +472,11 @@ async def get_connector(
 
 @router.put(
     "/tenants/{tenant_slug}/connectors/{connector_id}",
-    response_model=ConnectorResponse
+    response_model=ConnectorResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def update_connector(
     tenant_slug: str,
@@ -490,7 +529,13 @@ async def update_connector(
     return connector
 
 
-@router.delete("/tenants/{tenant_slug}/connectors/{connector_id}")
+@router.delete(
+    "/tenants/{tenant_slug}/connectors/{connector_id}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def delete_connector(
     tenant_slug: str,
     connector_id: str,
@@ -537,7 +582,11 @@ async def delete_connector(
 
 @router.patch(
     "/tenants/{tenant_slug}/connectors/{connector_id}/toggle",
-    response_model=ConnectorResponse
+    response_model=ConnectorResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def toggle_connector(
     tenant_slug: str,
@@ -588,7 +637,11 @@ async def toggle_connector(
 
 @router.get(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools",
-    response_model=ToolsListResponse
+    response_model=ToolsListResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def list_connector_tools(
     tenant_slug: str,
@@ -675,7 +728,8 @@ async def list_connector_tools(
 
 @router.get(
     "/connectors/{connector_id}/tools",
-    response_model=ToolsListResponse
+    response_model=ToolsListResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
 )
 async def list_connector_tools_legacy(
     connector_id: str,
@@ -713,7 +767,11 @@ async def list_connector_tools_legacy(
 
 @router.patch(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/{tool_name}",
-    response_model=ToolStateResponse
+    response_model=ToolStateResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def toggle_tool(
     tenant_slug: str,
@@ -782,7 +840,11 @@ async def toggle_tool(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/bulk-update",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def bulk_update_tools(
     tenant_slug: str,
@@ -853,7 +915,11 @@ async def bulk_update_tools(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/enable-all",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def enable_all_tools(
     tenant_slug: str,
@@ -905,7 +971,11 @@ async def enable_all_tools(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/disable-all",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def disable_all_tools(
     tenant_slug: str,
@@ -957,7 +1027,11 @@ async def disable_all_tools(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/sync",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def sync_connector_tools(
     tenant_slug: str,
@@ -1071,7 +1145,8 @@ async def sync_connector_tools(
 
 @router.get(
     "/connectors/{connector_id}/process/status",
-    response_model=Optional[ProcessStatusResponse]
+    response_model=Optional[ProcessStatusResponse],
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
 )
 async def get_process_status(
     connector_id: str,
@@ -1165,7 +1240,10 @@ async def get_process_status(
     )
 
 
-@router.post("/connectors/{connector_id}/process/restart")
+@router.post(
+    "/connectors/{connector_id}/process/restart",
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+)
 async def restart_process(
     connector_id: str,
     session: AsyncSession = Depends(get_db_session)
@@ -1234,7 +1312,10 @@ async def restart_process(
     }
 
 
-@router.delete("/connectors/{connector_id}/process")
+@router.delete(
+    "/connectors/{connector_id}/process",
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+)
 async def terminate_process(
     connector_id: str,
     session: AsyncSession = Depends(get_db_session)

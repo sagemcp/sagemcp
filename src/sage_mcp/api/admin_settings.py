@@ -1,13 +1,15 @@
 """Admin API for platform settings (read-only view of non-secret config)."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from ..config import get_settings
+from ..models.api_key import APIKeyScope
+from ..security.auth import require_scope
 
 router = APIRouter()
 
 
-@router.get("/settings")
+@router.get("/settings", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
 async def get_platform_settings(request: Request):
     """Return non-secret platform configuration."""
     settings = get_settings()

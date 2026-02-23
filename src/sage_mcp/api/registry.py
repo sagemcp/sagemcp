@@ -10,8 +10,10 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..models.api_key import APIKeyScope
 from ..models.mcp_server_registry import MCPServerRegistry, DiscoveryJob, SourceType, RuntimeType
 from ..discovery.manager import discovery_manager
+from ..security.auth import require_scope
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +94,11 @@ class RegistryStatsResponse(BaseModel):
 
 
 # API Endpoints
-@router.get("/servers", response_model=List[ServerRegistryResponse])
+@router.get(
+    "/servers",
+    response_model=List[ServerRegistryResponse],
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_USER))],
+)
 async def list_registry_servers(
     search: Optional[str] = Query(None, description="Search in name/description"),
     runtime_type: Optional[str] = Query(None, description="Filter by runtime"),
@@ -204,7 +210,11 @@ async def list_registry_servers(
         raise HTTPException(status_code=500, detail="Failed to fetch registry servers")
 
 
-@router.get("/servers/{registry_id}", response_model=ServerRegistryResponse)
+@router.get(
+    "/servers/{registry_id}",
+    response_model=ServerRegistryResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_USER))],
+)
 async def get_registry_server(
     registry_id: UUID,
     db: AsyncSession = Depends(get_db_session)
@@ -263,7 +273,11 @@ async def get_registry_server(
         raise HTTPException(status_code=500, detail="Failed to fetch server details")
 
 
-@router.get("/stats", response_model=RegistryStatsResponse)
+@router.get(
+    "/stats",
+    response_model=RegistryStatsResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_USER))],
+)
 async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
     """Get registry statistics.
 
@@ -336,7 +350,10 @@ async def get_registry_stats(db: AsyncSession = Depends(get_db_session)):
         raise HTTPException(status_code=500, detail="Failed to fetch statistics")
 
 
-@router.post("/discover")
+@router.post(
+    "/discover",
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_ADMIN))],
+)
 async def trigger_discovery(
     request: DiscoveryJobRequest,
     background_tasks: BackgroundTasks
@@ -386,7 +403,11 @@ async def trigger_discovery(
         raise HTTPException(status_code=500, detail="Failed to trigger discovery")
 
 
-@router.get("/discover/jobs/{job_id}", response_model=DiscoveryJobResponse)
+@router.get(
+    "/discover/jobs/{job_id}",
+    response_model=DiscoveryJobResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_USER))],
+)
 async def get_discovery_job_status(
     job_id: UUID,
     db: AsyncSession = Depends(get_db_session)
@@ -429,7 +450,11 @@ async def get_discovery_job_status(
         raise HTTPException(status_code=500, detail="Failed to fetch job status")
 
 
-@router.get("/discover/jobs", response_model=List[DiscoveryJobResponse])
+@router.get(
+    "/discover/jobs",
+    response_model=List[DiscoveryJobResponse],
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_USER))],
+)
 async def list_discovery_jobs(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -507,7 +532,11 @@ class InstallationStatusResponse(BaseModel):
     last_health_check: Optional[str] = None
 
 
-@router.post("/servers/{registry_id}/install", response_model=InstallationResponse)
+@router.post(
+    "/servers/{registry_id}/install",
+    response_model=InstallationResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_ADMIN))],
+)
 async def install_server(
     registry_id: UUID,
     request: InstallServerRequest,
@@ -563,7 +592,10 @@ async def install_server(
         raise HTTPException(status_code=500, detail=f"Installation error: {str(e)}")
 
 
-@router.delete("/installations/{connector_id}")
+@router.delete(
+    "/installations/{connector_id}",
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_ADMIN))],
+)
 async def uninstall_server(
     connector_id: UUID,
     tenant_id: str = Query(..., description="Tenant ID")
@@ -601,7 +633,11 @@ async def uninstall_server(
         raise HTTPException(status_code=500, detail=f"Uninstallation error: {str(e)}")
 
 
-@router.get("/installations/{connector_id}/status", response_model=InstallationStatusResponse)
+@router.get(
+    "/installations/{connector_id}/status",
+    response_model=InstallationStatusResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.TENANT_USER))],
+)
 async def get_installation_status(
     connector_id: UUID,
     tenant_id: str = Query(..., description="Tenant ID")
