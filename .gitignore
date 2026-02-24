@@ -180,6 +180,7 @@ secrets/
 
 # Local configuration overrides
 .env.local
+!.env.local.template
 .env.production
 .env.staging
 

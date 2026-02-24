@@ -1,5 +1,5 @@
-# Use Python 3.14 slim image
-FROM python:3.14-slim
+# Use Python 3.12 slim image (3.14 has asyncpg SCRAM auth bug)
+FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
