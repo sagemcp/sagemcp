@@ -42,6 +42,11 @@ const CONNECTOR_CONFIGS: Record<string, { name: string; description: string }> =
   [ConnectorType.BITBUCKET]: { name: 'Bitbucket', description: 'Connect to Bitbucket repositories and pull requests' },
   [ConnectorType.LINEAR]: { name: 'Linear', description: 'Access Linear issues, projects, teams, and cycles' },
   [ConnectorType.DISCORD]: { name: 'Discord', description: 'Manage Discord servers, channels, and messages' },
+  [ConnectorType.COPILOT]: { name: 'GitHub Copilot', description: 'Monitor Copilot usage, seat management, and acceptance metrics' },
+  [ConnectorType.CLAUDE_CODE]: { name: 'Claude Code', description: 'Track Claude Code usage, costs, and workspace management' },
+  [ConnectorType.CODEX]: { name: 'OpenAI Codex', description: 'Monitor Codex completions, costs, and project management' },
+  [ConnectorType.CURSOR]: { name: 'Cursor', description: 'Track Cursor team analytics, spending, and member usage' },
+  [ConnectorType.WINDSURF]: { name: 'Windsurf', description: 'Monitor Windsurf analytics, credits, and usage configuration' },
 }
 
 const IMPLEMENTED_TYPES = [
@@ -51,6 +56,8 @@ const IMPLEMENTED_TYPES = [
   ConnectorType.OUTLOOK, ConnectorType.TEAMS, ConnectorType.EXCEL,
   ConnectorType.POWERPOINT, ConnectorType.CONFLUENCE, ConnectorType.GITLAB,
   ConnectorType.BITBUCKET, ConnectorType.LINEAR, ConnectorType.DISCORD,
+  ConnectorType.COPILOT, ConnectorType.CLAUDE_CODE, ConnectorType.CODEX,
+  ConnectorType.CURSOR, ConnectorType.WINDSURF,
 ]
 
 interface ConnectorModalProps {
@@ -129,6 +136,7 @@ export default function ConnectorModal({
       ConnectorType.OUTLOOK, ConnectorType.TEAMS, ConnectorType.EXCEL,
       ConnectorType.POWERPOINT, ConnectorType.CONFLUENCE, ConnectorType.GITLAB,
       ConnectorType.BITBUCKET, ConnectorType.LINEAR, ConnectorType.DISCORD,
+      ConnectorType.COPILOT,
     ].includes(type)
   }
 
