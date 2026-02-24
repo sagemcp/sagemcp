@@ -6,12 +6,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request
 
 from ..models.api_key import APIKeyScope
-from ..security.auth import require_scope
+from ..security.auth import require_scope, require_permission
+from ..security.permissions import Permission
 
 router = APIRouter()
 
 
-@router.get("/pool", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/pool", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def list_pool_entries(request: Request, tenant_slug: Optional[str] = Query(None)):
     """List all entries in the server pool."""
     pool = getattr(request.app.state, "server_pool", None)
@@ -43,7 +47,10 @@ async def list_pool_entries(request: Request, tenant_slug: Optional[str] = Query
     return entries
 
 
-@router.get("/pool/summary", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/pool/summary", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def pool_summary(request: Request):
     """Get aggregated pool statistics."""
     pool = getattr(request.app.state, "server_pool", None)
@@ -90,7 +97,10 @@ async def pool_summary(request: Request):
     }
 
 
-@router.delete("/pool/{tenant_slug}/{connector_id}", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.delete("/pool/{tenant_slug}/{connector_id}", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def evict_pool_entry(request: Request, tenant_slug: str, connector_id: str):
     """Evict a specific entry from the pool."""
     pool = getattr(request.app.state, "server_pool", None)
@@ -101,7 +111,10 @@ async def evict_pool_entry(request: Request, tenant_slug: str, connector_id: str
     return {"evicted": True, "pool_size": pool.size}
 
 
-@router.post("/pool/evict-idle", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.post("/pool/evict-idle", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def evict_idle(request: Request, idle_seconds: float = Query(default=600)):
     """Evict entries idle longer than the given threshold."""
     pool = getattr(request.app.state, "server_pool", None)

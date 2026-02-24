@@ -9,6 +9,9 @@ from .connector_tool_state import ConnectorToolState
 from .mcp_process import MCPProcess, ProcessStatus
 from .tool_usage_daily import ToolUsageDaily
 from .api_key import APIKey, APIKeyScope
+from .audit_log import AuditLog, ActorType
+from .tool_policy import GlobalToolPolicy, PolicyAction
+from .user import User, UserTenantMembership, RefreshToken, AuthProvider, TenantRole
 
 __all__ = [
     "Base",
@@ -24,4 +27,13 @@ __all__ = [
     "ToolUsageDaily",
     "APIKey",
     "APIKeyScope",
+    "AuditLog",
+    "ActorType",
+    "GlobalToolPolicy",
+    "PolicyAction",
+    "User",
+    "UserTenantMembership",
+    "RefreshToken",
+    "AuthProvider",
+    "TenantRole",
 ]
