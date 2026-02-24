@@ -1,20 +1,144 @@
 """MCP API routes for multi-tenant support."""
 
 import asyncio
+import hashlib
 import json
-from typing import Dict
+import logging
+import time
+from typing import Any
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, WebSocket, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, Response
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from ..mcp.transport import MCPTransport
+from ..security.auth import require_tenant_access, validate_websocket_auth
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 # Simple in-memory message queues for routing responses to SSE streams
 # Key: f"{tenant_slug}:{connector_id}"
 _message_queues: Dict[str, asyncio.Queue] = {}
+
+
+def _build_activity_key(
+    tenant_slug: str,
+    connector_id: str,
+    headers: Any,
+    client_host: str,
+) -> str:
+    """Build best-effort client fingerprint key for activity tracking."""
+    session_id = headers.get("mcp-session-id")
+    user_token = headers.get("x-user-oauth-token")
+    auth_header = headers.get("authorization")
+    forwarded_for = headers.get("x-forwarded-for")
+    user_agent = headers.get("user-agent", "")
+
+    identity = session_id or user_token or auth_header or forwarded_for or (client_host or "unknown")
+    identity_hash = hashlib.sha1(identity.encode("utf-8", errors="ignore")).hexdigest()[:12]
+    ua_hash = hashlib.sha1(user_agent.encode("utf-8", errors="ignore")).hexdigest()[:8]
+    return f"{tenant_slug}:{connector_id}:{identity_hash}:{ua_hash}"
+
+
+def _record_activity_for_app(app: Any, activity_key: str, ttl_seconds: float = 60.0) -> None:
+    """Record activity timestamp and cleanup stale entries for app-scoped tracker."""
+    now = time.monotonic()
+    tracker = getattr(app.state, "mcp_recent_activity", None)
+    if tracker is None:
+        tracker = {}
+        app.state.mcp_recent_activity = tracker
+    tracker[activity_key] = now
+
+    # Opportunistic cleanup of stale keys.
+    cutoff = now - ttl_seconds
+    stale_keys = [k for k, ts in tracker.items() if ts < cutoff]
+    for stale_key in stale_keys:
+        tracker.pop(stale_key, None)
+
+
+def _record_activity(request: Request, tenant_slug: str, connector_id: str) -> None:
+    """Record HTTP activity timestamp for active-session fallback stats."""
+    client_host = request.client.host if request.client else "unknown"
+    key = _build_activity_key(tenant_slug, connector_id, request.headers, client_host)
+    _record_activity_for_app(request.app, key)
+
+
+def _record_websocket_activity(websocket: WebSocket, tenant_slug: str, connector_id: str) -> None:
+    """Record WebSocket activity timestamp for active-session fallback stats."""
+    client_host = websocket.client.host if websocket.client else "unknown"
+    key = _build_activity_key(tenant_slug, connector_id, websocket.headers, client_host)
+    _record_activity_for_app(websocket.app, key)
+
+
+def get_recent_active_session_count(app, ttl_seconds: float = 60.0) -> int:
+    """Return number of recently active MCP clients within TTL window."""
+    tracker = getattr(app.state, "mcp_recent_activity", None)
+    if not tracker:
+        return 0
+
+    now = time.monotonic()
+    cutoff = now - ttl_seconds
+    stale_keys = [k for k, ts in tracker.items() if ts < cutoff]
+    for stale_key in stale_keys:
+        tracker.pop(stale_key, None)
+    return len(tracker)
+
+
+def _validate_origin(request: Request) -> Optional[Response]:
+    """Validate Origin header if MCP_ALLOWED_ORIGINS is configured.
+
+    Returns an error Response if origin is invalid, None if OK.
+    """
+    allowed = getattr(request.app.state, "mcp_allowed_origins", None)
+    if allowed is None:
+        return None  # No restriction configured
+
+    origin = request.headers.get("origin")
+    if origin and origin not in allowed:
+        logger.warning("Rejected request from origin: %s", origin)
+        return JSONResponse(
+            status_code=403,
+            content={"error": f"Origin not allowed: {origin}"},
+        )
+    return None
+
+
+def _get_server_pool(request: Request):
+    """Get the server pool from app state (may be None if disabled)."""
+    return getattr(request.app.state, "server_pool", None)
+
+
+def _get_session_manager(request: Request):
+    """Get the session manager from app state (may be None if disabled)."""
+    return getattr(request.app.state, "session_manager", None)
+
+
+def _get_event_buffer_manager(request: Request):
+    """Get the event buffer manager from app state (may be None if disabled)."""
+    return getattr(request.app.state, "event_buffer_manager", None)
+
+
+async def _get_transport(
+    request: Request,
+    tenant_slug: str,
+    connector_id: str,
+    user_token: Optional[str] = None,
+) -> MCPTransport:
+    """Get an MCPTransport, using server pool if available."""
+    pool = _get_server_pool(request)
+    if pool:
+        server = await pool.get_or_create(tenant_slug, connector_id, user_token)
+        if server:
+            transport = MCPTransport(tenant_slug, connector_id, user_token)
+            transport.mcp_server = server
+            transport.initialized = True
+            return transport
+
+    # Fallback: create new transport directly
+    return MCPTransport(tenant_slug, connector_id, user_token=user_token)
 
 
 @router.websocket("/{tenant_slug}/connectors/{connector_id}/mcp")
@@ -29,22 +153,32 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
       "params": {"token": "<user_token>"}
     }
 
-    Legacy support: Query parameter (not recommended for security):
-    ws://host/api/v1/{tenant_slug}/connectors/{connector_id}/mcp?token=<user_token>
+    Authentication: When SAGEMCP_ENABLE_AUTH=true, requires an ``api_key``
+    query parameter or ``Authorization: Bearer <key>`` header.  The ``api_key``
+    param is separate from the ``token`` param (which carries the OAuth user token).
     """
-    # Legacy: Extract user token from query parameter if provided
-    # Note: Query params are deprecated for tokens due to security concerns
+    from starlette.websockets import WebSocketDisconnect
+
+    try:
+        await validate_websocket_auth(websocket)
+    except WebSocketDisconnect as exc:
+        await websocket.close(code=exc.code, reason=exc.reason)
+        return
+
     user_token = websocket.query_params.get('token')
 
-    # Create transport for this specific connector with optional user token
     transport = MCPTransport(tenant_slug, connector_id, user_token=user_token)
 
-    # Handle the WebSocket connection
-    # User can also set/update token via auth/setUserToken extension message
-    await transport.handle_websocket(websocket)
+    await transport.handle_websocket(
+        websocket,
+        on_activity=lambda: _record_websocket_activity(websocket, tenant_slug, connector_id),
+    )
 
 
-@router.post("/{tenant_slug}/connectors/{connector_id}/mcp")
+@router.post(
+    "/{tenant_slug}/connectors/{connector_id}/mcp",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
     """HTTP POST endpoint for MCP protocol communication (Streamable HTTP transport).
 
@@ -53,14 +187,14 @@ async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
     - For JSON-RPC responses (has id, is response): Returns 202 Accepted
     - For JSON-RPC requests (has id, is request): Returns application/json with response
 
-    Client MUST include Accept header with application/json and text/event-stream.
-
-    Supports user-level OAuth tokens via custom header:
-    X-User-OAuth-Token: <user_token>
-
-    Note: User tokens are for external APIs (GitHub, Slack, etc.),
-    separate from MCP protocol-level authentication.
+    Supports Mcp-Session-Id header for session reuse.
+    Supports JSON-RPC batching (array of messages).
     """
+    # Validate Origin
+    origin_error = _validate_origin(request)
+    if origin_error:
+        return origin_error
+
     # Validate Accept header
     accept_header = request.headers.get("accept", "")
     if "application/json" not in accept_header:
@@ -69,23 +203,45 @@ async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
             detail="Accept header must include application/json"
         )
 
+    # Validate Content-Type
+    content_type = request.headers.get("content-type", "")
+    if "application/json" not in content_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Content-Type must be application/json"
+        )
+
     try:
-        # Parse the JSON-RPC message
-        message = await request.json()
+        body = await request.json()
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    # Extract user token from custom header if provided
-    # Using custom header to avoid conflict with MCP protocol auth
+    # Extract user token
     user_token = request.headers.get('x-user-oauth-token')
-
-    # Fallback: also support Authorization header for backward compatibility
     if not user_token:
         auth_header = request.headers.get('authorization', '')
         if auth_header.startswith('Bearer '):
             user_token = auth_header[7:]
 
-    # Determine message type
+    logger.info("MCP POST from tenant=%s connector=%s method=%s", tenant_slug, connector_id, body.get("method") if isinstance(body, dict) else "batch")
+    _record_activity(request, tenant_slug, connector_id)
+
+    # JSON-RPC batching: detect array payload
+    if isinstance(body, list):
+        return await _handle_batch(request, tenant_slug, connector_id, body, user_token)
+
+    # Single message
+    return await _handle_single_message(request, tenant_slug, connector_id, body, user_token)
+
+
+async def _handle_single_message(
+    request: Request,
+    tenant_slug: str,
+    connector_id: str,
+    message: dict,
+    user_token: Optional[str],
+) -> Response:
+    """Handle a single JSON-RPC message."""
     message_id = message.get("id")
     method = message.get("method")
     is_response = "result" in message or "error" in message
@@ -94,65 +250,138 @@ async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
 
     # Handle notifications and responses - return 202 Accepted
     if is_notification or is_response:
-        # For notifications: acknowledge receipt
-        # For responses: acknowledge receipt (responses are from server answering client's earlier request)
         return Response(status_code=202)
 
-    # Handle requests - process and return JSON response
-    if is_request:
-        # Create transport for this specific connector with optional user token
-        transport = MCPTransport(tenant_slug, connector_id, user_token=user_token)
+    if not is_request:
+        error_response = {
+            "jsonrpc": "2.0",
+            "id": message_id,
+            "error": {
+                "code": -32600,
+                "message": "Invalid Request: message must be a request, response, or notification"
+            }
+        }
+        return JSONResponse(content=error_response, status_code=400)
 
-        # Process the request
-        response = await transport.handle_http_message(message)
+    # Session management
+    session_mgr = _get_session_manager(request)
+    session_id = request.headers.get("mcp-session-id")
 
-        if response is None:
-            # This shouldn't happen for requests, but handle gracefully
-            raise HTTPException(
-                status_code=500,
-                detail="Internal error: No response generated for request"
+    # For non-initialize requests with session management enabled
+    if session_mgr and method != "initialize" and session_id:
+        entry = session_mgr.get_session(session_id)
+        if entry is None:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Invalid or expired session ID"},
             )
+        # Reuse the pooled server from session
+        transport = MCPTransport(tenant_slug, connector_id, user_token)
+        transport.mcp_server = entry.server
+        transport.initialized = True
+        if user_token:
+            entry.server.user_token = user_token
+    else:
+        # Create or get transport (using pool if available)
+        transport = await _get_transport(request, tenant_slug, connector_id, user_token)
 
-        # Return JSON response directly
-        return JSONResponse(
-            content=jsonable_encoder(response),
-            media_type="application/json"
+    # Process the request
+    response = await transport.handle_http_message(message)
+
+    if response is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal error: No response generated for request"
         )
 
-    # Invalid message format
-    error_response = {
-        "jsonrpc": "2.0",
-        "id": message_id,
-        "error": {
-            "code": -32600,
-            "message": "Invalid Request: message must be a request, response, or notification"
-        }
-    }
-    return JSONResponse(content=error_response, status_code=400)
+    # For initialize requests: create session and add header
+    headers = {}
+    if method == "initialize" and session_mgr:
+        new_session_id = session_mgr.create_session(
+            tenant_slug, connector_id, transport.mcp_server,
+            negotiated_version=response.get("result", {}).get("protocolVersion"),
+        )
+        headers["Mcp-Session-Id"] = new_session_id
+
+    return JSONResponse(
+        content=jsonable_encoder(response),
+        media_type="application/json",
+        headers=headers if headers else None,
+    )
 
 
-@router.get("/{tenant_slug}/connectors/{connector_id}/mcp")
-async def mcp_http_get(tenant_slug: str, connector_id: str):
-    """HTTP GET endpoint for MCP protocol communication (Streamable HTTP transport).
+async def _handle_batch(
+    request: Request,
+    tenant_slug: str,
+    connector_id: str,
+    messages: list,
+    user_token: Optional[str],
+) -> Response:
+    """Handle a JSON-RPC batch (array of messages).
 
-    This is OPTIONAL per the MCP spec. It provides an SSE stream for server-initiated
-    messages (requests and notifications) that are NOT in response to a client request.
-
-    Per MCP spec (2025-06-18):
-    - Server MAY provide this endpoint or return 405 Method Not Allowed
-    - Messages on this stream SHOULD be unrelated to any client request
-    - Server MUST NOT send JSON-RPC responses here (unless resuming a stream)
-
-    This implementation provides the GET endpoint to support server-initiated messages
-    such as notifications about resource changes, progress updates, etc.
-
-    Client MUST include Accept: text/event-stream header.
+    Returns an array of responses for requests, and 202 for notifications.
     """
+    if not messages:
+        return JSONResponse(content=[], media_type="application/json")
+
+    transport = await _get_transport(request, tenant_slug, connector_id, user_token)
+
+    responses = []
+    has_requests = False
+
+    for message in messages:
+        if not isinstance(message, dict):
+            responses.append({
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32600, "message": "Invalid Request"}
+            })
+            has_requests = True
+            continue
+
+        message_id = message.get("id")
+        method = message.get("method")
+        is_notification = method is not None and message_id is None
+
+        if is_notification:
+            # Notifications in a batch don't produce responses
+            continue
+
+        has_requests = True
+        resp = await transport.handle_http_message(message)
+        if resp is not None:
+            responses.append(resp)
+
+    if not has_requests:
+        # All notifications, return 202
+        return Response(status_code=202)
+
+    return JSONResponse(
+        content=jsonable_encoder(responses),
+        media_type="application/json",
+    )
+
+
+@router.get(
+    "/{tenant_slug}/connectors/{connector_id}/mcp",
+    dependencies=[Depends(require_tenant_access())],
+)
+async def mcp_http_get(tenant_slug: str, connector_id: str, request: Request):
+    """HTTP GET endpoint for SSE server-initiated messages.
+
+    Supports Last-Event-ID header for resumable streams.
+    """
+    # Validate Origin
+    origin_error = _validate_origin(request)
+    if origin_error:
+        return origin_error
+
+    session_id = request.headers.get("mcp-session-id")
+    last_event_id_str = request.headers.get("last-event-id")
+
     async def event_stream():
-        # Create transport for this specific connector
         transport = MCPTransport(tenant_slug, connector_id)
 
-        # Initialize the transport
         if not await transport.initialize():
             error_msg = {
                 "jsonrpc": "2.0",
@@ -164,6 +393,17 @@ async def mcp_http_get(tenant_slug: str, connector_id: str):
             yield f"event: message\ndata: {json.dumps(error_msg)}\n\n"
             return
 
+        # Replay buffered events if Last-Event-ID provided
+        buf_mgr = _get_event_buffer_manager(request)
+        if buf_mgr and session_id and last_event_id_str:
+            try:
+                last_event_id = int(last_event_id_str)
+                buf = buf_mgr.get_or_create(session_id)
+                for event in buf.replay_from(last_event_id):
+                    yield f"id: {event.event_id}\nevent: {event.event_type}\ndata: {event.data}\n\n"
+            except (ValueError, TypeError):
+                pass
+
         # Get or create message queue for server-initiated messages
         queue_key = f"{tenant_slug}:{connector_id}:server_initiated"
         if queue_key not in _message_queues:
@@ -172,18 +412,22 @@ async def mcp_http_get(tenant_slug: str, connector_id: str):
         message_queue = _message_queues[queue_key]
 
         try:
-            # Listen for server-initiated messages to send via SSE
             while True:
                 try:
-                    # Wait for message with timeout to allow periodic heartbeats
                     message = await asyncio.wait_for(message_queue.get(), timeout=30.0)
 
-                    # Send message as SSE event
-                    # Per MCP spec: all messages use event type "message"
-                    yield f"event: message\ndata: {json.dumps(message)}\n\n"
+                    data = json.dumps(message)
+
+                    # Buffer the event if session-aware
+                    event_id_str = ""
+                    if buf_mgr and session_id:
+                        buf = buf_mgr.get_or_create(session_id)
+                        eid = buf.append("message", data)
+                        event_id_str = f"id: {eid}\n"
+
+                    yield f"{event_id_str}event: message\ndata: {data}\n\n"
 
                 except asyncio.TimeoutError:
-                    # Send heartbeat comment to keep connection alive
                     yield ": heartbeat\n\n"
 
         except asyncio.CancelledError:
@@ -204,40 +448,31 @@ async def mcp_http_get(tenant_slug: str, connector_id: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "X-Accel-Buffering": "no",
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control, Last-Event-ID",
-            "Access-Control-Expose-Headers": "Content-Type"
+            "Access-Control-Allow-Headers": "Cache-Control, Last-Event-ID, Mcp-Session-Id",
+            "Access-Control-Expose-Headers": "Content-Type, Mcp-Session-Id"
         }
     )
 
 
-@router.get("/{tenant_slug}/connectors/{connector_id}/mcp/sse")
+@router.get(
+    "/{tenant_slug}/connectors/{connector_id}/mcp/sse",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_sse(tenant_slug: str, connector_id: str):
-    """DEPRECATED: Old HTTP+SSE endpoint (protocol version 2024-11-05).
-
-    This endpoint is from the deprecated HTTP+SSE transport pattern.
-    For backwards compatibility with older clients.
-
-    Modern clients should use:
-    - POST to /{tenant_slug}/connectors/{connector_id}/mcp for requests
-    - GET to /{tenant_slug}/connectors/{connector_id}/mcp for server-initiated messages (optional)
-    """
+    """DEPRECATED: Old HTTP+SSE endpoint (protocol version 2024-11-05)."""
 
     async def event_stream():
-        # Send endpoint event for backwards compatibility
         yield f"event: endpoint\ndata: {json.dumps({'type': 'endpoint'})}\n\n"
 
-        # Create transport for this specific connector
         transport = MCPTransport(tenant_slug, connector_id)
 
-        # Initialize the transport
         if not await transport.initialize():
             yield f"event: error\ndata: {json.dumps({'error': 'Tenant not found or inactive', 'code': 4004})}\n\n"
             return
 
         try:
-            # Keep connection alive with periodic heartbeats
             while True:
                 await asyncio.sleep(15)
                 yield f"event: heartbeat\ndata: {json.dumps({'timestamp': asyncio.get_event_loop().time()})}\n\n"
@@ -253,17 +488,19 @@ async def mcp_sse(tenant_slug: str, connector_id: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "X-Accel-Buffering": "no",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "Cache-Control"
         }
     )
 
 
-@router.get("/{tenant_slug}/connectors/{connector_id}/mcp/info")
+@router.get(
+    "/{tenant_slug}/connectors/{connector_id}/mcp/info",
+    dependencies=[Depends(require_tenant_access())],
+)
 async def mcp_info(tenant_slug: str, connector_id: str):
     """Get MCP server information for a specific connector."""
-    # Create transport to check if connector exists
     transport = MCPTransport(tenant_slug, connector_id)
 
     if not await transport.initialize():
@@ -276,7 +513,7 @@ async def mcp_info(tenant_slug: str, connector_id: str):
         "connector_name": transport.mcp_server.connector.name if transport.mcp_server.connector else None,
         "server_name": "sage-mcp",
         "server_version": "0.1.0",
-        "protocol_version": "2024-11-05",
+        "protocol_version": "2025-06-18",
         "capabilities": {
             "tools": {"listChanged": True},
             "resources": {"subscribe": True, "listChanged": True},

@@ -19,39 +19,90 @@ graph TB
         subgraph "Backend - FastAPI :8000"
             API[FastAPI Application]
 
+            subgraph "Middleware"
+                RATE_LIM["Rate Limiter
+Token Bucket · 100 RPM"]
+                CORS_MW["CORS / Origin
+Validation"]
+                CT_VAL["Content-Type
+Validation"]
+            end
+
             subgraph "API Routes"
                 ADMIN["Admin API
 /api/v1/admin/*"]
                 OAUTH["OAuth API
 /api/v1/oauth/*"]
                 MCP_ROUTE["MCP API
-/api/v1/SLUG/mcp"]
+/api/v1/SLUG/connectors/ID/mcp"]
             end
 
-            subgraph "Core Services"
-                MCP_SERVER[MCP Server]
-                MCP_TRANSPORT["MCP Transport
-WebSocket/HTTP/SSE"]
+            subgraph "MCP Core"
+                POOL["ServerPool
+LRU · 5000 max · 30min TTL"]
+                SESS_MGR["SessionManager
+Mcp-Session-Id · 10/key"]
+                MCP_TRANSPORT["Transport
+HTTP POST · WebSocket · SSE"]
+                EBUF["EventBuffer
+Ring Buffer · 100 events"]
             end
 
             subgraph "Connector System"
                 REGISTRY[Connector Registry]
-                BASE[Base Connector]
 
-                subgraph "Connector Plugins"
-                    GH["GitHub
-24 tools"]
-                    JIRA["Jira
-20 tools"]
-                    SLACK["Slack
-11 tools"]
-                    GDOCS["Google Docs
-10 tools"]
-                    NOTION["Notion
-10 tools"]
-                    ZOOM["Zoom
-12 tools"]
+                subgraph "Native Plugins"
+                    subgraph "Code & VCS"
+                        GH["GitHub · 24 tools"]
+                        GL["GitLab · 22 tools"]
+                        BB["Bitbucket · 19 tools"]
+                    end
+                    subgraph "Project Mgmt"
+                        JIRA["Jira · 20 tools"]
+                        LINEAR["Linear · 18 tools"]
+                        CONFL["Confluence · 16 tools"]
+                    end
+                    subgraph "Communication"
+                        SLACK["Slack · 11 tools"]
+                        DISCORD["Discord · 15 tools"]
+                        TEAMS["Teams · 13 tools"]
+                    end
+                    subgraph "Email"
+                        GMAIL["Gmail · 14 tools"]
+                        OUTLOOK["Outlook · 14 tools"]
+                    end
+                    subgraph "Docs & Productivity"
+                        GDOCS["Google Docs · 10 tools"]
+                        GSHEETS["Google Sheets · 14 tools"]
+                        GSLIDES["Google Slides · 11 tools"]
+                        NOTION["Notion · 10 tools"]
+                        EXCEL["Excel · 14 tools"]
+                        PPTX["PowerPoint · 10 tools"]
+                    end
+                    ZOOM["Zoom · 12 tools"]
+                    subgraph "AI Coding Tools"
+                        COPILOT["Copilot · 19 tools"]
+                        CLAUDE_CODE["Claude Code · 18 tools"]
+                        CODEX["Codex · 16 tools"]
+                        CURSOR_CONN["Cursor · 18 tools"]
+                        WINDSURF["Windsurf · 11 tools"]
+                    end
                 end
+
+                subgraph "External MCP Servers"
+                    PROC_MGR["MCPProcessManager
+Health checks · Auto-restart"]
+                    GEN_CONN["GenericMCPConnector
+stdio · JSON-RPC"]
+                end
+            end
+
+            subgraph "Observability"
+                PROM_EP["Prometheus /metrics
+11 metrics"]
+                STRUCT_LOG["Structured JSON Logs"]
+                HEALTH_EP["Health Probes
+/health/live · ready · startup"]
             end
 
             subgraph "Data Layer"
@@ -69,80 +120,145 @@ Supabase")]
                 T_CONN[Connectors]
                 T_OAUTH[OAuth Credentials]
                 T_CONFIG[OAuth Configs]
+                T_TOOL_STATE[ConnectorToolStates]
             end
         end
     end
 
     subgraph "External Services"
         GITHUB_API[GitHub API]
+        GITLAB_API[GitLab API]
+        BB_API[Bitbucket API]
         SLACK_API[Slack API]
+        DISCORD_API[Discord API]
+        TEAMS_API[MS Teams API]
         JIRA_API[Jira API]
+        LINEAR_API[Linear API]
+        CONFL_API[Confluence API]
         GOOGLE_API[Google APIs]
+        MS_GRAPH_API[MS Graph API]
         NOTION_API[Notion API]
         ZOOM_API[Zoom API]
     end
 
+    subgraph "External MCP Runtimes"
+        EXT_PY["Python MCP Server"]
+        EXT_NODE["Node.js MCP Server"]
+        EXT_GO["Go MCP Server"]
+    end
+
     %% Client connections
-    CD -->|WebSocket/HTTP| MCP_ROUTE
+    CD -->|"HTTP POST / WebSocket"| MCP_ROUTE
     WEB -->|HTTP| UI
 
     %% Frontend to Backend
     UI -->|REST API| ADMIN
     UI -->|REST API| OAUTH
-    UI -->|WebSocket Test| MCP_ROUTE
+
+    %% Middleware chain
+    MCP_ROUTE --> RATE_LIM
+    RATE_LIM --> CT_VAL
+    CT_VAL --> CORS_MW
+    CORS_MW --> MCP_TRANSPORT
+
+    %% MCP Core flow
+    MCP_TRANSPORT --> POOL
+    POOL --> SESS_MGR
+    SESS_MGR -->|"Get/Create Server"| REGISTRY
+    MCP_TRANSPORT -->|"SSE replay"| EBUF
+
+    %% Connector routing
+    REGISTRY -->|"runtime=native"| GH
+    REGISTRY -->|"runtime=native"| GL
+    REGISTRY -->|"runtime=native"| BB
+    REGISTRY -->|"runtime=native"| JIRA
+    REGISTRY -->|"runtime=native"| LINEAR
+    REGISTRY -->|"runtime=native"| CONFL
+    REGISTRY -->|"runtime=native"| SLACK
+    REGISTRY -->|"runtime=native"| DISCORD
+    REGISTRY -->|"runtime=native"| TEAMS
+    REGISTRY -->|"runtime=native"| GMAIL
+    REGISTRY -->|"runtime=native"| OUTLOOK
+    REGISTRY -->|"runtime=native"| GDOCS
+    REGISTRY -->|"runtime=native"| GSHEETS
+    REGISTRY -->|"runtime=native"| GSLIDES
+    REGISTRY -->|"runtime=native"| NOTION
+    REGISTRY -->|"runtime=native"| EXCEL
+    REGISTRY -->|"runtime=native"| PPTX
+    REGISTRY -->|"runtime=native"| ZOOM
+    REGISTRY -->|"runtime=native"| COPILOT
+    REGISTRY -->|"runtime=native"| CLAUDE_CODE
+    REGISTRY -->|"runtime=native"| CODEX
+    REGISTRY -->|"runtime=native"| CURSOR_CONN
+    REGISTRY -->|"runtime=native"| WINDSURF
+    REGISTRY -->|"runtime=external"| PROC_MGR
+    PROC_MGR --> GEN_CONN
 
     %% API routing
     ADMIN -->|Manage| ORM
     OAUTH -->|Auth Flow| ORM
-    MCP_ROUTE -->|Protocol| MCP_TRANSPORT
-
-    %% MCP flow
-    MCP_TRANSPORT -->|Initialize| MCP_SERVER
-    MCP_SERVER -->|Get Tools| REGISTRY
-    MCP_SERVER -->|Execute| REGISTRY
-
-    %% Connector registry
-    REGISTRY -->|Manage| BASE
-    BASE -.->|Implements| GH
-    BASE -.->|Implements| JIRA
-    BASE -.->|Implements| SLACK
-    BASE -.->|Implements| GDOCS
-    BASE -.->|Implements| NOTION
-    BASE -.->|Implements| ZOOM
 
     %% Database connections
     ORM -->|Async Queries| DB_MGR
     DB_MGR -->|Connection Pool| DB
 
-    DB -->|Store| T_TENANT
-    DB -->|Store| T_CONN
-    DB -->|Store| T_OAUTH
-    DB -->|Store| T_CONFIG
-
     %% External API calls
     GH -->|REST API| GITHUB_API
+    GL -->|REST API| GITLAB_API
+    BB -->|REST API| BB_API
     JIRA -->|REST API| JIRA_API
+    LINEAR -->|GraphQL| LINEAR_API
+    CONFL -->|REST API| CONFL_API
     SLACK -->|REST API| SLACK_API
+    DISCORD -->|REST API| DISCORD_API
+    TEAMS -->|Graph API| TEAMS_API
+    GMAIL -->|REST API| GOOGLE_API
+    OUTLOOK -->|Graph API| MS_GRAPH_API
     GDOCS -->|REST API| GOOGLE_API
+    GSHEETS -->|REST API| GOOGLE_API
+    GSLIDES -->|REST API| GOOGLE_API
     NOTION -->|REST API| NOTION_API
+    EXCEL -->|Graph API| MS_GRAPH_API
+    PPTX -->|Graph API| MS_GRAPH_API
     ZOOM -->|REST API| ZOOM_API
+
+    %% External MCP runtimes
+    GEN_CONN -->|stdio| EXT_PY
+    GEN_CONN -->|stdio| EXT_NODE
+    GEN_CONN -->|stdio| EXT_GO
 
     style CD fill:#e1f5ff
     style WEB fill:#e1f5ff
     style UI fill:#fff3e0
     style API fill:#f3e5f5
-    style MCP_SERVER fill:#e8f5e9
+    style POOL fill:#e8f5e9
+    style SESS_MGR fill:#e8f5e9
+    style MCP_TRANSPORT fill:#e8f5e9
+    style EBUF fill:#e8f5e9
     style REGISTRY fill:#e8f5e9
+    style PROC_MGR fill:#e8f5e9
+    style GEN_CONN fill:#e8f5e9
     style DB fill:#fce4ec
+    style RATE_LIM fill:#fff9c4
+    style CORS_MW fill:#fff9c4
+    style CT_VAL fill:#fff9c4
+    style PROM_EP fill:#f3e5f5
+    style HEALTH_EP fill:#f3e5f5
 ```
 
 ## Multi-Tenant Architecture
 
 ```mermaid
 graph TB
+    subgraph "Shared Infrastructure"
+        POOL["ServerPool
+LRU · 5000 max · 30min TTL"]
+    end
+
     subgraph "Tenant 1: acme-corp"
         T1["Tenant: acme-corp
-ID: uuid-1"]
+ID: uuid-1
+Rate Limit: 100 RPM"]
         T1_CONN1["Connector: GitHub
 Enabled"]
         T1_CONN2["Connector: Slack
@@ -162,7 +278,8 @@ access_token"]
 
     subgraph "Tenant 2: startup-inc"
         T2["Tenant: startup-inc
-ID: uuid-2"]
+ID: uuid-2
+Rate Limit: 100 RPM"]
         T2_CONN1["Connector: Jira
 Enabled"]
         T2_CONN2["Connector: Zoom
@@ -185,13 +302,17 @@ Tenant 1"]
     CD2["Claude Desktop
 Tenant 2"]
 
-    CD1 -->|"WS: /api/v1/acme-corp/connectors/ID/mcp"| T1
-    CD2 -->|"WS: /api/v1/startup-inc/connectors/ID/mcp"| T2
+    CD1 -->|"HTTP POST: /api/v1/acme-corp/connectors/ID/mcp"| T1
+    CD2 -->|"HTTP POST: /api/v1/startup-inc/connectors/ID/mcp"| T2
+
+    T1_CONN1 -->|"key: acme-corp:conn-id"| POOL
+    T2_CONN1 -->|"key: startup-inc:conn-id"| POOL
 
     style T1 fill:#e3f2fd
     style T2 fill:#f3e5f5
     style CD1 fill:#e1f5ff
     style CD2 fill:#e1f5ff
+    style POOL fill:#e8f5e9
 ```
 
 ## OAuth Authentication Flow
@@ -231,33 +352,56 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Client as Claude Desktop
+    participant MW as Middleware
     participant Transport as MCP Transport
-    participant Server as MCP Server
+    participant Pool as ServerPool
+    participant Session as SessionManager
     participant Registry as Connector Registry
     participant Connector as Connector Plugin
     participant DB as Database
     participant API as External API
 
-    Client->>Transport: WebSocket Connect /api/v1/SLUG/connectors/ID/mcp
-    Transport->>DB: Load Tenant & Connector
-    DB->>Transport: Return config
-    Transport->>Server: Initialize MCP Server
+    Note over Client,MW: HTTP POST /api/v1/SLUG/connectors/ID/mcp
+    Client->>MW: POST with Content-Type: application/json
+    MW->>MW: Rate limit check (token bucket)
+    MW->>MW: Content-Type validation
+    MW->>MW: Origin header validation
+    MW->>Transport: Forward JSON-RPC request
 
-    Client->>Server: list_tools()
-    Server->>Registry: Get connector by type
+    Note over Transport,Session: Initialize (first request)
+    Transport->>Transport: Parse JSON-RPC (single or batch)
+    Transport->>Pool: get_or_create("SLUG:ID")
+    Pool-->>Transport: Cache HIT (existing server)
+    Pool->>DB: Cache MISS → Load Tenant & Connector
+    DB->>Pool: Return config
+    Pool->>Registry: Create MCPServer
+    Registry->>Pool: Return server instance
+    Transport->>Session: create_session(SLUG, ID, server)
+    Session->>Transport: Return session_id
+    Transport->>Transport: Negotiate protocol version (2025-06-18 / 2024-11-05)
+    Transport->>Client: Response + Mcp-Session-Id header
+
+    Note over Client,API: Subsequent requests (tools/list, tools/call)
+    Client->>MW: POST + Mcp-Session-Id header
+    MW->>Transport: Forward
+    Transport->>Session: get_session(session_id)
+    Session->>Transport: Return server instance
+
+    Client->>Transport: tools/list
+    Transport->>Registry: Get connector by type
     Registry->>Connector: get_tools()
-    Connector->>Server: Return tool definitions
-    Server->>Client: Tool list
+    Connector->>Transport: Return tool definitions
+    Transport->>Client: Tool list
 
-    Client->>Server: call_tool("github_list_repositories", args)
-    Server->>Registry: Get GitHub connector
+    Client->>Transport: call_tool("github_list_repositories", args)
+    Transport->>Registry: Get connector
     Registry->>Connector: execute_tool(name, args, oauth)
-    Connector->>DB: Validate OAuth credential
-    DB->>Connector: OAuth token valid
+    Connector->>DB: Load OAuth credential
+    DB->>Connector: access_token
     Connector->>API: GET /user/repos Authorization: Bearer TOKEN
     API->>Connector: Repository list
-    Connector->>Server: Format as TextContent
-    Server->>Client: MCP response with data
+    Connector->>Transport: Format as TextContent
+    Transport->>Client: MCP response with data
 ```
 
 ## Database Schema
@@ -267,6 +411,7 @@ erDiagram
     TENANT ||--o{ CONNECTOR : has
     TENANT ||--o{ OAUTH_CREDENTIAL : has
     TENANT ||--o{ OAUTH_CONFIG : has
+    CONNECTOR ||--o{ CONNECTOR_TOOL_STATE : has
 
     TENANT {
         uuid id PK
@@ -318,6 +463,15 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+
+    CONNECTOR_TOOL_STATE {
+        uuid id PK
+        uuid connector_id FK
+        string tool_name
+        boolean is_enabled
+        datetime created_at
+        datetime updated_at
+    }
 ```
 
 ## Connector Plugin Architecture
@@ -326,10 +480,13 @@ erDiagram
 graph TB
     subgraph "Connector Registry"
         REG["ConnectorRegistry
-Singleton"]
+Singleton · async"]
         REG_MAP{Connector Map}
+        ROUTING{"Route by
+runtime_type"}
 
         REG --> REG_MAP
+        REG --> ROUTING
     end
 
     subgraph "Base Class"
@@ -351,59 +508,136 @@ Abstract Class"]
         BASE --> BASE_METHODS
     end
 
-    subgraph "Connector Implementations"
-        GH_CONN[GitHubConnector]
-        JIRA_CONN[JiraConnector]
-        SLACK_CONN[SlackConnector]
-        NOTION_CONN[NotionConnector]
-        ZOOM_CONN[ZoomConnector]
-
-        GH_CONN --> GH_TOOLS["24 Tools:
-- list_repositories
-- create_issue
-- list_pull_requests
-- etc."]
-        JIRA_CONN --> JIRA_TOOLS["20 Tools:
-- search_issues
-- create_issue
-- list_projects
-- etc."]
-        SLACK_CONN --> SLACK_TOOLS["11 Tools:
-- send_message
-- list_channels
-- search_messages
-- etc."]
-        NOTION_CONN --> NOTION_TOOLS["10 Tools:
-- list_databases
-- get_page
-- create_page
-- etc."]
-        ZOOM_CONN --> ZOOM_TOOLS["12 Tools:
-- list_meetings
-- create_meeting
-- list_recordings
-- etc."]
+    subgraph "Native Connector Plugins (23 connectors · 340 tools)"
+        subgraph "Code & VCS"
+            GH_CONN["GitHubConnector · 24 tools"]
+            GL_CONN["GitLabConnector · 22 tools"]
+            BB_CONN["BitbucketConnector · 19 tools"]
+        end
+        subgraph "Project Management"
+            JIRA_CONN["JiraConnector · 20 tools"]
+            LINEAR_CONN["LinearConnector · 18 tools"]
+            CONFL_CONN["ConfluenceConnector · 16 tools"]
+        end
+        subgraph "Communication"
+            SLACK_CONN["SlackConnector · 11 tools"]
+            DISCORD_CONN["DiscordConnector · 15 tools"]
+            TEAMS_CONN["TeamsConnector · 13 tools"]
+        end
+        subgraph "Email"
+            GMAIL_CONN["GmailConnector · 14 tools"]
+            OUTLOOK_CONN["OutlookConnector · 14 tools"]
+        end
+        subgraph "Docs & Productivity"
+            GDOCS_CONN["GoogleDocsConnector · 10 tools"]
+            GSHEETS_CONN["GoogleSheetsConnector · 14 tools"]
+            GSLIDES_CONN["GoogleSlidesConnector · 11 tools"]
+            NOTION_CONN["NotionConnector · 10 tools"]
+            EXCEL_CONN["ExcelConnector · 14 tools"]
+            PPTX_CONN["PowerPointConnector · 10 tools"]
+        end
+        ZOOM_CONN["ZoomConnector · 12 tools"]
     end
 
+    subgraph "Shared Infrastructure"
+        PAGINATION["Pagination
+offset · cursor · link · OData"]
+        RETRY["Retry
+Exponential backoff · jitter"]
+        GRAPHQL["GraphQL Client
+Relay pagination"]
+        EXCEPTIONS["Structured Exceptions
+Auth · RateLimit · API · Timeout"]
+    end
+
+    subgraph "External MCP Server Path"
+        PROC_MGR["MCPProcessManager
+Health checks · Auto-restart
+Max 3 retries"]
+        GEN_CONN["GenericMCPConnector
+stdio · JSON-RPC 2.0
+30s timeout"]
+
+        subgraph "External Runtimes"
+            EXT_PY["Python MCP Server"]
+            EXT_NODE["Node.js MCP Server"]
+            EXT_GO["Go MCP Server"]
+        end
+
+        PROC_MGR --> GEN_CONN
+        GEN_CONN -->|stdio| EXT_PY
+        GEN_CONN -->|stdio| EXT_NODE
+        GEN_CONN -->|stdio| EXT_GO
+    end
+
+    ROUTING -->|"runtime=native"| REG_MAP
+    ROUTING -->|"runtime=external_*"| PROC_MGR
+
     REG_MAP -->|"github"| GH_CONN
+    REG_MAP -->|"gitlab"| GL_CONN
+    REG_MAP -->|"bitbucket"| BB_CONN
     REG_MAP -->|"jira"| JIRA_CONN
+    REG_MAP -->|"linear"| LINEAR_CONN
+    REG_MAP -->|"confluence"| CONFL_CONN
     REG_MAP -->|"slack"| SLACK_CONN
+    REG_MAP -->|"discord"| DISCORD_CONN
+    REG_MAP -->|"teams"| TEAMS_CONN
+    REG_MAP -->|"gmail"| GMAIL_CONN
+    REG_MAP -->|"outlook"| OUTLOOK_CONN
+    REG_MAP -->|"google_docs"| GDOCS_CONN
+    REG_MAP -->|"google_sheets"| GSHEETS_CONN
+    REG_MAP -->|"google_slides"| GSLIDES_CONN
     REG_MAP -->|"notion"| NOTION_CONN
+    REG_MAP -->|"excel"| EXCEL_CONN
+    REG_MAP -->|"powerpoint"| PPTX_CONN
     REG_MAP -->|"zoom"| ZOOM_CONN
 
     BASE -.->|inherits| GH_CONN
+    BASE -.->|inherits| GL_CONN
+    BASE -.->|inherits| BB_CONN
     BASE -.->|inherits| JIRA_CONN
+    BASE -.->|inherits| LINEAR_CONN
+    BASE -.->|inherits| CONFL_CONN
     BASE -.->|inherits| SLACK_CONN
+    BASE -.->|inherits| DISCORD_CONN
+    BASE -.->|inherits| TEAMS_CONN
+    BASE -.->|inherits| GMAIL_CONN
+    BASE -.->|inherits| OUTLOOK_CONN
+    BASE -.->|inherits| GDOCS_CONN
+    BASE -.->|inherits| GSHEETS_CONN
+    BASE -.->|inherits| GSLIDES_CONN
     BASE -.->|inherits| NOTION_CONN
+    BASE -.->|inherits| EXCEL_CONN
+    BASE -.->|inherits| PPTX_CONN
     BASE -.->|inherits| ZOOM_CONN
 
     style REG fill:#e8f5e9
+    style ROUTING fill:#e8f5e9
     style BASE fill:#fff3e0
     style GH_CONN fill:#e3f2fd
+    style GL_CONN fill:#e3f2fd
+    style BB_CONN fill:#e3f2fd
     style JIRA_CONN fill:#e3f2fd
+    style LINEAR_CONN fill:#e3f2fd
+    style CONFL_CONN fill:#e3f2fd
     style SLACK_CONN fill:#e3f2fd
+    style DISCORD_CONN fill:#e3f2fd
+    style TEAMS_CONN fill:#e3f2fd
+    style GMAIL_CONN fill:#e3f2fd
+    style OUTLOOK_CONN fill:#e3f2fd
+    style GDOCS_CONN fill:#e3f2fd
+    style GSHEETS_CONN fill:#e3f2fd
+    style GSLIDES_CONN fill:#e3f2fd
     style NOTION_CONN fill:#e3f2fd
+    style EXCEL_CONN fill:#e3f2fd
+    style PPTX_CONN fill:#e3f2fd
     style ZOOM_CONN fill:#e3f2fd
+    style PROC_MGR fill:#fff9c4
+    style GEN_CONN fill:#fff9c4
+    style PAGINATION fill:#f3e5f5
+    style RETRY fill:#f3e5f5
+    style GRAPHQL fill:#f3e5f5
+    style EXCEPTIONS fill:#f3e5f5
 ```
 
 ## Request Flow: Creating and Using a Connector
@@ -462,6 +696,63 @@ sequenceDiagram
     API->>Claude: MCP TextContent response
 ```
 
+## MCP Request Lifecycle (v2 — Streamable HTTP)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as Claude Desktop
+    participant RL as Rate Limiter
+    participant CT as Content-Type Check
+    participant OV as Origin Validator
+    participant TP as Transport
+    participant Pool as ServerPool
+    participant Sess as SessionManager
+    participant Buf as EventBuffer
+    participant Conn as Connector
+
+    Note over Client,RL: HTTP POST /api/v1/{slug}/connectors/{id}/mcp
+
+    Client->>RL: POST JSON-RPC (Content-Type: application/json)
+    RL->>RL: Token bucket check for tenant slug
+    alt Rate limit exceeded
+        RL-->>Client: 429 Too Many Requests + Retry-After
+    end
+    RL->>CT: Forward request
+    CT->>CT: Validate Content-Type: application/json
+    alt Invalid Content-Type
+        CT-->>Client: 415 Unsupported Media Type
+    end
+    CT->>OV: Forward request
+    OV->>OV: Validate Origin header against MCP_ALLOWED_ORIGINS
+    alt Origin rejected
+        OV-->>Client: 403 Forbidden
+    end
+    OV->>TP: Forward validated request
+
+    TP->>TP: Parse JSON-RPC (single request or batch array)
+
+    alt method = "initialize"
+        TP->>Pool: get_or_create(slug:connector_id)
+        Pool-->>TP: MCPServer (cache hit or new)
+        TP->>Sess: create_session(slug, connector_id, server)
+        Sess-->>TP: session_id (UUID4 hex)
+        TP->>TP: Negotiate version (2025-06-18 preferred, 2024-11-05 fallback)
+        TP->>Buf: create_buffer(session_id, capacity=100)
+        TP-->>Client: initialize result + Mcp-Session-Id header
+    else method = "tools/list" | "tools/call"
+        Client->>TP: Mcp-Session-Id header
+        TP->>Sess: get_session(session_id)
+        Sess-->>TP: MCPServer instance
+        TP->>Conn: execute via connector
+        Conn-->>TP: Result
+        TP->>Buf: append(SSEEvent)
+        TP-->>Client: JSON-RPC response
+    else method = "notifications/*"
+        TP->>TP: Process notification (no response)
+    end
+```
+
 ## Technology Stack
 
 ```mermaid
@@ -486,12 +777,14 @@ graph LR
         PYDANTIC[Pydantic v2]
         MCP_SDK[MCP SDK]
         HTTPX[HTTPX]
+        PROM_CLIENT[prometheus-client]
 
         FASTAPI --> PYTHON
         FASTAPI --> SA
         FASTAPI --> PYDANTIC
         FASTAPI --> MCP_SDK
         FASTAPI --> HTTPX
+        FASTAPI --> PROM_CLIENT
     end
 
     subgraph "Database Stack"
@@ -547,11 +840,19 @@ React:3001"]
             FE2["Frontend Pod 2
 React:3001"]
             BE1["Backend Pod 1
-FastAPI:8000"]
+FastAPI:8000
+liveness: /health/live
+readiness: /health/ready
+startup: /health/startup"]
             BE2["Backend Pod 2
-FastAPI:8000"]
+FastAPI:8000
+liveness: /health/live
+readiness: /health/ready
+startup: /health/startup"]
             BE3["Backend Pod 3
-FastAPI:8000"]
+FastAPI:8000
+prometheus.io/scrape: true
+prometheus.io/path: /metrics"]
         end
 
         subgraph "Services"
@@ -632,15 +933,35 @@ Optional"]
 - Connection pooling for performance
 
 ### 4. **Factory Pattern**
-- `MCPServer` factory creates server instances per request
+- `MCPServer` factory creates server instances (now cached via `ServerPool`)
 - Connector factory creates connector instances from registry
 
-### 5. **Decorator Pattern**
+### 5. **Object Pool Pattern**
+- `ServerPool` caches `MCPServer` instances keyed by `tenant_slug:connector_id`
+- LRU eviction when pool exceeds `max_size` (default 5,000)
+- TTL-based expiry (default 30 minutes) with background reaper (60s interval)
+
+### 6. **Token Bucket Pattern**
+- Per-tenant rate limiting with configurable RPM (default 100)
+- Refill rate: `rpm / 60` tokens per second; burst capacity equals RPM
+- Returns `429 Too Many Requests` with `Retry-After` header
+
+### 7. **Ring Buffer Pattern**
+- `EventBuffer` stores last 100 SSE events per session using `OrderedDict`
+- FIFO eviction when capacity exceeded
+- Supports `Last-Event-ID` header for resumable SSE streams
+
+### 8. **Single-Flight Pattern**
+- `SessionManager` ensures only one session is created per concurrent `initialize` request
+- Max 10 sessions per tenant+connector key; oldest evicted when limit reached
+
+### 9. **Decorator Pattern**
 - `@register_connector` decorator for plugin registration
 - FastAPI route decorators for API endpoints
 
-### 6. **Adapter Pattern**
+### 10. **Adapter Pattern**
 - Connectors adapt external APIs to MCP protocol
+- `GenericMCPConnector` adapts stdio-based external MCP servers to the same interface
 - Each connector translates between MCP tools and provider-specific APIs
 
 ## Security Architecture
@@ -651,6 +972,17 @@ graph TB
         subgraph "Network Security"
             HTTPS[HTTPS/TLS]
             CORS[CORS Middleware]
+        end
+
+        subgraph "v2: Request Validation"
+            RATE_LIM["Rate Limiting
+Token bucket · per-tenant"]
+            ORIGIN_VAL["Origin Validation
+MCP_ALLOWED_ORIGINS"]
+            CT_VAL["Content-Type Validation
+application/json required"]
+            SESS_BIND["Session Binding
+Mcp-Session-Id"]
         end
 
         subgraph "Authentication"
@@ -683,8 +1015,12 @@ SQL Injection Prevention"]
         end
     end
 
-    HTTPS --> OAUTH
-    CORS --> OAUTH
+    HTTPS --> RATE_LIM
+    CORS --> ORIGIN_VAL
+    RATE_LIM --> CT_VAL
+    ORIGIN_VAL --> CT_VAL
+    CT_VAL --> SESS_BIND
+    SESS_BIND --> OAUTH
     OAUTH --> STATE
     STATE --> TENANT_ISO
     TENANT_ISO --> FK_CHECK
@@ -695,71 +1031,130 @@ SQL Injection Prevention"]
     PYDANTIC --> SQL_PREVENT
 ```
 
+**v2 Security Additions:**
+- **Rate limiting** — Token-bucket rate limiter prevents abuse; configurable per-tenant RPM with `Retry-After` headers
+- **Origin validation** — `MCP_ALLOWED_ORIGINS` env var restricts which origins can send MCP requests
+- **Content-Type enforcement** — Only `application/json` accepted for MCP HTTP POST endpoints
+- **Session binding** — `Mcp-Session-Id` binds a client to a specific server instance, preventing session hijacking
+- **CORS hardening** — `Mcp-Session-Id` added to `Access-Control-Expose-Headers` for cross-origin clients
+
 ## Performance Considerations
 
-### Connection Pooling
-- SQLAlchemy async engine with connection pool (default: 5-20 connections)
-- HTTPX async client for external API calls
-- WebSocket connection reuse for MCP protocol
+### Server Pool
+- **Hit cost**: O(1) dict lookup + LRU touch (~0.01ms)
+- **Miss cost**: DB query + connector instantiation (~5-15ms)
+- **Eviction**: LRU when pool exceeds 5,000 entries; TTL reaper every 60s
+- **Memory**: ~5KB per cached `MCPServer` instance
 
-### Caching Strategy (Optional)
-- Redis for session data
-- In-memory connector registry (singleton)
-- OAuth token caching with TTL
+### Connection Reuse
+- **HTTPX**: Async connection pool for external API calls (per-connector)
+- **Subprocess persistence**: `MCPProcessManager` keeps external MCP server processes alive with 30s health checks
+- **SQLAlchemy**: Async engine with connection pool (default: 5-20 connections)
 
-### Scalability
-- Horizontal scaling via Kubernetes replicas
-- Stateless backend design (WebSocket state in transport layer)
-- Database connection pooling
-- Async I/O throughout the stack
+### Session Management
+- **Lookup cost**: O(1) dict access by `session_id`
+- **Per-key limit**: Max 10 sessions per `tenant_slug:connector_id` (oldest evicted)
+- **TTL**: 30-minute inactivity timeout with 60s background reaper
+
+### Memory Budget (estimated at 3,000 active instances)
+
+| Component | Per-Unit | At Scale | Notes |
+|-----------|----------|----------|-------|
+| ServerPool entries | ~5KB | ~15MB | 3,000 cached servers |
+| SessionManager entries | ~2KB | ~6MB | 3,000 active sessions |
+| EventBuffers | ~10KB | ~30MB | 100 events × 100 bytes × 3,000 sessions |
+| External processes | ~20MB | ~200MB | Depends on server count |
+| **Total (in-process)** | — | **~250MB** | Excluding external runtimes |
 
 ## Monitoring & Observability
+
+### Prometheus Metrics
+
+All metrics are prefixed with `sagemcp_` and exposed at `/metrics` (requires `SAGEMCP_ENABLE_METRICS=true`).
+
+**Request Metrics:**
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `sagemcp_http_request_duration_seconds` | Histogram | `method`, `path_template`, `status_code` | HTTP request latency |
+| `sagemcp_tool_call_duration_seconds` | Histogram | `connector_type`, `tool_name`, `status` | Tool execution latency |
+| `sagemcp_tool_calls_total` | Counter | `connector_type`, `status` | Total tool invocations |
+
+**Resource Gauges:**
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `sagemcp_active_sessions` | Gauge | — | Active MCP sessions |
+| `sagemcp_pool_size` | Gauge | — | Server pool entries |
+| `sagemcp_external_processes` | Gauge | — | Running external MCP processes |
+| `sagemcp_memory_usage_bytes` | Gauge | `component` | Memory usage by component |
+
+**Pool Metrics:**
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `sagemcp_pool_hits_total` | Counter | — | Server pool cache hits |
+| `sagemcp_pool_misses_total` | Counter | — | Server pool cache misses |
+
+> **Cardinality note:** `path_template` uses route templates (e.g., `/api/v1/{tenant_slug}/connectors/{connector_id}/mcp`), not raw paths, to keep cardinality bounded.
+
+### Structured Logging
+
+All log entries are JSON-formatted with the following fields:
+- `timestamp`, `level`, `message` — Standard fields
+- `tenant_slug`, `connector_id` — Request context
+- `request_id` — Correlation ID for distributed tracing
+- `duration_ms` — Operation timing
+
+### Health Probes
+
+| Endpoint | K8s Probe Type | Checks |
+|----------|---------------|--------|
+| `/health/live` | `livenessProbe` | Process is running |
+| `/health/ready` | `readinessProbe` | DB reachable, pool initialized |
+| `/health/startup` | `startupProbe` | Migrations complete, connectors registered |
 
 ```mermaid
 graph LR
     subgraph "Application"
-        APP[SageMCP Backend]
+        APP["SageMCP Backend
+/metrics · /health/*"]
     end
 
-    subgraph "Metrics & Logs"
-        METRICS["Prometheus Metrics
-- Request count
-- Response time
-- Error rate"]
-        LOGS["Structured Logs
-- JSON format
-- Log levels"]
-        TRACES["Distributed Tracing
-Optional: Jaeger/OTEL"]
-    end
-
-    subgraph "Monitoring"
-        PROM[Prometheus]
-        GRAF[Grafana]
+    subgraph "Monitoring Stack"
+        PROM["Prometheus
+Scrape /metrics"]
+        GRAF[Grafana Dashboards]
         ALERT[AlertManager]
     end
 
-    APP --> METRICS
-    APP --> LOGS
-    APP --> TRACES
+    subgraph "Log Aggregation"
+        LOGS["Structured JSON Logs
+stdout/stderr"]
+        ELK["ELK / Loki
+Optional"]
+    end
 
-    METRICS --> PROM
+    APP -->|metrics| PROM
+    APP -->|logs| LOGS
     PROM --> GRAF
     PROM --> ALERT
-
-    LOGS --> GRAF
+    LOGS --> ELK
+    ELK --> GRAF
 ```
 
 ---
 
 ## Summary
 
-SageMCP is a **multi-tenant MCP server platform** that enables Claude Desktop to connect to external services via OAuth-authenticated connectors. The architecture is:
+SageMCP is a **multi-tenant MCP server platform** that enables Claude Desktop to connect to external services via OAuth-authenticated connectors. The v2 architecture provides:
 
-- **Modular**: Plugin-based connector system
-- **Scalable**: Async I/O, connection pooling, horizontal scaling
-- **Secure**: OAuth 2.0, tenant isolation, token encryption
-- **Extensible**: Easy to add new connectors following the base pattern
-- **Production-ready**: Docker/Kubernetes deployment, comprehensive testing
+- **Pooled instances** — `ServerPool` caches up to 5,000 `MCPServer` instances with LRU eviction and 30-min TTL
+- **Session management** — `Mcp-Session-Id` tracking with `EventBuffer` ring buffers for resumable SSE streams
+- **Rate limiting** — Per-tenant token-bucket rate limiter (configurable RPM) with `Retry-After` headers
+- **Observability** — 11 Prometheus metrics, structured JSON logging, and Kubernetes health probes (`/health/live|ready|startup`)
+- **External MCP hosting** — `MCPProcessManager` runs third-party MCP servers as stdio subprocesses with health checks and auto-restart
+- **Progressive rollout** — Feature flags (`SAGEMCP_ENABLE_*`) for safe, incremental v2 adoption
+- **Protocol compliance** — Supports MCP protocol versions `2025-06-18` and `2024-11-05` with version negotiation
 
-The platform successfully bridges Claude Desktop's MCP protocol with external service APIs (GitHub, Slack, Jira, Google Docs, Notion, Zoom) through a unified, tenant-aware interface.
+The platform bridges Claude Desktop's MCP protocol with 18 external service APIs (GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs, Google Sheets, Google Slides, Notion, Excel, PowerPoint, Zoom) and any MCP-compatible server through a unified, tenant-aware, production-hardened interface. Shared infrastructure modules (pagination, retry, GraphQL client, structured exceptions) ensure consistent behavior across all connectors.

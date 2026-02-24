@@ -2,11 +2,38 @@
 
 import asyncio
 import json
-from typing import Any, Dict
+import logging
+from typing import Any, Callable, Dict, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from .server import MCPServer
+
+logger = logging.getLogger(__name__)
+
+# Supported MCP protocol versions (newest first)
+SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2024-11-05"]
+
+
+def _error_response(message_id: Any, code: int, message: str) -> Dict[str, Any]:
+    """Build a JSON-RPC 2.0 error response."""
+    return {
+        "jsonrpc": "2.0",
+        "id": message_id,
+        "error": {"code": code, "message": message},
+    }
+
+
+def _negotiate_protocol_version(client_version: str) -> Optional[str]:
+    """Negotiate protocol version.
+
+    Returns the latest server-supported version that is <= client_version,
+    or None if no compatible version exists.
+    """
+    for version in SUPPORTED_PROTOCOL_VERSIONS:
+        if version <= client_version:
+            return version
+    return None
 
 
 class MCPTransport:
@@ -16,6 +43,10 @@ class MCPTransport:
         self.tenant_slug = tenant_slug
         self.connector_id = connector_id
         self.user_token = user_token  # User-provided OAuth token (optional)
+        logger.debug(
+            "MCPTransport created - tenant: %s, connector: %s, has_user_token: %s",
+            tenant_slug, connector_id, user_token is not None,
+        )
         self.mcp_server = MCPServer(tenant_slug, connector_id, user_token)
         self.initialized = False
 
@@ -30,7 +61,11 @@ class MCPTransport:
 
         return success
 
-    async def handle_websocket(self, websocket: WebSocket):
+    async def handle_websocket(
+        self,
+        websocket: WebSocket,
+        on_activity: Optional[Callable[[], None]] = None,
+    ):
         """Handle WebSocket connection for MCP protocol."""
         if not await self.initialize():
             await websocket.close(code=4004, reason="Tenant not found or inactive")
@@ -43,6 +78,8 @@ class MCPTransport:
             while True:
                 try:
                     data = await websocket.receive_text()
+                    if on_activity:
+                        on_activity()
                     message = json.loads(data)
 
                     # Check for extension method to set user token
@@ -74,16 +111,16 @@ class MCPTransport:
                 except WebSocketDisconnect:
                     break
                 except json.JSONDecodeError:
-                    await websocket.send_text(json.dumps({
-                        "error": {"code": -32700, "message": "Parse error"}
-                    }))
+                    await websocket.send_text(json.dumps(
+                        _error_response(None, -32700, "Parse error")
+                    ))
                 except Exception as e:
-                    await websocket.send_text(json.dumps({
-                        "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
-                    }))
+                    await websocket.send_text(json.dumps(
+                        _error_response(None, -32603, f"Internal error: {str(e)}")
+                    ))
 
         except Exception as e:
-            print(f"WebSocket error for tenant {self.tenant_slug}: {e}")
+            logger.error("WebSocket error for tenant %s: %s", self.tenant_slug, e)
             try:
                 await websocket.close(code=1011, reason="Internal server error")
             except Exception:
@@ -116,78 +153,58 @@ class MCPTransport:
                         await messages.put(response)
 
                 except Exception as e:
-                    print(f"SSE message processing error: {e}")
+                    logger.error("SSE message processing error: %s", e)
                     await messages.put({
                         "error": f"Internal server error: {str(e)}",
                         "code": 1011
                     })
 
         except Exception as e:
-            print(f"SSE error for tenant {self.tenant_slug}: {e}")
+            logger.error("SSE error for tenant %s: %s", self.tenant_slug, e)
             await messages.put({
                 "error": f"Internal server error: {str(e)}",
                 "code": 1011
             })
 
-    async def handle_http_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle single HTTP message for MCP protocol."""
+    async def handle_http_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Handle single HTTP message for MCP protocol.
+
+        Returns None for notifications (per JSON-RPC 2.0 spec, notifications
+        don't receive responses).
+        """
         if not await self.initialize():
-            return {
-                "error": {
-                    "code": -32001,
-                    "message": "Tenant not found or inactive"
-                }
-            }
+            return _error_response(None, -32001, "Tenant not found or inactive")
 
         try:
-            # Handle different MCP message types
             method = message.get("method")
             message_id = message.get("id")
             params = message.get("params", {})
 
-            # DEBUG: Log incoming message
-            print(f"DEBUG: Received message: method={method}, id={message_id}, has_id_key={'id' in message}")
+            logger.debug("Received message: method=%s, id=%s", method, message_id)
 
-            # Handle notifications (messages with no id or id=null)
-            # Per JSON-RPC spec, notifications don't expect responses, but Claude's
-            # HTTP transport requires valid JSON-RPC responses with an id field
-            if message_id is None or ('id' not in message):
-                # Handle notification methods - return success acknowledgment
-                # Use id=1 as a placeholder since notifications don't have ids but Claude requires one
-                if method == "notifications/initialized":
-                    # Client has finished initialization
-                    return {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "result": {}
-                    }
-                elif method and method.startswith("notifications/"):
-                    # Other notifications - acknowledge receipt
-                    return {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "result": {}
-                    }
-                # If it's not a notification method but has null id, treat it as malformed
-                else:
-                    return {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "error": {
-                            "code": -32600,
-                            "message": "Invalid Request: missing id for non-notification method"
-                        }
-                    }
+            # Handle notifications (messages with no id)
+            # Per JSON-RPC 2.0 spec: notifications MUST NOT have a response
+            if message_id is None or "id" not in message:
+                # Notifications are fire-and-forget; return None
+                return None
 
             if method == "initialize":
-                # Handle initialization - use the client's protocol version
                 client_protocol = params.get("protocolVersion", "2024-11-05")
+                negotiated = _negotiate_protocol_version(client_protocol)
+
+                if negotiated is None:
+                    return _error_response(
+                        message_id,
+                        -32602,
+                        f"Unsupported protocol version: {client_protocol}. "
+                        f"Supported: {', '.join(SUPPORTED_PROTOCOL_VERSIONS)}",
+                    )
 
                 return {
                     "jsonrpc": "2.0",
                     "id": message_id,
                     "result": {
-                        "protocolVersion": client_protocol,  # Echo client's version
+                        "protocolVersion": negotiated,
                         "capabilities": {
                             "tools": {"listChanged": True},
                             "resources": {"subscribe": True, "listChanged": True}
@@ -200,24 +217,18 @@ class MCPTransport:
                 }
 
             elif method == "tools/list":
-                # List tools using the request_handlers approach
-                # Access the request handlers directly
                 if hasattr(self.mcp_server.server, 'request_handlers'):
                     handlers = self.mcp_server.server.request_handlers
 
-                    # Look for the ListToolsRequest handler
                     from mcp.types import ListToolsRequest
                     if ListToolsRequest in handlers:
                         handler = handlers[ListToolsRequest]
                         try:
-                            # Create the request object
                             request_obj = ListToolsRequest(method="tools/list", params=params or {})
                             result = await handler(request_obj)
 
-                            # Clean up the result to match MCP spec - remove null fields
                             clean_tools = []
 
-                            # Try to get tools from the result
                             tools_list = None
                             if hasattr(result, 'tools'):
                                 tools_list = result.tools
@@ -233,7 +244,6 @@ class MCPTransport:
                                         "description": tool.description,
                                         "inputSchema": tool.inputSchema
                                     }
-                                    # Only include non-null optional fields
                                     if hasattr(tool, 'title') and tool.title is not None:
                                         clean_tool["title"] = tool.title
                                     if hasattr(tool, 'outputSchema') and tool.outputSchema is not None:
@@ -248,26 +258,15 @@ class MCPTransport:
                                 }
                             }
                         except Exception as e:
-                            return {
-                                "jsonrpc": "2.0",
-                                "id": message_id,
-                                "error": {
-                                    "code": -32603,
-                                    "message": f"Error listing tools: {str(e)}"
-                                }
-                            }
+                            return _error_response(message_id, -32603, f"Error listing tools: {str(e)}")
 
-                # Fallback: empty tools list
                 return {
                     "jsonrpc": "2.0",
                     "id": message_id,
-                    "result": {
-                        "tools": []
-                    }
+                    "result": {"tools": []}
                 }
 
             elif method == "tools/call":
-                # Call a tool using request_handlers
                 if hasattr(self.mcp_server.server, 'request_handlers'):
                     handlers = self.mcp_server.server.request_handlers
 
@@ -275,14 +274,11 @@ class MCPTransport:
                     if CallToolRequest in handlers:
                         handler = handlers[CallToolRequest]
                         try:
-                            # Create the request object
                             request_obj = CallToolRequest(method="tools/call", params=params or {})
                             result = await handler(request_obj)
 
-                            # Clean up the result format
                             clean_content = []
 
-                            # Try to get content from the result
                             content_list = None
                             if hasattr(result, 'content'):
                                 content_list = result.content
@@ -307,26 +303,11 @@ class MCPTransport:
                                 }
                             }
                         except Exception as e:
-                            return {
-                                "jsonrpc": "2.0",
-                                "id": message_id,
-                                "error": {
-                                    "code": -32603,
-                                    "message": f"Tool execution error: {str(e)}"
-                                }
-                            }
+                            return _error_response(message_id, -32603, f"Tool execution error: {str(e)}")
 
-                return {
-                    "jsonrpc": "2.0",
-                    "id": message_id,
-                    "error": {
-                        "code": -32601,
-                        "message": "Tool call handler not found"
-                    }
-                }
+                return _error_response(message_id, -32601, "Tool call handler not found")
 
             elif method == "resources/list":
-                # List resources using request_handlers
                 if hasattr(self.mcp_server.server, 'request_handlers'):
                     handlers = self.mcp_server.server.request_handlers
 
@@ -337,10 +318,8 @@ class MCPTransport:
                             request_obj = ListResourcesRequest(method="resources/list", params=params or {})
                             result = await handler(request_obj)
 
-                            # Clean up the result format
                             clean_resources = []
 
-                            # Try to get resources from the result
                             resources_list = None
                             if hasattr(result, 'resources'):
                                 resources_list = result.resources
@@ -352,7 +331,9 @@ class MCPTransport:
                             if resources_list:
                                 for resource in resources_list:
                                     clean_resource = {
-                                        "uri": resource.uri,
+                                        # Some MCP SDK implementations return AnyUrl for uri.
+                                        # Convert to plain string to keep JSON serialization safe.
+                                        "uri": str(resource.uri),
                                         "name": resource.name,
                                         "description": resource.description
                                     }
@@ -366,63 +347,92 @@ class MCPTransport:
                                 }
                             }
                         except Exception as e:
-                            return {
-                                "jsonrpc": "2.0",
-                                "id": message_id,
-                                "error": {
-                                    "code": -32603,
-                                    "message": f"Error listing resources: {str(e)}"
-                                }
-                            }
+                            return _error_response(message_id, -32603, f"Error listing resources: {str(e)}")
 
                 return {
                     "jsonrpc": "2.0",
                     "id": message_id,
-                    "result": {
-                        "resources": []
-                    }
+                    "result": {"resources": []}
                 }
 
             elif method == "resources/read":
-                # Read a resource
                 uri = params.get("uri")
 
-                if hasattr(self.mcp_server.server, '_read_resource_handlers'):
+                if hasattr(self.mcp_server.server, "request_handlers"):
+                    handlers = self.mcp_server.server.request_handlers
+                    from mcp.types import ReadResourceRequest
+
+                    if ReadResourceRequest in handlers:
+                        handler = handlers[ReadResourceRequest]
+                        try:
+                            request_obj = ReadResourceRequest(
+                                method="resources/read",
+                                params=params or {},
+                            )
+                            result = await handler(request_obj)
+
+                            contents = None
+                            if hasattr(result, "contents"):
+                                contents = result.contents
+                            elif hasattr(result, "root") and hasattr(result.root, "contents"):
+                                contents = result.root.contents
+                            elif isinstance(result, dict) and "contents" in result:
+                                contents = result["contents"]
+
+                            if contents is not None:
+                                clean_contents = []
+                                for content in contents:
+                                    if isinstance(content, dict):
+                                        safe_content = dict(content)
+                                        if "uri" in safe_content:
+                                            safe_content["uri"] = str(safe_content["uri"])
+                                        # Ensure dict payload is JSON-serializable.
+                                        try:
+                                            json.dumps(safe_content)
+                                        except TypeError:
+                                            safe_content = json.loads(
+                                                json.dumps(safe_content, default=str)
+                                            )
+                                        clean_contents.append(safe_content)
+                                        continue
+
+                                    clean_item = {
+                                        "uri": str(getattr(content, "uri", "")),
+                                        "mimeType": getattr(content, "mimeType", None),
+                                    }
+                                    if hasattr(content, "text"):
+                                        clean_item["type"] = "text"
+                                        clean_item["text"] = content.text
+                                    elif hasattr(content, "blob"):
+                                        clean_item["type"] = "blob"
+                                        clean_item["blob"] = content.blob
+                                    else:
+                                        clean_item["type"] = "text"
+                                        clean_item["text"] = str(content)
+                                    clean_contents.append(clean_item)
+
+                                return {
+                                    "jsonrpc": "2.0",
+                                    "id": message_id,
+                                    "result": {"contents": clean_contents},
+                                }
+                        except Exception as e:
+                            return _error_response(message_id, -32603, f"Error reading resource: {str(e)}")
+
+                # Backward compatibility with older MCP SDK internals.
+                if hasattr(self.mcp_server.server, "_read_resource_handlers"):
                     for handler in self.mcp_server.server._read_resource_handlers.values():
                         result = await handler(uri)
                         return {
                             "jsonrpc": "2.0",
                             "id": message_id,
-                            "result": {
-                                "contents": [{"type": "text", "text": result}]
-                            }
+                            "result": {"contents": [{"type": "text", "text": result}]},
                         }
 
-                return {
-                    "jsonrpc": "2.0",
-                    "id": message_id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Resource not found: {uri}"
-                    }
-                }
+                return _error_response(message_id, -32601, f"Resource not found: {uri}")
 
             else:
-                return {
-                    "jsonrpc": "2.0",
-                    "id": message_id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Method not found: {method}"
-                    }
-                }
+                return _error_response(message_id, -32601, f"Method not found: {method}")
 
         except Exception as e:
-            return {
-                "jsonrpc": "2.0",
-                "id": message.get("id"),
-                "error": {
-                    "code": -32603,
-                    "message": f"Internal error: {str(e)}"
-                }
-            }
+            return _error_response(message.get("id"), -32603, f"Internal error: {str(e)}")

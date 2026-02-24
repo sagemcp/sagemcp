@@ -2,7 +2,8 @@ import React, { ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
+import { Toaster } from 'sonner'
+import { ThemeProvider } from '@/components/theme-provider'
 
 // Create a custom render function that includes providers
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
@@ -10,17 +11,19 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
     defaultOptions: {
       queries: {
         retry: false,
-        cacheTime: 0,
+        gcTime: 0,
       },
     },
   })
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {children}
-        <Toaster />
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          {children}
+          <Toaster />
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

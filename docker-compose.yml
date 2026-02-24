@@ -37,6 +37,9 @@ services:
       - SECRET_KEY=dev-secret-key-change-in-production
       - BASE_URL=http://localhost:8000
       - PUBLIC_URL=${PUBLIC_URL:-}
+      # Orchestration configuration
+      - ORCHESTRATOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
       # Supabase configuration (only needed if DATABASE_PROVIDER=supabase)
       - SUPABASE_URL=${SUPABASE_URL:-}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}

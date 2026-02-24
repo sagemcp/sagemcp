@@ -52,7 +52,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     }
@@ -104,7 +104,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -280,7 +280,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -312,7 +312,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -349,6 +349,27 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["username"]
+                }
+            ),
+            types.Tool(
+                name="github_search_users_by_email",
+                description="Search for GitHub users by email address. Only matches users who have set their email as public on GitHub.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email address to search for"
+                        },
+                        "per_page": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 30,
+                            "default": 5,
+                            "description": "Number of results per page"
+                        }
+                    },
+                    "required": ["email"]
                 }
             ),
             types.Tool(
@@ -389,7 +410,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -466,7 +487,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -509,7 +530,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of events per page"
                         }
                     },
@@ -548,7 +569,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -591,7 +612,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -625,7 +646,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -672,7 +693,7 @@ class GitHubConnector(BaseConnector):
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 100,
-                            "default": 30,
+                            "default": 10,
                             "description": "Number of results per page"
                         }
                     },
@@ -783,6 +804,8 @@ class GitHubConnector(BaseConnector):
                 return await self._list_organizations(oauth_cred)
             elif tool_name == "get_user_info":
                 return await self._get_user_info(arguments, oauth_cred)
+            elif tool_name == "search_users_by_email":
+                return await self._search_users_by_email(arguments, oauth_cred)
             elif tool_name == "list_commits":
                 return await self._list_commits(arguments, oauth_cred)
             elif tool_name == "get_commit":
@@ -875,7 +898,7 @@ class GitHubConnector(BaseConnector):
         params = {
             "type": arguments.get("type", "all"),
             "sort": arguments.get("sort", "updated"),
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         try:
@@ -931,7 +954,7 @@ class GitHubConnector(BaseConnector):
 
         params = {
             "state": arguments.get("state", "open"),
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         if "labels" in arguments:
@@ -1125,7 +1148,7 @@ class GitHubConnector(BaseConnector):
 
         params = {
             "state": arguments.get("state", "open"),
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         response = await self._make_authenticated_request(
@@ -1155,7 +1178,7 @@ class GitHubConnector(BaseConnector):
         """Search for repositories."""
         params = {
             "q": arguments["q"],
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         if "sort" in arguments:
@@ -1321,13 +1344,41 @@ class GitHubConnector(BaseConnector):
         except Exception as e:
             return f"Error getting user info for {username}: {str(e)}"
 
+    async def _search_users_by_email(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Search for GitHub users by email address."""
+        email = arguments["email"]
+        per_page = arguments.get("per_page", 5)
+
+        response = await self._make_authenticated_request(
+            "GET",
+            "https://api.github.com/search/users",
+            oauth_cred,
+            params={"q": f"{email} in:email", "per_page": per_page}
+        )
+
+        search_results = response.json()
+        result = {
+            "total_count": search_results.get("total_count", 0),
+            "users": []
+        }
+
+        for user in search_results.get("items", []):
+            result["users"].append({
+                "login": user["login"],
+                "id": user["id"],
+                "html_url": user["html_url"],
+                "type": user["type"]
+            })
+
+        return json.dumps(result, indent=2)
+
     async def _list_commits(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """List commits for a repository."""
         owner = arguments["owner"]
         repo = arguments["repo"]
 
         params = {
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         # Add optional filters
@@ -1458,7 +1509,7 @@ class GitHubConnector(BaseConnector):
         repo = arguments["repo"]
 
         params = {
-            "per_page": arguments.get("per_page", 30)
+            "per_page": arguments.get("per_page", 10)
         }
 
         if "protected" in arguments:
@@ -1511,7 +1562,7 @@ class GitHubConnector(BaseConnector):
     async def _get_user_activity(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """Get user's recent activity events."""
         username = arguments["username"]
-        per_page = arguments.get("per_page", 30)
+        per_page = arguments.get("per_page", 10)
 
         response = await self._make_authenticated_request(
             "GET",
@@ -1539,16 +1590,29 @@ class GitHubConnector(BaseConnector):
                 event_data["commits"] = len(event["payload"].get("commits", []))
                 event_data["ref"] = event["payload"].get("ref", "")
             elif event["type"] == "PullRequestEvent":
-                event_data["action"] = event["payload"]["action"]
-                event_data["pr_number"] = event["payload"]["pull_request"]["number"]
-                event_data["pr_title"] = event["payload"]["pull_request"]["title"]
+                event_data["action"] = event["payload"].get("action")
+                pr = event["payload"].get("pull_request", {})
+                event_data["pr_number"] = pr.get("number")
+                event_data["pr_title"] = pr.get("title", "")
+            elif event["type"] == "PullRequestReviewEvent":
+                event_data["action"] = event["payload"].get("action")
+                pr = event["payload"].get("pull_request", {})
+                event_data["pr_number"] = pr.get("number")
+                event_data["pr_title"] = pr.get("title", "")
+            elif event["type"] == "PullRequestReviewCommentEvent":
+                event_data["action"] = event["payload"].get("action")
+                pr = event["payload"].get("pull_request", {})
+                event_data["pr_number"] = pr.get("number")
+                event_data["pr_title"] = pr.get("title", "")
             elif event["type"] == "IssuesEvent":
-                event_data["action"] = event["payload"]["action"]
-                event_data["issue_number"] = event["payload"]["issue"]["number"]
-                event_data["issue_title"] = event["payload"]["issue"]["title"]
+                event_data["action"] = event["payload"].get("action")
+                issue = event["payload"].get("issue", {})
+                event_data["issue_number"] = issue.get("number")
+                event_data["issue_title"] = issue.get("title", "")
             elif event["type"] == "IssueCommentEvent":
-                event_data["action"] = event["payload"]["action"]
-                event_data["issue_number"] = event["payload"]["issue"]["number"]
+                event_data["action"] = event["payload"].get("action")
+                issue = event["payload"].get("issue", {})
+                event_data["issue_number"] = issue.get("number")
             elif event["type"] == "CreateEvent":
                 event_data["ref_type"] = event["payload"]["ref_type"]
                 event_data["ref"] = event["payload"].get("ref")
@@ -1638,7 +1702,7 @@ class GitHubConnector(BaseConnector):
             "GET",
             f"https://api.github.com/repos/{owner}/{repo}/contributors",
             oauth_cred,
-            params={"per_page": arguments.get("per_page", 30)}
+            params={"per_page": arguments.get("per_page", 10)}
         )
 
         contributors = response.json()
@@ -1727,7 +1791,7 @@ class GitHubConnector(BaseConnector):
             "GET",
             f"https://api.github.com/repos/{owner}/{repo}/actions/workflows",
             oauth_cred,
-            params={"per_page": arguments.get("per_page", 30)}
+            params={"per_page": arguments.get("per_page", 10)}
         )
 
         data = response.json()
@@ -1750,7 +1814,7 @@ class GitHubConnector(BaseConnector):
         owner = arguments["owner"]
         repo = arguments["repo"]
 
-        params = {"per_page": arguments.get("per_page", 30)}
+        params = {"per_page": arguments.get("per_page", 10)}
 
         if "status" in arguments:
             params["status"] = arguments["status"]
@@ -1831,7 +1895,7 @@ class GitHubConnector(BaseConnector):
             "GET",
             f"https://api.github.com/repos/{owner}/{repo}/releases",
             oauth_cred,
-            params={"per_page": arguments.get("per_page", 30)}
+            params={"per_page": arguments.get("per_page", 10)}
         )
 
         releases = response.json()

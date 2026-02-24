@@ -4,26 +4,100 @@
     <strong>Multi-Tenant MCP Server Platform</strong>
   </p>
   <p>
-    A scalable platform for hosting MCP (Model Context Protocol) servers with OAuth integration and connector plugins.
+    A scalable platform for hosting MCP (Model Context Protocol) servers with OAuth/API key integration and connector plugins.
   </p>
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
   [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
   [![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://www.docker.com/)
   [![Build Status](https://img.shields.io/github/actions/workflow/status/mvmcode/SageMCP/ci.yml?branch=main)](https://github.com/mvmcode/SageMCP/actions)
+  [![Discord](https://img.shields.io/discord/1234567890?logo=discord&logoColor=white&label=Discord&color=5865F2)](https://discord.gg/f5RrQ6aGCS)
 </div>
 
 ## About The Project
 
-Sage MCP is a production-ready platform that enables you to run multiple isolated MCP servers with built-in OAuth authentication for services like GitHub, Jira, Slack, and more. It provides a web interface for managing tenants and connectors, making it easy to integrate Claude Desktop with various external services.
+Sage MCP is a production-ready platform that enables you to run multiple isolated MCP servers with built-in OAuth/API key authentication for 23+ services. It provides a web interface and CLI for managing tenants and connectors, making it easy to integrate Claude Desktop with various external services.
 
 **Key Features:**
 - Multi-tenant architecture with path-based isolation
-- Full MCP protocol support (WebSocket, HTTP, SSE)
-- OAuth 2.0 integration for secure service authentication
-- Extensible plugin system for custom connectors
-- React-based management interface
-- Flexible database support (PostgreSQL, Supabase)
+- Full MCP protocol support (Streamable HTTP, WebSocket, SSE) with protocol version negotiation
+- Server pooling with LRU eviction (5,000 max instances, 30-min TTL)
+- Session management via `Mcp-Session-Id` with resumable SSE streams
+- Token-bucket rate limiting (configurable RPM per tenant)
+- External MCP server hosting via stdio subprocess (`GenericMCPConnector`)
+- OAuth 2.0 integration with tenant-level and user-level tokens
+- Field-level encryption at rest (Fernet/AES) and API key authentication
+- Prometheus metrics, structured JSON logging, and Kubernetes health probes
+- Progressive rollout via feature flags (`SAGEMCP_ENABLE_*`)
+
+## Screenshots
+
+<div align="center">
+  <img src="docs/images/connectors.png" alt="Connectors Management" width="800" />
+  <p><em>Manage 19+ native connectors with OAuth integration</em></p>
+  <img src="docs/images/tool-policy.png" alt="Tool Policy" width="800" />
+  <p><em>Fine-grained tool enable/disable per connector</em></p>
+  <img src="docs/images/mcp-testing.png" alt="MCP Protocol Testing" width="800" />
+  <p><em>Built-in MCP protocol testing with WebSocket and HTTP support</em></p>
+</div>
+
+## Supported Connectors
+
+> **340 tools** across 23 native connectors, plus unlimited external MCP server support.
+
+<div align="center">
+<table>
+<tr><th colspan="6">Code & Version Control</th></tr>
+<tr>
+  <td align="center"><a href="docs/connectors/github.md"><img src="https://img.shields.io/badge/GitHub-24_tools-181717?logo=github&logoColor=white" alt="GitHub" /></a></td>
+  <td align="center"><a href="docs/connectors/gitlab.md"><img src="https://img.shields.io/badge/GitLab-22_tools-FC6D26?logo=gitlab&logoColor=white" alt="GitLab" /></a></td>
+  <td align="center"><a href="docs/connectors/bitbucket.md"><img src="https://img.shields.io/badge/Bitbucket-19_tools-0052CC?logo=bitbucket&logoColor=white" alt="Bitbucket" /></a></td>
+  <td></td><td></td><td></td>
+</tr>
+<tr><th colspan="6">Project Management</th></tr>
+<tr>
+  <td align="center"><a href="docs/connectors/jira.md"><img src="https://img.shields.io/badge/Jira-20_tools-0052CC?logo=jira&logoColor=white" alt="Jira" /></a></td>
+  <td align="center"><a href="docs/connectors/linear.md"><img src="https://img.shields.io/badge/Linear-18_tools-5E6AD2?logo=linear&logoColor=white" alt="Linear" /></a></td>
+  <td align="center"><a href="docs/connectors/confluence.md"><img src="https://img.shields.io/badge/Confluence-16_tools-172B4D?logo=confluence&logoColor=white" alt="Confluence" /></a></td>
+  <td></td><td></td><td></td>
+</tr>
+<tr><th colspan="6">Communication</th></tr>
+<tr>
+  <td align="center"><a href="docs/connectors/slack.md"><img src="https://img.shields.io/badge/Slack-11_tools-4A154B?logo=slack&logoColor=white" alt="Slack" /></a></td>
+  <td align="center"><a href="docs/connectors/discord.md"><img src="https://img.shields.io/badge/Discord-15_tools-5865F2?logo=discord&logoColor=white" alt="Discord" /></a></td>
+  <td align="center"><a href="docs/connectors/teams.md"><img src="https://img.shields.io/badge/Teams-13_tools-6264A7?logo=microsoftteams&logoColor=white" alt="Teams" /></a></td>
+  <td></td><td></td><td></td>
+</tr>
+<tr><th colspan="6">Email</th></tr>
+<tr>
+  <td align="center"><a href="docs/connectors/gmail.md"><img src="https://img.shields.io/badge/Gmail-14_tools-EA4335?logo=gmail&logoColor=white" alt="Gmail" /></a></td>
+  <td align="center"><a href="docs/connectors/outlook.md"><img src="https://img.shields.io/badge/Outlook-14_tools-0078D4?logo=microsoftoutlook&logoColor=white" alt="Outlook" /></a></td>
+  <td></td><td></td><td></td><td></td>
+</tr>
+<tr><th colspan="6">Documents & Productivity</th></tr>
+<tr>
+  <td align="center"><a href="docs/connectors/google-docs.md"><img src="https://img.shields.io/badge/Google_Docs-10_tools-4285F4?logo=googledocs&logoColor=white" alt="Google Docs" /></a></td>
+  <td align="center"><a href="docs/connectors/google-sheets.md"><img src="https://img.shields.io/badge/Google_Sheets-14_tools-0F9D58?logo=googlesheets&logoColor=white" alt="Google Sheets" /></a></td>
+  <td align="center"><a href="docs/connectors/google-slides.md"><img src="https://img.shields.io/badge/Google_Slides-11_tools-FBBC04?logo=google&logoColor=black" alt="Google Slides" /></a></td>
+  <td align="center"><a href="docs/connectors/notion.md"><img src="https://img.shields.io/badge/Notion-10_tools-000000?logo=notion&logoColor=white" alt="Notion" /></a></td>
+  <td align="center"><a href="docs/connectors/excel.md"><img src="https://img.shields.io/badge/Excel-14_tools-217346?logo=microsoftexcel&logoColor=white" alt="Excel" /></a></td>
+  <td align="center"><a href="docs/connectors/powerpoint.md"><img src="https://img.shields.io/badge/PowerPoint-10_tools-B7472A?logo=microsoftpowerpoint&logoColor=white" alt="PowerPoint" /></a></td>
+</tr>
+<tr>
+  <td align="center"><a href="docs/connectors/zoom.md"><img src="https://img.shields.io/badge/Zoom-12_tools-0B5CFF?logo=zoom&logoColor=white" alt="Zoom" /></a></td>
+  <td></td><td></td><td></td><td></td><td></td>
+</tr>
+<tr><th colspan="6">AI Coding Tool Intelligence</th></tr>
+<tr>
+  <td align="center"><a href="docs/connectors/copilot.md"><img src="https://img.shields.io/badge/Copilot-19_tools-000000?logo=githubcopilot&logoColor=white" alt="GitHub Copilot" /></a></td>
+  <td align="center"><a href="docs/connectors/claude-code.md"><img src="https://img.shields.io/badge/Claude_Code-18_tools-D97757?logo=anthropic&logoColor=white" alt="Claude Code" /></a></td>
+  <td align="center"><a href="docs/connectors/codex.md"><img src="https://img.shields.io/badge/Codex-16_tools-412991?logo=openai&logoColor=white" alt="OpenAI Codex" /></a></td>
+  <td align="center"><a href="docs/connectors/cursor.md"><img src="https://img.shields.io/badge/Cursor-18_tools-000000?logoColor=white" alt="Cursor" /></a></td>
+  <td align="center"><a href="docs/connectors/windsurf.md"><img src="https://img.shields.io/badge/Windsurf-11_tools-09B6A2?logoColor=white" alt="Windsurf" /></a></td>
+  <td></td>
+</tr>
+</table>
+</div>
 
 ## Architecture
 
@@ -44,11 +118,47 @@ graph TB
         end
 
         subgraph Backend["Backend :8000"]
-            API[FastAPI]
-            MCP[MCP Server]
-            CONNECTORS["Connector Plugins
-            GitHub • Jira • Slack
-            Google Docs • Notion • Zoom"]
+            subgraph Middleware["Middleware"]
+                RL["Rate Limiter
+                Token Bucket"]
+                CORS_MW["CORS / Origin
+                Validation"]
+                CT["Content-Type
+                Validation"]
+            end
+
+            API[FastAPI Admin API]
+
+            subgraph MCPCore["MCP Core"]
+                POOL["ServerPool
+                LRU · 5000 max"]
+                SESS["SessionManager
+                Mcp-Session-Id"]
+                TRANSPORT["Transport
+                HTTP POST · WS · SSE"]
+                EBUF["EventBuffer
+                Resumable Streams"]
+            end
+
+            subgraph Connectors["Connectors"]
+                NATIVE["Native Plugins
+                GitHub · GitLab · Bitbucket
+                Jira · Linear · Confluence
+                Slack · Discord · Teams
+                Gmail · Outlook
+                Google Docs · Sheets · Slides
+                Notion · Zoom
+                Excel · PowerPoint"]
+                EXT_MCP["External MCP Servers
+                via ProcessManager + stdio"]
+            end
+
+            subgraph Observability["Observability"]
+                PROM["Prometheus /metrics"]
+                LOGS["Structured JSON Logs"]
+                HEALTH["Health Probes
+                /health/live · ready · startup"]
+            end
         end
 
         subgraph Database["Database"]
@@ -58,45 +168,59 @@ graph TB
     end
 
     subgraph External["External Services"]
-        EXT["GitHub • Slack • Jira
-        Google • Notion • Zoom APIs"]
+        EXT["GitHub · GitLab · Bitbucket
+        Jira · Linear · Confluence
+        Slack · Discord · Teams
+        Gmail · Outlook · Google
+        Notion · Zoom · Microsoft APIs"]
     end
 
-    CD -->|WebSocket/HTTP| MCP
+    CD -->|"HTTP POST / WebSocket"| TRANSPORT
     WEB -->|HTTPS| UI
     UI -->|REST API| API
-    MCP -->|Execute Tools| CONNECTORS
+    TRANSPORT --> POOL
+    POOL --> SESS
+    SESS --> Connectors
+    NATIVE -->|OAuth| EXT
+    EXT_MCP -->|stdio| EXT
     API -->|ORM| DB
-    CONNECTORS -->|OAuth| EXT
 
     style CD fill:#e1f5ff
     style WEB fill:#e1f5ff
     style UI fill:#fff3e0
     style API fill:#f3e5f5
-    style MCP fill:#e8f5e9
-    style CONNECTORS fill:#e8f5e9
+    style POOL fill:#e8f5e9
+    style SESS fill:#e8f5e9
+    style TRANSPORT fill:#e8f5e9
+    style EBUF fill:#e8f5e9
+    style NATIVE fill:#e8f5e9
+    style EXT_MCP fill:#e8f5e9
     style DB fill:#fce4ec
     style EXT fill:#e0f2f1
+    style RL fill:#fff9c4
+    style CORS_MW fill:#fff9c4
+    style CT fill:#fff9c4
+    style PROM fill:#f3e5f5
 ```
 
-**[📖 View Full Architecture Documentation →](docs/architecture.md)** | Includes 10+ detailed diagrams covering OAuth flows, multi-tenancy, database schema, deployment, and more.
+**[View Full Architecture Documentation](docs/architecture.md)** | Includes 10+ detailed diagrams covering OAuth flows, multi-tenancy, database schema, deployment, and more.
 
 </div>
 
-**Architecture Highlights:**
-- **Multi-tenant isolation** with path-based routing (`/api/v1/{tenant_slug}/mcp`)
-- **Plugin-based connectors** for extensibility (6 connectors with 87+ tools)
-- **OAuth 2.0 authentication** per tenant with encrypted credential storage
-- **Async I/O** throughout the stack for high performance
-- **Horizontal scaling** ready via Kubernetes with Helm charts
-
 ### Built With
 
-* [FastAPI](https://fastapi.tiangolo.com/) - Backend framework
-* [React](https://reactjs.org/) - Frontend interface
-* [SQLAlchemy](https://www.sqlalchemy.org/) - Database ORM
-* [MCP](https://modelcontextprotocol.io/) - Model Context Protocol
-* [Docker](https://www.docker.com/) - Containerization
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
+[![MCP](https://img.shields.io/badge/MCP_Protocol-000000)](https://modelcontextprotocol.io/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+## Security
+
+- **Encryption at rest** -- All OAuth tokens, API keys, and connector credentials encrypted via Fernet (AES-128-CBC + HMAC), key derived from `SECRET_KEY` via PBKDF2-SHA256 (480K iterations).
+- **API key authentication** -- Three scope tiers (`platform_admin`, `tenant_admin`, `tenant_user`) with bcrypt-hashed storage and SHA-256 LRU cache. Feature-flagged via `SAGEMCP_ENABLE_AUTH`.
+- **Transport security** -- CORS origin validation, Content-Type enforcement, per-tenant token-bucket rate limiting.
 
 ## Getting Started
 
@@ -130,6 +254,8 @@ graph TB
    - Frontend: http://localhost:3001
    - API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
+   - Metrics: http://localhost:8000/metrics (when `SAGEMCP_ENABLE_METRICS=true`)
+   - Health: http://localhost:8000/health/live | `/health/ready` | `/health/startup`
 
 ## Usage
 
@@ -167,9 +293,12 @@ sagemcp oauth authorize my-tenant github
 
 # Test MCP tools
 sagemcp mcp tools my-tenant <connector-id>
+
+# Interactive REPL
+sagemcp mcp interactive my-tenant <connector-id>
 ```
 
-**[📖 Full CLI Documentation →](src/sage_mcp/cli/README.md)**
+**[Full CLI Documentation](src/sage_mcp/cli/README.md)** | **[CLI Design Document](docs/cli-design.md)**
 
 ### Claude Desktop Configuration
 
@@ -189,164 +318,30 @@ Add to your Claude Desktop config:
 }
 ```
 
-### Supported Connectors
-
-Sage MCP provides production-ready connectors for popular development and collaboration tools. Each connector includes full OAuth 2.0 integration and comprehensive tool coverage.
-
 ### User-Level OAuth Tokens
 
-SageMCP supports both **tenant-level** and **user-level** OAuth authentication:
+SageMCP supports per-user OAuth tokens in addition to tenant-level credentials. See **[User-Level OAuth Tokens](docs/user-oauth-tokens.md)** for HTTP and WebSocket examples.
 
-- **Tenant-level OAuth** (default): Single OAuth credential shared by all users in a tenant
-- **User-level OAuth**: Each user passes their own OAuth token per request
+## Feature Flags & Configuration
 
-**HTTP POST requests** (use custom header):
-```bash
-curl -X POST http://localhost:8000/api/v1/{tenant-slug}/connectors/{connector-id}/mcp \
-  -H "X-User-OAuth-Token: <user-oauth-token>" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-```
+SageMCP uses feature flags for progressive rollout of v2 capabilities. All flags default to `false` and can be enabled via environment variables.
 
-**WebSocket connections** (use extension message):
-```javascript
-const ws = new WebSocket('ws://localhost:8000/api/v1/{tenant-slug}/connectors/{connector-id}/mcp');
+| Flag | Description | Default |
+|------|-------------|---------|
+| `SAGEMCP_ENABLE_SERVER_POOL` | LRU server-instance pool (5,000 max, 30-min TTL) | `false` |
+| `SAGEMCP_ENABLE_SESSION_MANAGEMENT` | `Mcp-Session-Id` tracking and SSE replay | `false` |
+| `SAGEMCP_ENABLE_METRICS` | Prometheus `/metrics` endpoint | `false` |
+| `SAGEMCP_ENABLE_AUTH` | API key authentication and authorization | `false` |
 
-ws.onopen = () => {
-  // Set user token before initialize
-  ws.send(JSON.stringify({
-    jsonrpc: '2.0',
-    method: 'auth/setUserToken',
-    params: { token: '<user-oauth-token>' }
-  }));
+Additional configuration settings:
 
-  // Then proceed with normal MCP flow
-  ws.send(JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'initialize',
-    params: { protocolVersion: '2024-11-05' }
-  }));
-};
-```
-
-**Priority**: User token (if provided) → Tenant credential (fallback)
-
-**Use cases:**
-- Multi-user SaaS apps where each user needs their own OAuth identity
-- Testing with different user accounts
-- Per-user access control and audit trails
-
-**Note**: User tokens are for external APIs (GitHub, Slack, etc.), separate from MCP protocol-level authentication.
-
-<div align="left">
-
-#### <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="24" height="24" style="vertical-align: middle;" /> GitHub
-**24 tools** for complete repository management
-- Repositories, issues, pull requests, and releases
-- Commits, branches, and comparisons
-- GitHub Actions workflows and runs
-- User and organization management
-- [Full Documentation →](docs/connectors/github.md)
-
-#### <img src="https://cdn.worldvectorlogo.com/logos/jira-1.svg" width="24" height="24" style="vertical-align: middle;" /> Jira
-**20 tools** for agile project management
-- Issue creation, updates, and JQL search
-- Sprint and board management
-- Workflow transitions and comments
-- Project and version tracking
-- [Full Documentation →](docs/connectors/jira.md)
-
-#### <img src="https://cdn.worldvectorlogo.com/logos/slack-new-logo.svg" width="24" height="24" style="vertical-align: middle;" /> Slack
-**11 tools** for workspace communication
-- Send and read messages in channels
-- Thread conversations and search
-- User and channel management
-- Emoji reactions and rich formatting
-- [Full Documentation →](docs/connectors/slack.md)
-
-#### <img src="https://www.gstatic.com/images/branding/product/1x/docs_2020q4_48dp.png" width="24" height="24" style="vertical-align: middle;" /> Google Docs
-**10 tools** for document management
-- Create, read, and update documents
-- Search and list accessible documents
-- Export documents in multiple formats
-- Manage sharing permissions
-- [Full Documentation →](docs/connectors/google-docs.md)
-
-#### <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" width="24" height="24" style="vertical-align: middle;" /> Notion
-**10 tools** for workspace collaboration
-- Access databases, pages, and blocks
-- Search and query database entries
-- Create and update pages with content
-- Read structured and plain text content
-- [Full Documentation →](docs/connectors/notion.md)
-
-#### <img src="https://st1.zoom.us/static/5.17.11.2992/image/new/ZoomLogo.png" width="64" height="24" style="vertical-align: middle;" /> Zoom
-**12 tools** for video conferencing
-- Manage meetings, webinars, and recordings
-- Create and update scheduled meetings
-- Access cloud recordings and download links
-- View meeting participants and invitations
-- [Full Documentation →](docs/connectors/zoom.md)
-
-</div>
-
-**Coming Soon**
-- GitLab
-- Linear
-- Confluence
-
-For general OAuth setup guidance, see the [OAuth Configuration Guide](.github/docs/oauth-setup.md).
-
-## Command-Line Interface (CLI)
-
-SageMCP includes a powerful CLI for managing tenants, connectors, OAuth, and testing MCP tools.
-
-### Installation
-
-```bash
-# Install with CLI support
-pip install -e ".[cli]"
-
-# Verify installation
-sagemcp --version
-```
-
-### Quick Examples
-
-```bash
-# Initialize configuration
-sagemcp init
-
-# Manage tenants
-sagemcp tenant list
-sagemcp tenant create --slug my-tenant --name "My Tenant"
-
-# Manage connectors
-sagemcp connector list my-tenant
-sagemcp connector create my-tenant --type github --name "GitHub"
-
-# Configure OAuth
-sagemcp oauth authorize my-tenant github
-
-# Test MCP tools
-sagemcp mcp tools my-tenant <connector-id>
-
-# Interactive REPL
-sagemcp mcp interactive my-tenant <connector-id>
-```
-
-### Features
-
-- **Multi-Profile Support** - Manage dev/staging/prod environments
-- **Rich Terminal Output** - Beautiful tables and formatted output
-- **Interactive REPL** - Test MCP tools interactively
-- **JSON/YAML Export** - Machine-readable output for automation
-- **CI/CD Ready** - Scriptable commands with proper exit codes
-
-**[📖 Complete CLI Documentation →](src/sage_mcp/cli/README.md)**
-
-**[📐 CLI Design Document →](docs/cli-design.md)**
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `SECRET_KEY` | Key for Fernet encryption and token signing (min 16 chars) | *required* |
+| `RATE_LIMIT_RPM` | Requests per minute per tenant (token bucket) | `100` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed CORS origins | `*` (dev) |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated allowed MCP `Origin` headers | -- |
+| `SAGEMCP_BOOTSTRAP_ADMIN_KEY` | One-time bootstrap key to create first platform admin | -- |
 
 ## Development
 
@@ -409,18 +404,9 @@ helm install sage-mcp ./helm \
 
 ## Roadmap
 
-- [x] Multi-tenant MCP server
-- [x] GitHub connector with OAuth
-- [x] Jira connector with OAuth
-- [x] Slack connector with OAuth
-- [x] Google Docs connector with OAuth
-- [x] React management interface
-- [x] PostgreSQL and Supabase support
-- [x] Kubernetes deployment
-- [ ] GitLab connector
-- [ ] Notion connector
-- [ ] Linear connector
-- [ ] Advanced connector configuration
+- [ ] Tool policy language (per-connector tool enable/disable rules)
+- [ ] OpenTelemetry tracing
+- [ ] Redis-backed session persistence
 
 See the [open issues](https://github.com/mvmcode/SageMCP/issues) for a full list of proposed features and known issues.
 
@@ -441,7 +427,7 @@ Distributed under the Apache 2.0 License. See `LICENSE` for more information.
 ## Contact
 
 - Project Link: [https://github.com/mvmcode/SageMCP](https://github.com/mvmcode/SageMCP)
-- Discord Community: [https://discord.gg/kpHzRzmy](https://discord.gg/kpHzRzmy)
+- Discord Community: [https://discord.gg/f5RrQ6aGCS](https://discord.gg/f5RrQ6aGCS)
 
 ## Acknowledgments
 

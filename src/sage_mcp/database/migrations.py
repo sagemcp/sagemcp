@@ -1,12 +1,18 @@
 """Database migration utilities."""
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy import text
 
 from ..models.base import Base
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.mcp_process import MCPProcess
+from ..models.mcp_server_registry import MCPServerRegistry, DiscoveryJob, MCPInstallation
+from ..models.tool_usage_daily import ToolUsageDaily
 from .connection import db_manager
+
+logger = logging.getLogger(__name__)
 
 
 async def create_tables(engine: AsyncEngine = None):
@@ -138,6 +144,16 @@ async def upgrade_add_custom_connector_type(engine: AsyncEngine = None):
         engine = db_manager.engine
 
     async with engine.begin() as conn:
+        # First check if the enum type exists
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'connectortype')"
+        ))
+        enum_exists = result.scalar()
+
+        if not enum_exists:
+            print("✓ connectortype enum doesn't exist yet (will be created with tables)")
+            return
+
         # Check if 'custom' already exists in the enum
         result = await conn.execute(text(
             "SELECT EXISTS (SELECT 1 FROM pg_enum e "
@@ -289,3 +305,200 @@ async def upgrade_remove_connector_unique_constraint(engine: AsyncEngine = None)
             print("✓ Dropped unique constraint uq_tenant_connector_type from connectors table")
         else:
             print("✓ Unique constraint uq_tenant_connector_type does not exist")
+
+
+async def upgrade_add_mcp_server_registry(engine: AsyncEngine = None):
+    """Migration: Add MCP Server Registry tables for discovery and marketplace.
+
+    This migration adds three new tables:
+    1. mcp_server_registry - Catalog of discovered MCP servers from NPM, GitHub, etc.
+    2. discovery_jobs - Track background discovery job status
+    3. mcp_installations - Track per-tenant MCP server installations
+
+    Also adds new columns to connectors table:
+    - registry_id: Link to mcp_server_registry for installed servers
+    - installed_version: Track installed version
+
+    Safe to run on existing databases - checks if tables/columns exist first.
+    """
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    async with engine.begin() as conn:
+        # Check if mcp_server_registry table exists
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'mcp_server_registry')"
+        ))
+        registry_exists = result.scalar()
+
+        if not registry_exists:
+            # Create mcp_server_registry table
+            await conn.run_sync(
+                lambda sync_conn: MCPServerRegistry.__table__.create(
+                    sync_conn, checkfirst=True
+                )
+            )
+            print("✓ Created mcp_server_registry table")
+        else:
+            print("✓ mcp_server_registry table already exists")
+
+        # Check if discovery_jobs table exists
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'discovery_jobs')"
+        ))
+        jobs_exists = result.scalar()
+
+        if not jobs_exists:
+            # Create discovery_jobs table
+            await conn.run_sync(
+                lambda sync_conn: DiscoveryJob.__table__.create(
+                    sync_conn, checkfirst=True
+                )
+            )
+            print("✓ Created discovery_jobs table")
+        else:
+            print("✓ discovery_jobs table already exists")
+
+        # Check if mcp_installations table exists
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'mcp_installations')"
+        ))
+        installations_exists = result.scalar()
+
+        if not installations_exists:
+            # Create mcp_installations table
+            await conn.run_sync(
+                lambda sync_conn: MCPInstallation.__table__.create(
+                    sync_conn, checkfirst=True
+                )
+            )
+            print("✓ Created mcp_installations table")
+        else:
+            print("✓ mcp_installations table already exists")
+
+        # Add registry_id and installed_version columns to connectors table
+        result = await conn.execute(text(
+            "SELECT EXISTS (SELECT FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = 'connectors' "
+            "AND column_name = 'registry_id')"
+        ))
+        registry_id_exists = result.scalar()
+
+        if not registry_id_exists:
+            await conn.execute(text(
+                "ALTER TABLE connectors "
+                "ADD COLUMN registry_id UUID, "
+                "ADD COLUMN installed_version VARCHAR(50)"
+            ))
+            print("✓ Added registry_id and installed_version columns to connectors table")
+        else:
+            print("✓ registry_id column already exists in connectors table")
+
+
+async def upgrade_encrypt_existing_secrets(engine: AsyncEngine = None):
+    """Migration: Encrypt existing plaintext secrets in-place.
+
+    Reads rows via raw SQL to avoid TypeDecorator double-encryption, then
+    encrypts plaintext values and updates them. Skips already-encrypted
+    values (Fernet ``gAAAAB`` prefix).
+
+    Safe to run multiple times — idempotent.
+    """
+    from ..security.encryption import encrypt_value, is_encrypted
+
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    encrypted_count = 0
+
+    async with engine.begin() as conn:
+        # --- oauth_credentials: access_token, refresh_token ---
+        rows = await conn.execute(text(
+            "SELECT id, access_token, refresh_token FROM oauth_credentials"
+        ))
+        for row in rows:
+            updates = {}
+            row_id = row[0]
+            access_token = row[1]
+            refresh_token = row[2]
+
+            if access_token and not is_encrypted(access_token):
+                updates["access_token"] = encrypt_value(access_token)
+            if refresh_token and not is_encrypted(refresh_token):
+                updates["refresh_token"] = encrypt_value(refresh_token)
+
+            if updates:
+                set_clause = ", ".join(f"{k} = :val_{k}" for k in updates)
+                params = {f"val_{k}": v for k, v in updates.items()}
+                params["row_id"] = row_id
+                await conn.execute(
+                    text(f"UPDATE oauth_credentials SET {set_clause} WHERE id = :row_id"),
+                    params,
+                )
+                encrypted_count += len(updates)
+
+        # --- oauth_configs: client_secret ---
+        rows = await conn.execute(text(
+            "SELECT id, client_secret FROM oauth_configs"
+        ))
+        for row in rows:
+            row_id, client_secret = row[0], row[1]
+            if client_secret and not is_encrypted(client_secret):
+                await conn.execute(
+                    text("UPDATE oauth_configs SET client_secret = :val WHERE id = :row_id"),
+                    {"val": encrypt_value(client_secret), "row_id": row_id},
+                )
+                encrypted_count += 1
+
+        # --- connectors: configuration, runtime_env ---
+        rows = await conn.execute(text(
+            "SELECT id, configuration, runtime_env FROM connectors"
+        ))
+        for row in rows:
+            updates = {}
+            row_id = row[0]
+            configuration = row[1]
+            runtime_env = row[2]
+
+            if configuration and not is_encrypted(configuration):
+                updates["configuration"] = encrypt_value(configuration)
+            if runtime_env and not is_encrypted(runtime_env):
+                updates["runtime_env"] = encrypt_value(runtime_env)
+
+            if updates:
+                set_clause = ", ".join(f"{k} = :val_{k}" for k in updates)
+                params = {f"val_{k}": v for k, v in updates.items()}
+                params["row_id"] = row_id
+                await conn.execute(
+                    text(f"UPDATE connectors SET {set_clause} WHERE id = :row_id"),
+                    params,
+                )
+                encrypted_count += len(updates)
+
+    if encrypted_count:
+        logger.info("Encrypted %d plaintext secret fields", encrypted_count)
+    else:
+        logger.debug("No plaintext secrets to encrypt (all already encrypted or empty)")
+
+
+async def upgrade_create_api_keys_table(engine: AsyncEngine = None):
+    """Migration: Create the api_keys table for API key authentication."""
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    from ..models.api_key import APIKey
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            lambda sync_conn: APIKey.__table__.create(sync_conn, checkfirst=True)
+        )
+    logger.debug("api_keys table ready")

@@ -47,18 +47,38 @@ export interface ConnectorCreate {
 }
 
 export enum ConnectorType {
+  // Source control
   GITHUB = 'github',
   GITLAB = 'gitlab',
+  BITBUCKET = 'bitbucket',
+  // Google Suite
   GOOGLE_DOCS = 'google_docs',
+  GOOGLE_SHEETS = 'google_sheets',
+  GMAIL = 'gmail',
+  GOOGLE_SLIDES = 'google_slides',
+  // Documentation & knowledge
   NOTION = 'notion',
   CONFLUENCE = 'confluence',
+  // Project management
   JIRA = 'jira',
   LINEAR = 'linear',
+  // Communication
   SLACK = 'slack',
   TEAMS = 'teams',
   DISCORD = 'discord',
   ZOOM = 'zoom',
-  CUSTOM = 'custom'  // For external MCP servers
+  // Microsoft Office
+  OUTLOOK = 'outlook',
+  EXCEL = 'excel',
+  POWERPOINT = 'powerpoint',
+  // AI coding tools
+  COPILOT = 'copilot',
+  CLAUDE_CODE = 'claude_code',
+  CODEX = 'codex',
+  CURSOR = 'cursor',
+  WINDSURF = 'windsurf',
+  // Custom / external
+  CUSTOM = 'custom',
 }
 
 export enum ConnectorRuntimeType {
@@ -150,4 +170,47 @@ export interface OAuthConfigCreate {
   provider: string
   client_id: string
   client_secret: string
+}
+
+export interface SessionInfo {
+  session_id: string
+  tenant_slug: string
+  connector_id: string
+  created_at: number
+  last_access: number
+  negotiated_version: string | null
+}
+
+export interface PlatformStats {
+  tenants: number
+  connectors: number
+  active_instances: number
+  active_sessions: number
+  pool_hits: number
+  pool_misses: number
+  tool_calls_today: number
+  timestamp: string
+}
+
+export interface PoolEntry {
+  key: string
+  tenant_slug: string
+  connector_id: string
+  created_at: number
+  last_access: number
+  hit_count: number
+  ttl_remaining: number
+  status: 'healthy' | 'expiring' | 'expired'
+}
+
+export interface PoolSummary {
+  total: number
+  max_size: number
+  ttl_seconds: number
+  hits: number
+  misses: number
+  hit_rate: number
+  by_tenant: Record<string, number>
+  by_status: { healthy: number; expiring: number; expired: number }
+  memory_estimate_kb: number
 }

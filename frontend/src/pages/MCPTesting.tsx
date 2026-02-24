@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { 
-  Play, 
-  Send, 
-  Copy, 
+import {
+  Play,
+  Send,
+  Copy,
   Download,
   RefreshCw,
   AlertCircle,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { tenantsApi, connectorsApi, mcpApi } from '@/utils/api'
 import { cn } from '@/utils/cn'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 interface TestMessage {
   id: string
@@ -24,19 +24,19 @@ interface TestMessage {
   tenant: string
 }
 
-const MessageCard = ({ 
-  message, 
-  onCopy 
-}: { 
+const MessageCard = ({
+  message,
+  onCopy
+}: {
   message: TestMessage
-  onCopy: (content: string) => void 
+  onCopy: (content: string) => void
 }) => {
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'request': return 'border-l-primary-500 bg-primary-50'
-      case 'response': return 'border-l-success-500 bg-success-50'
-      case 'error': return 'border-l-error-500 bg-error-50'
-      default: return 'border-l-gray-500 bg-gray-50'
+      case 'request': return 'border-l-accent bg-accent/10'
+      case 'response': return 'border-l-green-500 bg-green-500/10'
+      case 'error': return 'border-l-red-500 bg-red-500/10'
+      default: return 'border-l-zinc-500 bg-zinc-800'
     }
   }
 
@@ -55,21 +55,21 @@ const MessageCard = ({
     <div className={cn('border-l-4 rounded-r-lg p-4', getTypeColor(message.type))}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center space-x-2">
-          <Icon className="h-4 w-4" />
-          <span className="text-sm font-medium capitalize">{message.type}</span>
-          <span className="text-xs text-gray-500">{message.tenant}</span>
+          <Icon className="h-4 w-4 text-zinc-300" />
+          <span className="text-sm font-medium capitalize text-zinc-200">{message.type}</span>
+          <span className="text-xs text-zinc-500">{message.tenant}</span>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-500">{message.timestamp}</span>
+          <span className="text-xs text-zinc-500">{message.timestamp}</span>
           <button
             onClick={() => onCopy(JSON.stringify(message.content, null, 2))}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-zinc-500 hover:text-zinc-300"
           >
             <Copy className="h-3 w-3" />
           </button>
         </div>
       </div>
-      <pre className="text-xs text-gray-700 bg-white p-2 rounded border overflow-x-auto">
+      <pre className="text-xs text-zinc-300 bg-zinc-900 p-2 rounded border border-zinc-700 overflow-x-auto">
         {JSON.stringify(message.content, null, 2)}
       </pre>
     </div>
@@ -157,15 +157,15 @@ export default function MCPTesting() {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/v1/${selectedTenant}/connectors/${selectedConnector}/mcp`
-    
+
     wsRef.current = new WebSocket(wsUrl)
-    
+
     wsRef.current.onopen = () => {
       setIsConnected(true)
       addMessage('info', { status: 'WebSocket connected' }, 'system')
       toast.success('WebSocket connected')
     }
-    
+
     wsRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
@@ -174,12 +174,12 @@ export default function MCPTesting() {
         addMessage('error', { error: 'Failed to parse response', raw: event.data }, selectedTenant)
       }
     }
-    
+
     wsRef.current.onerror = () => {
       addMessage('error', { error: 'WebSocket connection error' }, 'system')
       toast.error('WebSocket connection error')
     }
-    
+
     wsRef.current.onclose = () => {
       setIsConnected(false)
       addMessage('info', { status: 'WebSocket disconnected' }, 'system')
@@ -280,8 +280,8 @@ export default function MCPTesting() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">MCP Protocol Testing</h1>
-        <p className="text-gray-600">Test and debug MCP connections with your tenants</p>
+        <h1 className="text-2xl font-bold text-zinc-100">MCP Protocol Testing</h1>
+        <p className="text-zinc-400">Test and debug MCP connections with your tenants</p>
       </div>
 
       {/* Controls */}
@@ -290,12 +290,12 @@ export default function MCPTesting() {
         <div className="lg:col-span-1">
           <div className="card">
             <div className="card-header">
-              <h3 className="text-lg font-semibold text-gray-900">Configuration</h3>
+              <h3 className="text-lg font-semibold text-zinc-100">Configuration</h3>
             </div>
             <div className="card-content space-y-4">
               {/* Tenant Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Select Tenant
                 </label>
                 <select
@@ -318,7 +318,7 @@ export default function MCPTesting() {
               {/* Connector Selection */}
               {selectedTenant && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-zinc-300 mb-1">
                     Select Connector
                   </label>
                   <select
@@ -338,16 +338,16 @@ export default function MCPTesting() {
 
               {/* Reset connector when tenant changes */}
               {selectedTenant && connectors.length === 0 && (
-                <div className="text-sm text-gray-500 italic">
+                <div className="text-sm text-zinc-500 italic">
                   No connectors found for this tenant
                 </div>
               )}
 
               {/* Connection Status */}
               {selectedTenant && selectedConnector && mcpInfo && (
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">MCP Server Info</h4>
-                  <div className="space-y-1 text-xs text-gray-600">
+                <div className="p-3 bg-zinc-800 rounded-lg">
+                  <h4 className="text-sm font-medium text-zinc-100 mb-2">MCP Server Info</h4>
+                  <div className="space-y-1 text-xs text-zinc-400">
                     <div>Connector: {mcpInfo.connector_name}</div>
                     <div>Type: {mcpInfo.connector_type}</div>
                     <div>Server: {mcpInfo.server_name} v{mcpInfo.server_version}</div>
@@ -359,7 +359,7 @@ export default function MCPTesting() {
               {/* WebSocket Controls */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">WebSocket</span>
+                  <span className="text-sm font-medium text-zinc-300">WebSocket</span>
                   <span className={cn(
                     'status-badge',
                     isConnected ? 'status-active' : 'status-inactive'
@@ -389,7 +389,7 @@ export default function MCPTesting() {
 
               {/* Request Templates */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Quick Templates
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -413,7 +413,7 @@ export default function MCPTesting() {
           <div className="card">
             <div className="card-header">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Request</h3>
+                <h3 className="text-lg font-semibold text-zinc-100">Request</h3>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => copyToClipboard(requestBody)}
@@ -428,10 +428,10 @@ export default function MCPTesting() {
               <textarea
                 value={requestBody}
                 onChange={(e) => setRequestBody(e.target.value)}
-                className="w-full h-64 font-mono text-sm border border-gray-300 rounded-lg p-3 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                className="w-full h-64 font-mono text-sm bg-theme-surface border border-theme-hover rounded-lg p-3 text-theme-primary placeholder:text-theme-muted focus:border-accent focus:ring-1 focus:ring-accent"
                 placeholder="Enter your MCP request JSON..."
               />
-              
+
               <div className="flex justify-end space-x-2 mt-4">
                 <button
                   onClick={sendHttpRequest}
@@ -463,7 +463,7 @@ export default function MCPTesting() {
       <div className="card">
         <div className="card-header">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-zinc-100">
               Messages ({messages.length})
             </h3>
             <div className="flex space-x-2">
@@ -477,7 +477,7 @@ export default function MCPTesting() {
               <button
                 onClick={clearMessages}
                 disabled={messages.length === 0}
-                className="btn-ghost btn-sm text-error-600"
+                className="btn-ghost btn-sm text-red-400"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -498,9 +498,9 @@ export default function MCPTesting() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
-              <p className="text-gray-600">Send your first MCP request to see messages here</p>
+              <Settings className="h-12 w-12 text-zinc-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-zinc-100 mb-2">No messages yet</h3>
+              <p className="text-zinc-400">Send your first MCP request to see messages here</p>
             </div>
           )}
         </div>

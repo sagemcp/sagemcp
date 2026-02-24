@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+from ..security.encrypted_json import EncryptedJSON
 
 
 class JSONType(TypeDecorator):
@@ -39,18 +40,46 @@ if TYPE_CHECKING:
 class ConnectorType(enum.Enum):
     """Supported connector types."""
 
-    GITHUB = "GITHUB"
-    GITLAB = "GITLAB"
-    GOOGLE_DOCS = "GOOGLE_DOCS"
-    NOTION = "NOTION"
-    CONFLUENCE = "CONFLUENCE"
-    JIRA = "JIRA"
-    LINEAR = "LINEAR"
-    SLACK = "SLACK"
-    TEAMS = "TEAMS"
-    DISCORD = "DISCORD"
-    ZOOM = "ZOOM"
-    CUSTOM = "custom"  # For external MCP servers (lowercase for new)
+    # Source control
+    GITHUB = "github"
+    GITLAB = "gitlab"
+    BITBUCKET = "bitbucket"
+
+    # Google Suite
+    GOOGLE_DOCS = "google_docs"
+    GOOGLE_CALENDAR = "google_calendar"
+    GOOGLE_SHEETS = "google_sheets"
+    GMAIL = "gmail"
+    GOOGLE_SLIDES = "google_slides"
+
+    # Documentation & knowledge
+    NOTION = "notion"
+    CONFLUENCE = "confluence"
+
+    # Project management
+    JIRA = "jira"
+    LINEAR = "linear"
+
+    # Communication
+    SLACK = "slack"
+    TEAMS = "teams"
+    DISCORD = "discord"
+    ZOOM = "zoom"
+
+    # Microsoft Office
+    OUTLOOK = "outlook"
+    EXCEL = "excel"
+    POWERPOINT = "powerpoint"
+
+    # AI coding tools
+    COPILOT = "copilot"
+    CLAUDE_CODE = "claude_code"
+    CODEX = "codex"
+    CURSOR = "cursor"
+    WINDSURF = "windsurf"
+
+    # Custom / external
+    CUSTOM = "custom"
 
 
 class ConnectorRuntimeType(enum.Enum):
@@ -101,8 +130,8 @@ class Connector(Base):
     # Whether this connector is enabled
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    # Connector-specific configuration (JSON)
-    configuration: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONType, nullable=True)
+    # Connector-specific configuration (JSON, encrypted at rest)
+    configuration: Mapped[Optional[Dict[str, Any]]] = mapped_column(EncryptedJSON, nullable=True)
 
     # Runtime configuration for external MCP servers
     runtime_type: Mapped[ConnectorRuntimeType] = mapped_column(
@@ -122,8 +151,8 @@ class Connector(Base):
     # Command to execute for external MCP servers (JSON array, e.g., ["npx", "@modelcontextprotocol/server-github"])
     runtime_command: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Environment variables for external MCP servers (JSON object)
-    runtime_env: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONType, nullable=True)
+    # Environment variables for external MCP servers (JSON, encrypted at rest)
+    runtime_env: Mapped[Optional[Dict[str, Any]]] = mapped_column(EncryptedJSON, nullable=True)
 
     # Working directory / package path for external MCP servers
     package_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

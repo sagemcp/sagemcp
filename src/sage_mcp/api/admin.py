@@ -1,23 +1,35 @@
 """Admin API routes for tenant and connector management."""
 
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, field_serializer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..models.api_key import APIKeyScope
 from ..models.connector import Connector, ConnectorType, ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
-from ..models.mcp_process import MCPProcess
+from ..models.mcp_process import MCPProcess, ProcessStatus
 from ..models.tenant import Tenant
 from ..connectors.registry import connector_registry
 from ..runtime import process_manager
+from ..security.auth import require_scope, require_tenant_access
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _invalidate_pool(request: Request, tenant_slug: str, connector_id: str):
+    """Invalidate server pool entry if pool is active."""
+    pool = getattr(request.app.state, "server_pool", None)
+    if pool:
+        pool.invalidate(tenant_slug, connector_id)
 
 
 class TenantCreate(BaseModel):
@@ -68,6 +80,11 @@ class ConnectorResponse(BaseModel):
     runtime_command: Optional[str]
     runtime_env: Optional[Dict[str, Any]]
     package_path: Optional[str]
+
+    @field_serializer('connector_type')
+    def serialize_connector_type(self, connector_type: ConnectorType, _info):
+        """Serialize connector_type for compatibility with integration-service."""
+        return connector_type.value
 
     class Config:
         from_attributes = True
@@ -155,11 +172,16 @@ async def populate_tools_for_connector(connector: Connector, session: AsyncSessi
     except Exception as e:
         # If tool population fails, log but don't fail the connector creation
         # The connector is still usable, tools just won't have explicit state records
-        print(f"Warning: Failed to populate tools for connector {connector.id}: {e}")
+        logger.warning("Failed to populate tools for connector %s: %s", connector.id, e)
         await session.rollback()
 
 
-@router.post("/tenants", response_model=TenantResponse, status_code=201)
+@router.post(
+    "/tenants",
+    response_model=TenantResponse,
+    status_code=201,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def create_tenant(
     tenant_data: TenantCreate,
     session: AsyncSession = Depends(get_db_session)
@@ -189,7 +211,11 @@ async def create_tenant(
     return tenant
 
 
-@router.get("/tenants", response_model=List[TenantResponse])
+@router.get(
+    "/tenants",
+    response_model=List[TenantResponse],
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def list_tenants(
     session: AsyncSession = Depends(get_db_session)
 ):
@@ -202,7 +228,11 @@ async def list_tenants(
     return list(tenants)
 
 
-@router.get("/tenants/{tenant_slug}", response_model=TenantResponse)
+@router.get(
+    "/tenants/{tenant_slug}",
+    response_model=TenantResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def get_tenant(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -221,7 +251,15 @@ async def get_tenant(
     return tenant
 
 
-@router.post("/tenants/{tenant_slug}/connectors", response_model=ConnectorResponse, status_code=201)
+@router.post(
+    "/tenants/{tenant_slug}/connectors",
+    response_model=ConnectorResponse,
+    status_code=201,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def create_connector(
     tenant_slug: str,
     connector_data: ConnectorCreate,
@@ -286,7 +324,11 @@ async def create_connector(
     return connector
 
 
-@router.get("/tenants/{tenant_slug}/connectors", response_model=List[ConnectorResponse])
+@router.get(
+    "/tenants/{tenant_slug}/connectors",
+    response_model=List[ConnectorResponse],
+    dependencies=[Depends(require_tenant_access())],
+)
 async def list_connectors(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -312,7 +354,10 @@ async def list_connectors(
     return list(connectors)
 
 
-@router.delete("/tenants/{tenant_slug}")
+@router.delete(
+    "/tenants/{tenant_slug}",
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def delete_tenant(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -349,7 +394,11 @@ async def delete_tenant(
     }
 
 
-@router.put("/tenants/{tenant_slug}", response_model=TenantResponse)
+@router.put(
+    "/tenants/{tenant_slug}",
+    response_model=TenantResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+)
 async def update_tenant(
     tenant_slug: str,
     tenant_data: TenantCreate,
@@ -386,7 +435,8 @@ async def update_tenant(
 
 @router.get(
     "/tenants/{tenant_slug}/connectors/{connector_id}",
-    response_model=ConnectorResponse
+    response_model=ConnectorResponse,
+    dependencies=[Depends(require_tenant_access())],
 )
 async def get_connector(
     tenant_slug: str,
@@ -422,12 +472,17 @@ async def get_connector(
 
 @router.put(
     "/tenants/{tenant_slug}/connectors/{connector_id}",
-    response_model=ConnectorResponse
+    response_model=ConnectorResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def update_connector(
     tenant_slug: str,
     connector_id: str,
     connector_data: ConnectorCreate,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Update a connector."""
@@ -469,13 +524,22 @@ async def update_connector(
     await session.commit()
     await session.refresh(connector)
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return connector
 
 
-@router.delete("/tenants/{tenant_slug}/connectors/{connector_id}")
+@router.delete(
+    "/tenants/{tenant_slug}/connectors/{connector_id}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def delete_connector(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Delete a connector."""
@@ -509,6 +573,8 @@ async def delete_connector(
 
     await session.commit()
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return {
         "message": f"Connector '{connector.name}' has been deleted"
     }
@@ -516,7 +582,11 @@ async def delete_connector(
 
 @router.patch(
     "/tenants/{tenant_slug}/connectors/{connector_id}/toggle",
-    response_model=ConnectorResponse
+    response_model=ConnectorResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def toggle_connector(
     tenant_slug: str,
@@ -567,7 +637,11 @@ async def toggle_connector(
 
 @router.get(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools",
-    response_model=ToolsListResponse
+    response_model=ToolsListResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def list_connector_tools(
     tenant_slug: str,
@@ -587,9 +661,14 @@ async def list_connector_tools(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     # Get connector
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
     connector_result = await session.execute(
         select(Connector).where(
-            Connector.id == connector_id,
+            Connector.id == connector_uuid,
             Connector.tenant_id == tenant.id
         )
     )
@@ -598,8 +677,10 @@ async def list_connector_tools(
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
 
-    # Get connector plugin to fetch tool definitions
-    connector_plugin = connector_registry.get_connector(connector.connector_type)
+    # Resolve connector plugin/runtime (supports both native and external connectors)
+    connector_plugin = await connector_registry.get_connector_for_config(
+        connector, oauth_cred=None
+    )
     if not connector_plugin:
         raise HTTPException(status_code=404, detail="Connector plugin not found")
 
@@ -645,15 +726,59 @@ async def list_connector_tools(
     )
 
 
+@router.get(
+    "/connectors/{connector_id}/tools",
+    response_model=ToolsListResponse,
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+)
+async def list_connector_tools_legacy(
+    connector_id: str,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Legacy endpoint: list tools by connector ID only.
+
+    Backward-compatible alias for older frontend bundles that call:
+    /admin/connectors/{connector_id}/tools
+    """
+    from sqlalchemy import select
+
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    connector_result = await session.execute(
+        select(Connector).where(Connector.id == connector_uuid)
+    )
+    connector = connector_result.scalar_one_or_none()
+
+    if not connector:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    tenant_result = await session.execute(
+        select(Tenant).where(Tenant.id == connector.tenant_id)
+    )
+    tenant = tenant_result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    return await list_connector_tools(tenant.slug, connector_id, session)
+
+
 @router.patch(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/{tool_name}",
-    response_model=ToolStateResponse
+    response_model=ToolStateResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def toggle_tool(
     tenant_slug: str,
     connector_id: str,
     tool_name: str,
     request: ToolToggleRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Toggle a specific tool's enabled/disabled state."""
@@ -705,6 +830,8 @@ async def toggle_tool(
     await session.commit()
     await session.refresh(tool_state)
 
+    _invalidate_pool(http_request, tenant_slug, connector_id)
+
     return ToolStateResponse(
         tool_name=tool_state.tool_name,
         is_enabled=tool_state.is_enabled
@@ -713,12 +840,17 @@ async def toggle_tool(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/bulk-update",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def bulk_update_tools(
     tenant_slug: str,
     connector_id: str,
     request: BulkToolUpdatesRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Bulk update multiple tools' enabled/disabled state."""
@@ -772,6 +904,8 @@ async def bulk_update_tools(
 
     await session.commit()
 
+    _invalidate_pool(http_request, tenant_slug, connector_id)
+
     return {
         "success": True,
         "updated_count": updated_count,
@@ -781,11 +915,16 @@ async def bulk_update_tools(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/enable-all",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def enable_all_tools(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Enable all tools for a connector."""
@@ -821,6 +960,8 @@ async def enable_all_tools(
 
     await session.commit()
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return {
         "success": True,
         "updated_count": result.rowcount,
@@ -830,11 +971,16 @@ async def enable_all_tools(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/disable-all",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def disable_all_tools(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Disable all tools for a connector."""
@@ -870,6 +1016,8 @@ async def disable_all_tools(
 
     await session.commit()
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     return {
         "success": True,
         "updated_count": result.rowcount,
@@ -879,11 +1027,16 @@ async def disable_all_tools(
 
 @router.post(
     "/tenants/{tenant_slug}/connectors/{connector_id}/tools/sync",
-    response_model=Dict[str, Any]
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def sync_connector_tools(
     tenant_slug: str,
     connector_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Sync tools for a connector - detect new tools from code and remove orphaned tools.
@@ -918,8 +1071,10 @@ async def sync_connector_tools(
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
 
-    # Get connector plugin
-    connector_plugin = connector_registry.get_connector(connector.connector_type)
+    # Resolve connector plugin/runtime (supports both native and external connectors)
+    connector_plugin = await connector_registry.get_connector_for_config(
+        connector, oauth_cred=None
+    )
     if not connector_plugin:
         raise HTTPException(status_code=404, detail="Connector plugin not found")
 
@@ -970,6 +1125,8 @@ async def sync_connector_tools(
 
     await session.commit()
 
+    _invalidate_pool(request, tenant_slug, connector_id)
+
     # Calculate unchanged count
     unchanged_count = len(code_tool_names & db_tool_names)
 
@@ -988,7 +1145,8 @@ async def sync_connector_tools(
 
 @router.get(
     "/connectors/{connector_id}/process/status",
-    response_model=Optional[ProcessStatusResponse]
+    response_model=Optional[ProcessStatusResponse],
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
 )
 async def get_process_status(
     connector_id: str,
@@ -1025,6 +1183,50 @@ async def get_process_status(
     if not process:
         return None
 
+    has_db_changes = False
+    key = f"{process.tenant_id}:{process.connector_id}"
+    managed_process = process_manager.processes.get(key)
+    is_live = (
+        managed_process is not None
+        and managed_process.process is not None
+        and managed_process.process.returncode is None
+    )
+
+    # Reconcile stale DB state after app/container restart.
+    # If process manager has no live process for this connector, it cannot be running.
+    if process.status in {
+        ProcessStatus.RUNNING,
+        ProcessStatus.STARTING,
+        ProcessStatus.RESTARTING,
+    }:
+        if not is_live:
+            process.status = ProcessStatus.STOPPED
+            process.pid = None
+            process.error_message = None
+            process.last_health_check = None
+            has_db_changes = True
+
+    # Normalize stale metadata for stopped records.
+    if process.status == ProcessStatus.STOPPED:
+        if process.pid is not None:
+            process.pid = None
+            has_db_changes = True
+        if process.last_health_check is not None:
+            process.last_health_check = None
+            has_db_changes = True
+        if process.error_message is not None:
+            process.error_message = None
+            has_db_changes = True
+
+    if has_db_changes:
+        await session.commit()
+        await session.refresh(process)
+
+    # API contract: non-active external processes are represented as null.
+    # Frontend treats null as "Not Started".
+    if process.status == ProcessStatus.STOPPED:
+        return None
+
     return ProcessStatusResponse(
         connector_id=process.connector_id,
         tenant_id=process.tenant_id,
@@ -1038,13 +1240,16 @@ async def get_process_status(
     )
 
 
-@router.post("/connectors/{connector_id}/process/restart")
+@router.post(
+    "/connectors/{connector_id}/process/restart",
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+)
 async def restart_process(
     connector_id: str,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Restart an external MCP server process."""
-    from sqlalchemy import select
+    from sqlalchemy import select, update, func
 
     # Get connector
     connector_result = await session.execute(
@@ -1066,7 +1271,38 @@ async def restart_process(
     try:
         await process_manager.terminate(str(connector.tenant_id), str(connector.id))
     except Exception as e:
-        print(f"Warning: Failed to terminate process: {e}")
+        logger.warning("Failed to terminate process: %s", e)
+
+    # Count manual restart attempts even when restart is lazy (starts on next request).
+    update_result = await session.execute(
+        update(MCPProcess)
+        .where(
+            MCPProcess.connector_id == connector.id,
+            MCPProcess.tenant_id == connector.tenant_id,
+        )
+        .values(
+            status=ProcessStatus.STOPPED,
+            pid=None,
+            error_message=None,
+            last_health_check=None,
+            restart_count=func.coalesce(MCPProcess.restart_count, 0) + 1,
+        )
+    )
+    if (update_result.rowcount or 0) == 0:
+        session.add(
+            MCPProcess(
+                connector_id=connector.id,
+                tenant_id=connector.tenant_id,
+                pid=None,
+                runtime_type=connector.runtime_type.value,
+                status=ProcessStatus.STOPPED,
+                started_at=datetime.utcnow(),
+                last_health_check=None,
+                error_message=None,
+                restart_count=1,
+            )
+        )
+    await session.commit()
 
     # Process will be restarted on next request via process_manager.get_or_create()
     return {
@@ -1076,7 +1312,10 @@ async def restart_process(
     }
 
 
-@router.delete("/connectors/{connector_id}/process")
+@router.delete(
+    "/connectors/{connector_id}/process",
+    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+)
 async def terminate_process(
     connector_id: str,
     session: AsyncSession = Depends(get_db_session)

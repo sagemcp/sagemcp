@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+from ..security.types import EncryptedText
 
 if TYPE_CHECKING:
     from .tenant import Tenant
@@ -37,8 +38,8 @@ class OAuthCredential(Base):
     provider_username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # OAuth tokens
-    access_token: Mapped[str] = mapped_column(Text, nullable=False)
-    refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    access_token: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    refresh_token: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
     token_type: Mapped[str] = mapped_column(String(50), default="bearer", nullable=False)
 
     # Token expiration

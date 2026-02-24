@@ -3,7 +3,7 @@ import { processApi } from '@/utils/api'
 import { ProcessStatus as ProcessStatusEnum, ConnectorRuntimeType } from '@/types'
 import { Activity, AlertCircle, CheckCircle, Clock, RotateCw, Square, XCircle } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 
 interface ProcessStatusProps {
@@ -17,27 +17,27 @@ const StatusBadge = ({ status }: { status: ProcessStatusEnum }) => {
     [ProcessStatusEnum.RUNNING]: {
       icon: CheckCircle,
       label: 'Running',
-      className: 'bg-green-100 text-green-800 border-green-200'
+      className: 'bg-green-500/10 text-green-400 border-green-500/30'
     },
     [ProcessStatusEnum.STARTING]: {
       icon: Clock,
       label: 'Starting',
-      className: 'bg-blue-100 text-blue-800 border-blue-200'
+      className: 'bg-blue-500/10 text-blue-400 border-blue-500/30'
     },
     [ProcessStatusEnum.RESTARTING]: {
       icon: RotateCw,
       label: 'Restarting',
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      className: 'bg-amber-500/10 text-amber-400 border-amber-500/30'
     },
     [ProcessStatusEnum.STOPPED]: {
       icon: Square,
       label: 'Stopped',
-      className: 'bg-gray-100 text-gray-800 border-gray-200'
+      className: 'bg-theme-elevated text-theme-primary border-theme-default'
     },
     [ProcessStatusEnum.ERROR]: {
       icon: XCircle,
       label: 'Error',
-      className: 'bg-red-100 text-red-800 border-red-200'
+      className: 'bg-red-500/10 text-red-400 border-red-500/30'
     },
   }
 
@@ -61,12 +61,12 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   // Skip query if this is a native connector
   const isExternal = runtimeType !== ConnectorRuntimeType.NATIVE
 
-  const { data: processStatus, isLoading, error, refetch } = useQuery({
+  const { data: processStatus, isLoading, refetch } = useQuery({
     queryKey: ['process-status', connectorId],
     queryFn: () => processApi.getStatus(connectorId).then(res => res.data),
     enabled: isExternal,
     refetchInterval: 10000, // Refresh every 10 seconds
-    retry: 1
+    retry: 1,
   })
 
   const restartMutation = useMutation({
@@ -97,7 +97,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   if (!isExternal) {
     return (
       <div className="flex items-center space-x-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30">
           <Activity className="h-3 w-3 mr-1" />
           Native (In-Process)
         </span>
@@ -105,10 +105,10 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
     )
   }
 
-  if (isLoading) {
+  if (isLoading && !processStatus) {
     return (
       <div className="flex items-center space-x-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-elevated text-theme-primary border border-theme-default">
           <Clock className="h-3 w-3 mr-1 animate-spin" />
           Loading...
         </span>
@@ -116,14 +116,14 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
     )
   }
 
-  if (error || !processStatus) {
+  if (!processStatus) {
     return (
       <div className="flex items-center space-x-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-theme-elevated text-theme-primary border border-theme-default">
           <Square className="h-3 w-3 mr-1" />
           Not Started
         </span>
-        <p className="text-xs text-gray-500">Will start on first tool request</p>
+        <p className="text-xs text-theme-muted">Will start on first tool request</p>
       </div>
     )
   }
@@ -135,6 +135,10 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
   const lastHealthCheck = processStatus.last_health_check
     ? formatDistanceToNow(new Date(processStatus.last_health_check), { addSuffix: true })
     : 'Never'
+  const normalizedStatus = String(processStatus.status).toLowerCase()
+  const isRunningLike = ['running', 'starting', 'restarting'].includes(normalizedStatus)
+  const canTerminate = isRunningLike
+  const canRestart = ['running', 'starting', 'restarting', 'stopped', 'error'].includes(normalizedStatus)
 
   return (
     <div className="space-y-3">
@@ -142,8 +146,8 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
         <div className="flex items-center space-x-3">
           <StatusBadge status={processStatus.status} />
           {processStatus.pid && (
-            <span className="text-xs text-gray-500">
-              PID: <code className="bg-gray-100 px-1 rounded">{processStatus.pid}</code>
+            <span className="text-xs text-theme-muted">
+              PID: <code className="bg-theme-elevated px-1 rounded">{processStatus.pid}</code>
             </span>
           )}
         </div>
@@ -151,7 +155,8 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
           <div className="flex items-center space-x-2">
             <button
               onClick={() => refetch()}
-              className="text-xs text-gray-600 hover:text-gray-900 flex items-center"
+              disabled={isLoading}
+              className="text-xs text-theme-secondary hover:text-theme-primary flex items-center"
               title="Refresh status"
             >
               <RotateCw className="h-3 w-3 mr-1" />
@@ -159,7 +164,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
             </button>
             <button
               onClick={() => restartMutation.mutate()}
-              disabled={restartMutation.isPending}
+              disabled={restartMutation.isPending || !canRestart}
               className="btn-secondary text-xs py-1 px-2"
               title="Restart process"
             >
@@ -168,7 +173,7 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
             </button>
             <button
               onClick={() => terminateMutation.mutate()}
-              disabled={terminateMutation.isPending}
+              disabled={terminateMutation.isPending || !canTerminate}
               className="btn-secondary text-xs py-1 px-2 text-error-600 hover:text-error-700"
               title="Terminate process"
             >
@@ -180,32 +185,32 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
       </div>
 
       {/* Process Details */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg text-xs">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-theme-surface rounded-lg text-xs">
         <div>
-          <div className="text-gray-500 mb-1">Started</div>
-          <div className="font-medium text-gray-900">{uptime}</div>
+          <div className="text-theme-muted mb-1">Started</div>
+          <div className="font-medium text-theme-primary">{uptime}</div>
         </div>
         <div>
-          <div className="text-gray-500 mb-1">Last Health Check</div>
-          <div className="font-medium text-gray-900">{lastHealthCheck}</div>
+          <div className="text-theme-muted mb-1">Last Health Check</div>
+          <div className="font-medium text-theme-primary">{lastHealthCheck}</div>
         </div>
         <div>
-          <div className="text-gray-500 mb-1">Restart Count</div>
-          <div className="font-medium text-gray-900">{processStatus.restart_count}</div>
+          <div className="text-theme-muted mb-1">Restart Count</div>
+          <div className="font-medium text-theme-primary">{processStatus.restart_count}</div>
         </div>
         <div>
-          <div className="text-gray-500 mb-1">Runtime</div>
-          <div className="font-medium text-gray-900">{processStatus.runtime_type}</div>
+          <div className="text-theme-muted mb-1">Runtime</div>
+          <div className="font-medium text-theme-primary">{processStatus.runtime_type}</div>
         </div>
       </div>
 
       {/* Error Message */}
-      {processStatus.error_message && (
-        <div className="flex items-start space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+      {processStatus.status === ProcessStatusEnum.ERROR && processStatus.error_message && (
+        <div className="flex items-start space-x-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-red-900 mb-1">Error Message</div>
-            <div className="text-xs text-red-700 font-mono break-all">
+            <div className="text-xs font-medium text-red-400 mb-1">Error Message</div>
+            <div className="text-xs text-red-400 font-mono break-all">
               {processStatus.error_message}
             </div>
           </div>
@@ -214,11 +219,11 @@ export default function ProcessStatus({ connectorId, runtimeType, showControls =
 
       {/* Restart Limit Warning */}
       {processStatus.restart_count >= 3 && processStatus.status === ProcessStatusEnum.ERROR && (
-        <div className="flex items-start space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start space-x-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+          <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-xs font-medium text-amber-900 mb-1">Max Restart Limit Reached</div>
-            <div className="text-xs text-amber-700">
+            <div className="text-xs font-medium text-amber-400 mb-1">Max Restart Limit Reached</div>
+            <div className="text-xs text-amber-400">
               The process has reached the maximum restart limit (3 attempts). Manual intervention required.
               Click "Restart" to retry.
             </div>

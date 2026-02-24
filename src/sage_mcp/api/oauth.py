@@ -1,5 +1,6 @@
 """OAuth API routes for connector authentication."""
 
+import logging
 import os
 import secrets
 import urllib.parse
@@ -15,9 +16,13 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..models.api_key import APIKeyScope
 from ..models.oauth_credential import OAuthCredential
 from ..models.oauth_config import OAuthConfig
 from ..models.tenant import Tenant
+from ..security.auth import require_scope, require_tenant_access
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -29,7 +34,7 @@ OAUTH_PROVIDERS = {
         "auth_url": "https://github.com/login/oauth/authorize",
         "token_url": "https://github.com/login/oauth/access_token",
         "user_url": "https://api.github.com/user",
-        "scopes": ["repo", "user:email", "read:org"],
+        "scopes": ["repo", "user:email", "read:org", "manage_billing:copilot"],
         "client_id": (
             os.getenv("GITHUB_CLIENT_ID")
             if os.getenv("GITHUB_CLIENT_ID")
@@ -161,7 +166,364 @@ OAUTH_PROVIDERS = {
             and os.getenv("ZOOM_CLIENT_SECRET") != "your-zoom-client-secret"
             else None
         ),
-    }
+    },
+    "google_sheets": {
+        "name": "Google Sheets",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "gmail": {
+        "name": "Gmail",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.labels",
+            "https://www.googleapis.com/auth/userinfo.email"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "google_slides": {
+        "name": "Google Slides",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/presentations",
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/userinfo.email"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "confluence": {
+        "name": "Confluence",
+        "auth_url": "https://auth.atlassian.com/authorize",
+        "token_url": "https://auth.atlassian.com/oauth/token",
+        "user_url": "https://api.atlassian.com/me",
+        "scopes": [
+            "read:confluence-content.all",
+            "write:confluence-content",
+            "read:confluence-space.summary",
+            "search:confluence",
+            "offline_access"
+        ],
+        "client_id": (
+            os.getenv("JIRA_CLIENT_ID")
+            if os.getenv("JIRA_CLIENT_ID")
+            and os.getenv("JIRA_CLIENT_ID") != "your-jira-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("JIRA_CLIENT_SECRET")
+            if os.getenv("JIRA_CLIENT_SECRET")
+            and os.getenv("JIRA_CLIENT_SECRET") != "your-jira-client-secret"
+            else None
+        ),
+    },
+    "gitlab": {
+        "name": "GitLab",
+        "auth_url": "https://gitlab.com/oauth/authorize",
+        "token_url": "https://gitlab.com/oauth/token",
+        "user_url": "https://gitlab.com/api/v4/user",
+        "scopes": [
+            "api",
+            "read_user",
+            "read_repository"
+        ],
+        "client_id": (
+            os.getenv("GITLAB_CLIENT_ID")
+            if os.getenv("GITLAB_CLIENT_ID")
+            and os.getenv("GITLAB_CLIENT_ID") != "your-gitlab-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GITLAB_CLIENT_SECRET")
+            if os.getenv("GITLAB_CLIENT_SECRET")
+            and os.getenv("GITLAB_CLIENT_SECRET") != "your-gitlab-client-secret"
+            else None
+        ),
+    },
+    "bitbucket": {
+        "name": "Bitbucket",
+        "auth_url": "https://bitbucket.org/site/oauth2/authorize",
+        "token_url": "https://bitbucket.org/site/oauth2/access_token",
+        "user_url": "https://api.bitbucket.org/2.0/user",
+        "scopes": [
+            "repository",
+            "pullrequest",
+            "issue",
+            "pipeline",
+            "account"
+        ],
+        "client_id": (
+            os.getenv("BITBUCKET_CLIENT_ID")
+            if os.getenv("BITBUCKET_CLIENT_ID")
+            and os.getenv("BITBUCKET_CLIENT_ID") != "your-bitbucket-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("BITBUCKET_CLIENT_SECRET")
+            if os.getenv("BITBUCKET_CLIENT_SECRET")
+            and os.getenv("BITBUCKET_CLIENT_SECRET") != "your-bitbucket-client-secret"
+            else None
+        ),
+    },
+    "linear": {
+        "name": "Linear",
+        "auth_url": "https://linear.app/oauth/authorize",
+        "token_url": "https://api.linear.app/oauth/token",
+        "user_url": "https://api.linear.app/graphql",
+        "scopes": [
+            "read",
+            "write",
+            "issues:create",
+            "comments:create"
+        ],
+        "client_id": (
+            os.getenv("LINEAR_CLIENT_ID")
+            if os.getenv("LINEAR_CLIENT_ID")
+            and os.getenv("LINEAR_CLIENT_ID") != "your-linear-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("LINEAR_CLIENT_SECRET")
+            if os.getenv("LINEAR_CLIENT_SECRET")
+            and os.getenv("LINEAR_CLIENT_SECRET") != "your-linear-client-secret"
+            else None
+        ),
+    },
+    "discord": {
+        "name": "Discord",
+        "auth_url": "https://discord.com/api/oauth2/authorize",
+        "token_url": "https://discord.com/api/oauth2/token",
+        "user_url": "https://discord.com/api/v10/users/@me",
+        "scopes": [
+            "identify",
+            "guilds",
+            "guilds.members.read",
+            "bot"
+        ],
+        "client_id": (
+            os.getenv("DISCORD_CLIENT_ID")
+            if os.getenv("DISCORD_CLIENT_ID")
+            and os.getenv("DISCORD_CLIENT_ID") != "your-discord-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("DISCORD_CLIENT_SECRET")
+            if os.getenv("DISCORD_CLIENT_SECRET")
+            and os.getenv("DISCORD_CLIENT_SECRET") != "your-discord-client-secret"
+            else None
+        ),
+    },
+    "microsoft": {
+        "name": "Microsoft 365",
+        "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "user_url": "https://graph.microsoft.com/v1.0/me",
+        "scopes": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "Mail.ReadWrite",
+            "Mail.Send",
+            "ChannelMessage.Send",
+            "Team.ReadBasic.All",
+            "Channel.ReadBasic.All",
+            "Chat.ReadWrite",
+            "Files.ReadWrite.All",
+            "User.Read"
+        ],
+        "client_id": (
+            os.getenv("MICROSOFT_CLIENT_ID")
+            if os.getenv("MICROSOFT_CLIENT_ID")
+            and os.getenv("MICROSOFT_CLIENT_ID") != "your-microsoft-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("MICROSOFT_CLIENT_SECRET")
+            if os.getenv("MICROSOFT_CLIENT_SECRET")
+            and os.getenv("MICROSOFT_CLIENT_SECRET") != "your-microsoft-client-secret"
+            else None
+        ),
+    },
+    "google_calendar": {
+        "name": "Google Calendar",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "user_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+        "scopes": [
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ],
+        "client_id": (
+            os.getenv("GOOGLE_CLIENT_ID")
+            if os.getenv("GOOGLE_CLIENT_ID")
+            and os.getenv("GOOGLE_CLIENT_ID") != "your-google-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("GOOGLE_CLIENT_SECRET")
+            if os.getenv("GOOGLE_CLIENT_SECRET")
+            and os.getenv("GOOGLE_CLIENT_SECRET") != "your-google-client-secret"
+            else None
+        ),
+    },
+    "teams": {
+        "name": "Microsoft Teams",
+        "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "user_url": "https://graph.microsoft.com/v1.0/me",
+        "scopes": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "ChannelMessage.Send",
+            "Team.ReadBasic.All",
+            "Channel.ReadBasic.All",
+            "Chat.ReadWrite",
+            "User.Read"
+        ],
+        "client_id": (
+            os.getenv("MICROSOFT_CLIENT_ID")
+            if os.getenv("MICROSOFT_CLIENT_ID")
+            and os.getenv("MICROSOFT_CLIENT_ID") != "your-microsoft-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("MICROSOFT_CLIENT_SECRET")
+            if os.getenv("MICROSOFT_CLIENT_SECRET")
+            and os.getenv("MICROSOFT_CLIENT_SECRET") != "your-microsoft-client-secret"
+            else None
+        ),
+    },
+    "outlook": {
+        "name": "Outlook",
+        "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "user_url": "https://graph.microsoft.com/v1.0/me",
+        "scopes": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "Mail.ReadWrite",
+            "Mail.Send",
+            "User.Read"
+        ],
+        "client_id": (
+            os.getenv("MICROSOFT_CLIENT_ID")
+            if os.getenv("MICROSOFT_CLIENT_ID")
+            and os.getenv("MICROSOFT_CLIENT_ID") != "your-microsoft-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("MICROSOFT_CLIENT_SECRET")
+            if os.getenv("MICROSOFT_CLIENT_SECRET")
+            and os.getenv("MICROSOFT_CLIENT_SECRET") != "your-microsoft-client-secret"
+            else None
+        ),
+    },
+    "excel": {
+        "name": "Excel",
+        "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "user_url": "https://graph.microsoft.com/v1.0/me",
+        "scopes": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "Files.ReadWrite.All",
+            "User.Read"
+        ],
+        "client_id": (
+            os.getenv("MICROSOFT_CLIENT_ID")
+            if os.getenv("MICROSOFT_CLIENT_ID")
+            and os.getenv("MICROSOFT_CLIENT_ID") != "your-microsoft-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("MICROSOFT_CLIENT_SECRET")
+            if os.getenv("MICROSOFT_CLIENT_SECRET")
+            and os.getenv("MICROSOFT_CLIENT_SECRET") != "your-microsoft-client-secret"
+            else None
+        ),
+    },
+    "powerpoint": {
+        "name": "PowerPoint",
+        "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "user_url": "https://graph.microsoft.com/v1.0/me",
+        "scopes": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "Files.ReadWrite.All",
+            "User.Read"
+        ],
+        "client_id": (
+            os.getenv("MICROSOFT_CLIENT_ID")
+            if os.getenv("MICROSOFT_CLIENT_ID")
+            and os.getenv("MICROSOFT_CLIENT_ID") != "your-microsoft-client-id"
+            else None
+        ),
+        "client_secret": (
+            os.getenv("MICROSOFT_CLIENT_SECRET")
+            if os.getenv("MICROSOFT_CLIENT_SECRET")
+            and os.getenv("MICROSOFT_CLIENT_SECRET") != "your-microsoft-client-secret"
+            else None
+        ),
+    },
 }
 
 
@@ -213,7 +575,13 @@ class OAuthConfigResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/{tenant_slug}/auth/{provider}")
+@router.get(
+    "/{tenant_slug}/auth/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def initiate_oauth(
     tenant_slug: str,
     provider: str,
@@ -320,7 +688,7 @@ async def initiate_oauth(
             f"{base_url}/api/v1/oauth/{tenant_slug}/callback/{provider}"
         )
 
-    print(f"DEBUG: Final redirect_uri = {redirect_uri}")
+    logger.debug("Final redirect_uri = %s", redirect_uri)
 
     # Build authorization URL
     params = {
@@ -340,7 +708,7 @@ async def initiate_oauth(
         params["scope"] = " ".join(provider_config["scopes"])  # Space-separated for others
 
     # Add Google-specific parameters
-    if provider in ["google", "google_docs"]:
+    if provider in ["google", "google_docs", "google_sheets", "gmail", "google_slides", "google_calendar"]:
         params["access_type"] = "offline"  # Request refresh token
         params["prompt"] = "consent"  # Force consent screen to get refresh token
 
@@ -463,8 +831,8 @@ async def oauth_callback(
         "redirect_uri": redirect_uri,
     }
 
-    # Google, Atlassian, Notion, and Zoom OAuth require grant_type parameter
-    if provider in ["google", "google_docs", "jira", "notion", "zoom"]:
+    # Google, Atlassian, Microsoft, Notion, and Zoom OAuth require grant_type parameter
+    if provider in ["google", "google_docs", "google_sheets", "gmail", "google_slides", "google_calendar", "microsoft", "teams", "excel", "outlook", "powerpoint", "jira", "confluence", "notion", "zoom", "gitlab", "bitbucket", "linear", "discord"]:
         token_data["grant_type"] = "authorization_code"
 
     headers = {"Accept": "application/json"}
@@ -495,10 +863,18 @@ async def oauth_callback(
     user_headers = {"Authorization": f"Bearer {access_token}"}
 
     async with httpx.AsyncClient() as client:
-        user_response = await client.get(
-            provider_config["user_url"],
-            headers=user_headers
-        )
+        if provider == "linear":
+            # Linear uses GraphQL for user info
+            user_response = await client.post(
+                provider_config["user_url"],
+                json={"query": "{ viewer { id name email } }"},
+                headers={**user_headers, "Content-Type": "application/json"}
+            )
+        else:
+            user_response = await client.get(
+                provider_config["user_url"],
+                headers=user_headers
+            )
 
         if user_response.status_code != 200:
             raise HTTPException(
@@ -518,14 +894,26 @@ async def oauth_callback(
         # Slack OAuth v2 returns user_id in the auth.test response
         provider_user_id = user_info.get("user_id", user_info.get("user"))
         provider_username = user_info.get("user", provider_user_id)
-    elif provider in ["google", "google_docs"]:
+    elif provider in ["google", "google_docs", "google_sheets", "gmail", "google_slides", "google_calendar"]:
         # Google OAuth returns 'id' and 'email' fields
         provider_user_id = str(user_info.get("id", user_info.get("sub", "unknown")))
         provider_username = user_info.get("email", user_info.get("name", "unknown"))
-    elif provider == "jira":
+    elif provider in ["microsoft", "teams", "excel", "outlook", "powerpoint"]:
+        # Microsoft Graph /me returns 'id', 'mail' or 'userPrincipalName'
+        provider_user_id = str(user_info.get("id", "unknown"))
+        provider_username = user_info.get("mail", user_info.get("userPrincipalName", "unknown"))
+    elif provider in ["jira", "confluence"]:
         # Atlassian OAuth returns 'account_id' and 'email' fields
         provider_user_id = str(user_info.get("account_id", "unknown"))
         provider_username = user_info.get("email", user_info.get("name", "unknown"))
+    elif provider == "gitlab":
+        # GitLab OAuth returns 'id' and 'username' fields
+        provider_user_id = str(user_info.get("id", "unknown"))
+        provider_username = user_info.get("username", user_info.get("email", "unknown"))
+    elif provider == "bitbucket":
+        # Bitbucket OAuth returns 'uuid' and 'username' or 'display_name'
+        provider_user_id = str(user_info.get("uuid", user_info.get("account_id", "unknown")))
+        provider_username = user_info.get("username", user_info.get("display_name", "unknown"))
     elif provider == "notion":
         # Notion OAuth returns user object with 'id' field
         user_obj = user_info.get("bot", {}).get("owner", {}).get("user", user_info)
@@ -535,6 +923,15 @@ async def oauth_callback(
         # Zoom OAuth returns 'id' and 'email' fields
         provider_user_id = str(user_info.get("id", "unknown"))
         provider_username = user_info.get("email", user_info.get("first_name", "unknown"))
+    elif provider == "linear":
+        # Linear GraphQL viewer returns { data: { viewer: { id, name, email } } }
+        viewer = user_info.get("data", {}).get("viewer", {})
+        provider_user_id = str(viewer.get("id", "unknown"))
+        provider_username = viewer.get("email", viewer.get("name", "unknown"))
+    elif provider == "discord":
+        # Discord /users/@me returns 'id' and 'username'
+        provider_user_id = str(user_info.get("id", "unknown"))
+        provider_username = user_info.get("username", user_info.get("global_name", "unknown"))
     else:
         provider_user_id = str(user_info.get("id", "unknown"))
         provider_username = user_info.get(
@@ -592,8 +989,8 @@ async def oauth_callback(
     state_param = params.get("state", "")
     cli_session_id = None
 
-    print(f"DEBUG: Callback received state parameter: '{state_param}'")
-    print(f"DEBUG: Full query params: {params}")
+    logger.debug("Callback received state parameter: '%s'", state_param)
+    logger.debug("Full query params: %s", params)
 
     # Try to extract cli_session from state parameter
     # State could be JSON encoded or contain cli_session directly
@@ -606,24 +1003,24 @@ async def oauth_callback(
                 decoded = base64.urlsafe_b64decode(state_param + "==").decode()
                 state_data = json.loads(decoded)
                 cli_session_id = state_data.get("cli_session")
-                print(f"DEBUG: Extracted cli_session from JSON: {cli_session_id}")
+                logger.debug("Extracted cli_session from JSON: %s", cli_session_id)
             except Exception as e:
                 # Not base64/JSON, check if state itself contains cli-session prefix
-                print(f"DEBUG: Not base64/JSON (error: {e}), checking for cli-session prefix")
+                logger.debug("Not base64/JSON (error: %s), checking for cli-session prefix", e)
                 if state_param.startswith("cli-session-"):
                     cli_session_id = state_param
-                    print(f"DEBUG: Found CLI session ID: {cli_session_id}")
+                    logger.debug("Found CLI session ID: %s", cli_session_id)
                 else:
-                    print(f"DEBUG: State does not start with 'cli-session-': '{state_param[:50]}'")
+                    logger.debug("State does not start with 'cli-session-': '%s'", state_param[:50])
         except Exception as e:
-            print(f"DEBUG: Outer exception: {e}")
+            logger.debug("Outer exception: %s", e)
             pass
 
     # If this is a CLI session, store the result for polling
     if cli_session_id:
         from sage_mcp.utils.cli_session_storage import cli_session_storage
 
-        print(f"DEBUG: Storing CLI session result for session ID: {cli_session_id}")
+        logger.debug("Storing CLI session result for session ID: %s", cli_session_id)
 
         # Store successful OAuth result
         session_data = {
@@ -637,7 +1034,7 @@ async def oauth_callback(
             "tenant_slug": tenant_slug
         }
         cli_session_storage.store(cli_session_id, session_data)
-        print(f"DEBUG: Successfully stored session data: {session_data}")
+        logger.debug("Successfully stored session data: %s", session_data)
 
         # For CLI sessions, return simple success page instead of redirecting to frontend
         html = f"""
@@ -664,7 +1061,7 @@ async def oauth_callback(
         from fastapi.responses import HTMLResponse
         return HTMLResponse(content=html)
     else:
-        print("DEBUG: Not a CLI session (cli_session_id is None)")
+        logger.debug("Not a CLI session (cli_session_id is None)")
 
     # Standard web flow: Redirect to frontend with success message
     # Use same logic as redirect URI generation for consistency
@@ -692,12 +1089,18 @@ async def oauth_callback(
         f"{frontend_url}/oauth/success?provider={provider}&"
         f"tenant={tenant_slug}"
     )
-    print(f"DEBUG: OAuth success redirect URL = {success_url}")
+    logger.debug("OAuth success redirect URL = %s", success_url)
 
     return RedirectResponse(url=success_url)
 
 
-@router.delete("/{tenant_slug}/auth/{provider}")
+@router.delete(
+    "/{tenant_slug}/auth/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def revoke_oauth(
     tenant_slug: str,
     provider: str,
@@ -738,7 +1141,11 @@ async def revoke_oauth(
 
 @router.get(
     "/{tenant_slug}/auth",
-    response_model=List[OAuthCredentialResponse]
+    response_model=List[OAuthCredentialResponse],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.TENANT_USER)),
+        Depends(require_tenant_access()),
+    ],
 )
 async def list_oauth_credentials(
     tenant_slug: str,
@@ -780,7 +1187,13 @@ async def list_oauth_providers():
     return providers
 
 
-@router.get("/{tenant_slug}/config")
+@router.get(
+    "/{tenant_slug}/config",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def list_oauth_configs(
     tenant_slug: str,
     session: AsyncSession = Depends(get_db_session)
@@ -803,7 +1216,13 @@ async def list_oauth_configs(
     return list(configs)
 
 
-@router.post("/{tenant_slug}/config")
+@router.post(
+    "/{tenant_slug}/config",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def create_oauth_config(
     tenant_slug: str,
     config_data: OAuthConfigCreate,
@@ -856,7 +1275,13 @@ async def create_oauth_config(
         return new_config
 
 
-@router.delete("/{tenant_slug}/config/{provider}")
+@router.delete(
+    "/{tenant_slug}/config/{provider}",
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
 async def delete_oauth_config(
     tenant_slug: str,
     provider: str,
@@ -896,6 +1321,9 @@ async def delete_oauth_config(
     }
 
 
+# NOTE: This endpoint is intentionally unauthenticated. The CLI OAuth flow
+# needs to poll for the result *before* the client has obtained an API key.
+# The session_id is an unguessable random token that acts as a bearer secret.
 @router.get("/cli-sessions/{session_id}")
 async def get_cli_session_result(session_id: str):
     """Get OAuth result for CLI session.
@@ -903,6 +1331,9 @@ async def get_cli_session_result(session_id: str):
     This endpoint allows CLI clients to poll for OAuth authorization results.
     The session is created when the OAuth flow is initiated with a cli_session
     parameter in the state, and the result is stored when the callback completes.
+
+    Intentionally unauthenticated — the CLI needs this before it has an API key.
+    The session_id is a high-entropy random token that acts as a capability.
 
     Args:
         session_id: CLI session identifier
@@ -915,20 +1346,20 @@ async def get_cli_session_result(session_id: str):
     """
     from sage_mcp.utils.cli_session_storage import cli_session_storage
 
-    print(f"DEBUG: Polling for CLI session ID: {session_id}")
+    logger.debug("Polling for CLI session ID: %s", session_id)
 
     # Get storage stats for debugging
     stats = cli_session_storage.get_stats()
-    print(f"DEBUG: Session storage stats: {stats}")
+    logger.debug("Session storage stats: %s", stats)
 
     result = cli_session_storage.get(session_id, delete_after_read=True)
 
     if not result:
-        print(f"DEBUG: Session not found or expired: {session_id}")
+        logger.debug("Session not found or expired: %s", session_id)
         raise HTTPException(
             status_code=404,
             detail="Session not found or expired. It may have already been retrieved or timed out after 5 minutes."
         )
 
-    print(f"DEBUG: Found session result: {result}")
+    logger.debug("Found session result: %s", result)
     return result

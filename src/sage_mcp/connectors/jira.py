@@ -99,7 +99,7 @@ class JiraConnector(BaseConnector):
                         },
                         "max_results": {
                             "type": "integer",
-                            "default": 50,
+                            "default": 10,
                             "minimum": 1,
                             "maximum": 100,
                             "description": "Maximum number of results to return"
@@ -304,7 +304,7 @@ class JiraConnector(BaseConnector):
                     "properties": {
                         "max_results": {
                             "type": "integer",
-                            "default": 50,
+                            "default": 10,
                             "minimum": 1,
                             "maximum": 100,
                             "description": "Maximum number of results"
@@ -340,7 +340,7 @@ class JiraConnector(BaseConnector):
                         },
                         "max_results": {
                             "type": "integer",
-                            "default": 50,
+                            "default": 10,
                             "minimum": 1,
                             "maximum": 100,
                             "description": "Maximum number of results"
@@ -407,7 +407,7 @@ class JiraConnector(BaseConnector):
                         },
                         "max_results": {
                             "type": "integer",
-                            "default": 50,
+                            "default": 10,
                             "minimum": 1,
                             "maximum": 100,
                             "description": "Maximum number of results"
@@ -430,7 +430,7 @@ class JiraConnector(BaseConnector):
                         },
                         "max_results": {
                             "type": "integer",
-                            "default": 50,
+                            "default": 10,
                             "minimum": 1,
                             "maximum": 100,
                             "description": "Maximum number of results"
@@ -515,10 +515,10 @@ class JiraConnector(BaseConnector):
             try:
                 issue_response = await self._make_authenticated_request(
                     "GET",
-                    f"{base_url}/search",
+                    f"{base_url}/search/jql",
                     oauth_cred,
                     params={
-                        "jql": "ORDER BY updated DESC",
+                        "jql": "updated >= -30d ORDER BY updated DESC",
                         "maxResults": 20,
                         "fields": "summary,status"
                     }
@@ -665,8 +665,16 @@ class JiraConnector(BaseConnector):
         """Search issues using JQL."""
         base_url = self._get_api_base_url(cloud_id)
         jql = arguments["jql"]
-        max_results = arguments.get("max_results", 50)
+        max_results = arguments.get("max_results", 10)
         fields = arguments.get("fields", ["summary", "status", "assignee", "priority", "created", "updated"])
+
+        # The new /search/jql endpoint requires bounded queries
+        # Add a default time filter if the JQL only contains ORDER BY
+        jql_upper = jql.upper().strip()
+        if jql_upper.startswith("ORDER BY") and "WHERE" not in jql_upper and "=" not in jql:
+            # Add a 90-day time restriction for unbounded ORDER BY queries
+            jql = f"updated >= -90d {jql}"
+            print(f"DEBUG: Added time restriction to unbounded query: {jql}")
 
         params = {
             "jql": jql,
@@ -677,7 +685,7 @@ class JiraConnector(BaseConnector):
         print(f"DEBUG: Searching Jira issues with JQL: {jql}")
         response = await self._make_authenticated_request(
             "GET",
-            f"{base_url}/search",
+            f"{base_url}/search/jql",
             oauth_cred,
             params=params
         )
@@ -980,7 +988,7 @@ class JiraConnector(BaseConnector):
     async def _list_projects(self, cloud_id: str, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
         """List all accessible projects."""
         base_url = self._get_api_base_url(cloud_id)
-        max_results = arguments.get("max_results", 50)
+        max_results = arguments.get("max_results", 10)
 
         print("DEBUG: Listing Jira projects")
         response = await self._make_authenticated_request(
@@ -1026,7 +1034,7 @@ class JiraConnector(BaseConnector):
         agile_url = f"https://api.atlassian.com/ex/jira/{cloud_id}/rest/agile/1.0"
 
         params = {
-            "maxResults": arguments.get("max_results", 50)
+            "maxResults": arguments.get("max_results", 10)
         }
 
         if "project_key" in arguments:
@@ -1120,7 +1128,7 @@ class JiraConnector(BaseConnector):
         """Get issues in a sprint."""
         agile_url = f"https://api.atlassian.com/ex/jira/{cloud_id}/rest/agile/1.0"
         sprint_id = arguments["sprint_id"]
-        max_results = arguments.get("max_results", 50)
+        max_results = arguments.get("max_results", 10)
 
         print(f"DEBUG: Fetching issues for sprint: {sprint_id}")
         response = await self._make_authenticated_request(
@@ -1151,7 +1159,7 @@ class JiraConnector(BaseConnector):
         """Search for users."""
         base_url = self._get_api_base_url(cloud_id)
         query = arguments["query"]
-        max_results = arguments.get("max_results", 50)
+        max_results = arguments.get("max_results", 10)
 
         print(f"DEBUG: Searching for users: {query}")
         response = await self._make_authenticated_request(

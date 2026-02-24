@@ -13,9 +13,18 @@ vi.mock('../../utils/api', () => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+  connectorsApi: {
+    list: vi.fn(),
+    get: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    toggle: vi.fn(),
+  },
 }))
 
 const mockTenantsApi = vi.mocked(api.tenantsApi)
+const mockConnectorsApi = vi.mocked(api.connectorsApi)
 
 describe('Tenants', () => {
   let queryClient: QueryClient
@@ -23,11 +32,12 @@ describe('Tenants', () => {
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { retry: false, cacheTime: 0 },
+        queries: { retry: false, gcTime: 0 },
         mutations: { retry: false },
       },
     })
     vi.clearAllMocks()
+    mockConnectorsApi.list.mockResolvedValue({ data: [] } as any)
   })
 
   const renderWithClient = (component: React.ReactElement) => {
@@ -80,7 +90,7 @@ describe('Tenants', () => {
         updated_at: '2024-01-01T00:00:00Z',
       },
     ]
-    
+
     mockTenantsApi.list.mockResolvedValue({ data: mockTenants } as any)
 
     renderWithClient(<Tenants />)
@@ -113,7 +123,7 @@ describe('Tenants', () => {
     })
   })
 
-  it('opens create tenant modal when button clicked', async () => {
+  it('opens create tenant sheet when button clicked', async () => {
     mockTenantsApi.list.mockResolvedValue({ data: [] } as any)
 
     renderWithClient(<Tenants />)
@@ -122,7 +132,7 @@ describe('Tenants', () => {
     fireEvent.click(createButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Create New Tenant')).toBeInTheDocument()
+      expect(screen.getByText('Set up a new multi-tenant MCP environment')).toBeInTheDocument()
     })
   })
 })

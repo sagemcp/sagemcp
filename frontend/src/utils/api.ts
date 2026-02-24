@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Tenant, TenantCreate, Connector, ConnectorCreate, MCPServerInfo, OAuthProvider, OAuthCredential, OAuthConfig, MCPProcessStatus } from '@/types'
+import { Tenant, TenantCreate, Connector, ConnectorCreate, MCPServerInfo, OAuthProvider, OAuthCredential, OAuthConfig, MCPProcessStatus, PlatformStats, SessionInfo, PoolEntry, PoolSummary } from '@/types'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -15,28 +15,6 @@ api.interceptors.request.use((config) => {
   // if (token) {
   //   config.headers.Authorization = `Bearer ${token}`
   // }
-  
-  // Debug logging for OAuth config requests
-  if (config.url?.includes('/oauth/') && config.method === 'post') {
-    console.log('OAuth Config API Request:', {
-      method: config.method,
-      url: config.url,
-      baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`,
-      data: config.data,
-      headers: config.headers
-    })
-  }
-  
-  // Debug all POST requests to see if they're going to wrong endpoint
-  if (config.method === 'post') {
-    console.log('POST Request Debug:', {
-      method: config.method,
-      url: config.url,
-      fullURL: `${config.baseURL}${config.url}`
-    })
-  }
-  
   return config
 })
 
@@ -44,31 +22,6 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Debug logging for OAuth config errors
-    if (error.config?.url?.includes('/oauth/') && error.config?.method === 'post') {
-      console.error('OAuth Config API Error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        url: error.config.url,
-        method: error.config.method,
-        fullURL: `${error.config.baseURL}${error.config.url}`,
-        requestData: error.config.data,
-        responseData: error.response?.data
-      })
-    }
-    
-    // Debug all 405 errors
-    if (error.response?.status === 405) {
-      console.error('405 Method Not Allowed Error:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        url: error.config?.url,
-        method: error.config?.method,
-        fullURL: `${error.config?.baseURL}${error.config?.url}`,
-        allowedMethods: error.response.headers?.allow
-      })
-    }
-    
     if (error.response?.status === 401) {
       // Handle unauthorized access
       // window.location.href = '/login'
@@ -194,6 +147,34 @@ export const processApi = {
 
 export const healthApi = {
   check: () => api.get('/health'),
+}
+
+export const settingsApi = {
+  get: () => api.get('/admin/settings'),
+}
+
+export const statsApi = {
+  get: () => api.get<PlatformStats>('/admin/stats'),
+}
+
+export const poolApi = {
+  list: (tenantSlug?: string) => {
+    const params = tenantSlug ? { tenant_slug: tenantSlug } : {}
+    return api.get<PoolEntry[]>('/admin/pool', { params })
+  },
+  summary: () => api.get<PoolSummary>('/admin/pool/summary'),
+  evict: (tenantSlug: string, connectorId: string) =>
+    api.delete(`/admin/pool/${tenantSlug}/${connectorId}`),
+  evictIdle: (idleSeconds = 600) =>
+    api.post('/admin/pool/evict-idle', null, { params: { idle_seconds: idleSeconds } }),
+}
+
+export const sessionsApi = {
+  list: (tenantSlug?: string) => {
+    const params = tenantSlug ? { tenant_slug: tenantSlug } : {}
+    return api.get<SessionInfo[]>('/admin/sessions', { params })
+  },
+  delete: (sessionId: string) => api.delete(`/admin/sessions/${sessionId}`),
 }
 
 // Legacy function exports for tests

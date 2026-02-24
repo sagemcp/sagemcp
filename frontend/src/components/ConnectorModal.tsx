@@ -3,12 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
-import { X, Key } from 'lucide-react'
+import { toast } from 'sonner'
+import { Key } from 'lucide-react'
 import { tenantsApi, connectorsApi } from '@/utils/api'
 import { ConnectorType, ConnectorCreate } from '@/types'
 import { cn } from '@/utils/cn'
-import { GitHubLogo, SlackLogo, GoogleDocsLogo, JiraLogo, NotionLogo, ZoomLogo } from './icons/BrandLogos'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { ConnectorBadge } from '@/components/sage/connector-badge'
 
 const connectorSchema = z.object({
   tenant_slug: z.string().min(1, 'Please select a tenant'),
@@ -21,95 +23,35 @@ const connectorSchema = z.object({
 
 type ConnectorFormData = z.infer<typeof connectorSchema>
 
-const ConnectorTypeCard = ({
-  type,
-  selected,
-  disabled,
-  onSelect,
-}: {
-  type: ConnectorType
-  selected: boolean
-  disabled?: boolean
-  onSelect: (type: ConnectorType) => void
-}) => {
-  // Only include implemented connector types
-  const configs: Record<string, {
-    icon: React.ComponentType<{ className?: string }>
-    name: string
-    description: string
-    color: string
-  }> = {
-    [ConnectorType.GITHUB]: {
-      icon: GitHubLogo,
-      name: 'GitHub',
-      description: 'Connect to GitHub repositories and issues',
-      color: 'bg-gray-900 text-white',
-    },
-    [ConnectorType.SLACK]: {
-      icon: SlackLogo,
-      name: 'Slack',
-      description: 'Connect to Slack channels and messages',
-      color: 'bg-purple-600 text-white',
-    },
-    [ConnectorType.GOOGLE_DOCS]: {
-      icon: GoogleDocsLogo,
-      name: 'Google Docs',
-      description: 'Create, read, and manage Google Docs documents',
-      color: 'bg-blue-500 text-white',
-    },
-    [ConnectorType.JIRA]: {
-      icon: JiraLogo,
-      name: 'Jira',
-      description: 'Access Jira projects, issues, sprints, and boards',
-      color: 'bg-blue-600 text-white',
-    },
-    [ConnectorType.NOTION]: {
-      icon: NotionLogo,
-      name: 'Notion',
-      description: 'Connect to Notion pages and databases',
-      color: 'bg-gray-800 text-white',
-    },
-    [ConnectorType.ZOOM]: {
-      icon: ZoomLogo,
-      name: 'Zoom',
-      description: 'Manage Zoom meetings and recordings',
-      color: 'bg-blue-500 text-white',
-    },
-  }
-
-  const config = configs[type]
-  if (!config) return null // Return null if connector type is not implemented
-
-  const Icon = config.icon
-
-  return (
-    <button
-      type="button"
-      onClick={() => !disabled && onSelect(type)}
-      disabled={disabled}
-      className={cn(
-        'p-4 border-2 rounded-lg transition-all text-left w-full relative',
-        disabled
-          ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-          : selected
-          ? 'border-primary-500 bg-primary-50'
-          : 'border-gray-200 hover:border-gray-300'
-      )}
-    >
-      <div className="flex items-start space-x-3">
-        <div className={cn('p-2 rounded-lg', config.color)}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-gray-900">{config.name}</h4>
-          <p className="text-xs text-gray-500 mt-1">
-            {disabled ? 'Already exists for this tenant' : config.description}
-          </p>
-        </div>
-      </div>
-    </button>
-  )
+const CONNECTOR_CONFIGS: Record<string, { name: string; description: string }> = {
+  [ConnectorType.GITHUB]: { name: 'GitHub', description: 'Connect to GitHub repositories and issues' },
+  [ConnectorType.SLACK]: { name: 'Slack', description: 'Connect to Slack channels and messages' },
+  [ConnectorType.GOOGLE_DOCS]: { name: 'Google Docs', description: 'Create, read, and manage Google Docs' },
+  [ConnectorType.GOOGLE_SHEETS]: { name: 'Google Sheets', description: 'Read, write, and manage Google Sheets spreadsheets' },
+  [ConnectorType.GMAIL]: { name: 'Gmail', description: 'Send, read, and manage Gmail messages and threads' },
+  [ConnectorType.GOOGLE_SLIDES]: { name: 'Google Slides', description: 'Create and manage Google Slides presentations' },
+  [ConnectorType.JIRA]: { name: 'Jira', description: 'Access Jira projects, issues, and sprints' },
+  [ConnectorType.NOTION]: { name: 'Notion', description: 'Connect to Notion pages and databases' },
+  [ConnectorType.ZOOM]: { name: 'Zoom', description: 'Manage Zoom meetings and recordings' },
+  [ConnectorType.OUTLOOK]: { name: 'Outlook', description: 'Read, send, and manage Outlook emails' },
+  [ConnectorType.TEAMS]: { name: 'Microsoft Teams', description: 'Manage Teams channels, chats, and messages' },
+  [ConnectorType.EXCEL]: { name: 'Excel', description: 'Read, write, and manage Excel workbooks in OneDrive' },
+  [ConnectorType.POWERPOINT]: { name: 'PowerPoint', description: 'Manage PowerPoint presentations in OneDrive' },
+  [ConnectorType.CONFLUENCE]: { name: 'Confluence', description: 'Access Confluence spaces, pages, and content' },
+  [ConnectorType.GITLAB]: { name: 'GitLab', description: 'Connect to GitLab projects, merge requests, and pipelines' },
+  [ConnectorType.BITBUCKET]: { name: 'Bitbucket', description: 'Connect to Bitbucket repositories and pull requests' },
+  [ConnectorType.LINEAR]: { name: 'Linear', description: 'Access Linear issues, projects, teams, and cycles' },
+  [ConnectorType.DISCORD]: { name: 'Discord', description: 'Manage Discord servers, channels, and messages' },
 }
+
+const IMPLEMENTED_TYPES = [
+  ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS,
+  ConnectorType.GOOGLE_SHEETS, ConnectorType.GMAIL, ConnectorType.GOOGLE_SLIDES,
+  ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM,
+  ConnectorType.OUTLOOK, ConnectorType.TEAMS, ConnectorType.EXCEL,
+  ConnectorType.POWERPOINT, ConnectorType.CONFLUENCE, ConnectorType.GITLAB,
+  ConnectorType.BITBUCKET, ConnectorType.LINEAR, ConnectorType.DISCORD,
+]
 
 interface ConnectorModalProps {
   isOpen: boolean
@@ -117,10 +59,10 @@ interface ConnectorModalProps {
   preselectedTenant?: string
 }
 
-export default function ConnectorModal({ 
-  isOpen, 
-  onClose, 
-  preselectedTenant 
+export default function ConnectorModal({
+  isOpen,
+  onClose,
+  preselectedTenant
 }: ConnectorModalProps) {
   const [step, setStep] = useState<'type' | 'details'>('type')
   const [selectedType, setSelectedType] = useState<ConnectorType | null>(null)
@@ -137,14 +79,12 @@ export default function ConnectorModal({
     defaultValues: preselectedTenant ? { tenant_slug: preselectedTenant } : undefined
   })
 
-
   const { data: tenants = [] } = useQuery({
     queryKey: ['tenants'],
     queryFn: () => tenantsApi.list().then(res => res.data),
     enabled: isOpen
   })
 
-  // Fetch existing connectors for the selected tenant to check for duplicates
   const selectedTenantSlug = preselectedTenant || undefined
   const { data: existingConnectors = [] } = useQuery({
     queryKey: ['connectors', selectedTenantSlug],
@@ -152,11 +92,10 @@ export default function ConnectorModal({
     enabled: isOpen && !!selectedTenantSlug
   })
 
-  // Get list of connector types already in use
   const usedConnectorTypes = new Set(existingConnectors.map(c => c.connector_type))
 
   const createMutation = useMutation({
-    mutationFn: ({ tenant_slug, ...data }: ConnectorFormData) => 
+    mutationFn: ({ tenant_slug, ...data }: ConnectorFormData) =>
       connectorsApi.create(tenant_slug, data as ConnectorCreate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connectors'] })
@@ -176,178 +115,152 @@ export default function ConnectorModal({
     onClose()
   }
 
-
   const handleTypeSelect = (type: ConnectorType) => {
     setSelectedType(type)
     setValue('connector_type', type)
     setStep('details')
   }
 
-  const handleBack = () => {
-    setStep('type')
-  }
-
   const requiresOAuth = (type: ConnectorType) => {
-    return [ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS, ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM].includes(type)
+    return [
+      ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS,
+      ConnectorType.GOOGLE_SHEETS, ConnectorType.GMAIL, ConnectorType.GOOGLE_SLIDES,
+      ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM,
+      ConnectorType.OUTLOOK, ConnectorType.TEAMS, ConnectorType.EXCEL,
+      ConnectorType.POWERPOINT, ConnectorType.CONFLUENCE, ConnectorType.GITLAB,
+      ConnectorType.BITBUCKET, ConnectorType.LINEAR, ConnectorType.DISCORD,
+    ].includes(type)
   }
 
   const onSubmit = (data: ConnectorFormData) => {
-    // Add configuration as null since it's not used yet
-    const payload = {
-      ...data,
-      configuration: null
-    }
+    const payload = { ...data, configuration: null }
     createMutation.mutate(payload as any)
   }
 
-  console.log('ConnectorModal render:', { isOpen, step, selectedType })
-  
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={handleClose} />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {step === 'type' ? 'Choose Connector Type' : 'Configure Connector'}
-              </h3>
-              <p className="text-sm text-gray-600">
-                {step === 'type' 
-                  ? 'Select the type of connector you want to create'
-                  : `Setting up ${selectedType} connector`
-                }
-              </p>
-            </div>
-            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
-              <X className="h-6 w-6" />
-            </button>
-          </div>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <SheetContent onClose={handleClose} className="sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>
+            {step === 'type' ? 'Choose Connector Type' : 'Configure Connector'}
+          </SheetTitle>
+          <SheetDescription>
+            {step === 'type'
+              ? 'Select the type of connector you want to create'
+              : `Setting up ${selectedType} connector`
+            }
+          </SheetDescription>
+        </SheetHeader>
 
-          {/* Content */}
-          <div className="px-6 py-4 max-h-[calc(90vh-120px)] overflow-y-auto">
-            {step === 'type' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Only show implemented connector types */}
-                {[ConnectorType.GITHUB, ConnectorType.SLACK, ConnectorType.GOOGLE_DOCS, ConnectorType.JIRA, ConnectorType.NOTION, ConnectorType.ZOOM].map((type) => (
-                  <ConnectorTypeCard
+        <div className="flex-1 px-6 py-4 overflow-y-auto">
+          {step === 'type' ? (
+            <div className="grid grid-cols-1 gap-3">
+              {IMPLEMENTED_TYPES.map((type) => {
+                const config = CONNECTOR_CONFIGS[type]
+                if (!config) return null
+                const disabled = usedConnectorTypes.has(type)
+                return (
+                  <button
                     key={type}
-                    type={type}
-                    selected={selectedType === type}
-                    disabled={usedConnectorTypes.has(type)}
-                    onSelect={handleTypeSelect}
-                  />
-                ))}
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {/* OAuth Notice for OAuth-required connectors */}
-                {selectedType && requiresOAuth(selectedType) && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <Key className="h-5 w-5 text-amber-600 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-medium text-amber-900">
-                          OAuth Configuration Required
-                        </h4>
-                        <p className="text-sm text-amber-700 mt-1">
-                          This connector requires OAuth authentication. After creating the connector, 
-                          go to the <strong>OAuth Settings</strong> tab to configure your {selectedType} credentials.
+                    type="button"
+                    onClick={() => !disabled && handleTypeSelect(type)}
+                    disabled={disabled}
+                    className={cn(
+                      'p-4 border rounded-lg transition-all text-left w-full',
+                      disabled
+                        ? 'border-theme-default bg-theme-surface/50 opacity-50 cursor-not-allowed'
+                        : selectedType === type
+                        ? 'border-accent bg-accent/10'
+                        : 'border-theme-default hover:border-theme-hover bg-surface-elevated'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <ConnectorBadge type={type} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-theme-primary">{config.name}</h4>
+                        <p className="text-xs text-theme-muted mt-0.5">
+                          {disabled ? 'Already exists for this tenant' : config.description}
                         </p>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Tenant Selection (if not preselected) */}
-                {!preselectedTenant && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tenant *
-                    </label>
-                    <select {...register('tenant_slug')} className="input-field">
-                      <option value="">Select a tenant...</option>
-                      {tenants.map(tenant => (
-                        <option key={tenant.slug} value={tenant.slug}>
-                          {tenant.name} ({tenant.slug})
-                        </option>
-                      ))}
-                    </select>
-                    {errors.tenant_slug && (
-                      <p className="mt-1 text-sm text-error-600">{errors.tenant_slug.message}</p>
-                    )}
-                  </div>
-                )}
-
-
-                {/* Connector Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Connector Name *
-                  </label>
-                  <input
-                    {...register('name')}
-                    className="input-field"
-                    placeholder={`My ${selectedType} Connector`}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-error-600">{errors.name.message}</p>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    {...register('description')}
-                    className="input-field"
-                    rows={3}
-                    placeholder="Brief description of this connector..."
-                  />
-                  {errors.description && (
-                    <p className="mt-1 text-sm text-error-600">{errors.description.message}</p>
-                  )}
-                </div>
-
-                {/* Hidden field for connector type */}
-                <input type="hidden" {...register('connector_type')} />
-
-                {/* Footer */}
-                <div className="flex justify-between pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="btn-secondary"
-                  >
-                    Back
                   </button>
-                  <div className="flex space-x-3">
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="btn-primary"
-                    >
-                      {isSubmitting ? 'Creating...' : 'Create Connector'}
-                    </button>
+                )
+              })}
+            </div>
+          ) : (
+            <form id="connector-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {selectedType && requiresOAuth(selectedType) && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <Key className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-medium text-amber-300">
+                        OAuth Configuration Required
+                      </h4>
+                      <p className="text-sm text-amber-400/80 mt-1">
+                        After creating this connector, go to the <strong>OAuth Settings</strong> tab to configure your {selectedType} credentials.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </form>
-            )}
-          </div>
+              )}
+
+              {!preselectedTenant && (
+                <div>
+                  <label className="block text-sm font-medium text-theme-secondary mb-1">Tenant *</label>
+                  <select {...register('tenant_slug')} className="input-field">
+                    <option value="">Select a tenant...</option>
+                    {tenants.map(tenant => (
+                      <option key={tenant.slug} value={tenant.slug}>
+                        {tenant.name} ({tenant.slug})
+                      </option>
+                    ))}
+                  </select>
+                  {errors.tenant_slug && (
+                    <p className="mt-1 text-sm text-error-400">{errors.tenant_slug.message}</p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-theme-secondary mb-1">Connector Name *</label>
+                <input
+                  {...register('name')}
+                  className="input-field"
+                  placeholder={`My ${selectedType} Connector`}
+                />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-error-400">{errors.name.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-theme-secondary mb-1">Description</label>
+                <textarea
+                  {...register('description')}
+                  className="input-field"
+                  rows={3}
+                  placeholder="Brief description of this connector..."
+                />
+              </div>
+
+              <input type="hidden" {...register('connector_type')} />
+            </form>
+          )}
         </div>
-      </div>
-    </div>
+
+        {step === 'details' && (
+          <SheetFooter>
+            <Button type="button" variant="ghost" onClick={() => setStep('type')}>Back</Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
+              <Button type="submit" form="connector-form" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create Connector'}
+              </Button>
+            </div>
+          </SheetFooter>
+        )}
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   Search,
   Filter,
@@ -16,16 +16,39 @@ import { tenantsApi, connectorsApi } from '@/utils/api'
 import { ConnectorType } from '@/types'
 import { cn } from '@/utils/cn'
 import ConnectorModal from '@/components/ConnectorModal'
-import { GitHubLogo, SlackLogo, GoogleDocsLogo, JiraLogo, NotionLogo, ZoomLogo } from '@/components/icons/BrandLogos'
+import {
+  GitHubLogo, SlackLogo, GoogleDocsLogo, JiraLogo, NotionLogo, ZoomLogo,
+  GitLabLogo, BitbucketLogo, GoogleSheetsLogo, GmailLogo, GoogleSlidesLogo,
+  ConfluenceLogo, LinearLogo, TeamsLogo, DiscordLogo, OutlookLogo,
+  ExcelLogo, PowerPointLogo, CopilotLogo, ClaudeCodeLogo, CodexLogo,
+  CursorLogo, WindsurfLogo,
+} from '@/components/icons/BrandLogos'
 
 const ConnectorIcon = ({ type }: { type: ConnectorType }) => {
   const icons: Record<string, React.ComponentType<{ className?: string }>> = {
     [ConnectorType.GITHUB]: GitHubLogo,
+    [ConnectorType.GITLAB]: GitLabLogo,
+    [ConnectorType.BITBUCKET]: BitbucketLogo,
     [ConnectorType.SLACK]: SlackLogo,
     [ConnectorType.GOOGLE_DOCS]: GoogleDocsLogo,
+    [ConnectorType.GOOGLE_SHEETS]: GoogleSheetsLogo,
+    [ConnectorType.GMAIL]: GmailLogo,
+    [ConnectorType.GOOGLE_SLIDES]: GoogleSlidesLogo,
     [ConnectorType.JIRA]: JiraLogo,
     [ConnectorType.NOTION]: NotionLogo,
     [ConnectorType.ZOOM]: ZoomLogo,
+    [ConnectorType.CONFLUENCE]: ConfluenceLogo,
+    [ConnectorType.LINEAR]: LinearLogo,
+    [ConnectorType.TEAMS]: TeamsLogo,
+    [ConnectorType.DISCORD]: DiscordLogo,
+    [ConnectorType.OUTLOOK]: OutlookLogo,
+    [ConnectorType.EXCEL]: ExcelLogo,
+    [ConnectorType.POWERPOINT]: PowerPointLogo,
+    [ConnectorType.COPILOT]: CopilotLogo,
+    [ConnectorType.CLAUDE_CODE]: ClaudeCodeLogo,
+    [ConnectorType.CODEX]: CodexLogo,
+    [ConnectorType.CURSOR]: CursorLogo,
+    [ConnectorType.WINDSURF]: WindsurfLogo,
   }
 
   const Icon = icons[type] || Settings
@@ -174,9 +197,21 @@ const ConnectorTypeFilter = ({
     { value: ConnectorType.GITHUB, label: 'GitHub', icon: GitHubLogo },
     { value: ConnectorType.SLACK, label: 'Slack', icon: SlackLogo },
     { value: ConnectorType.GOOGLE_DOCS, label: 'Google Docs', icon: GoogleDocsLogo },
+    { value: ConnectorType.GOOGLE_SHEETS, label: 'Google Sheets', icon: GoogleSheetsLogo },
+    { value: ConnectorType.GMAIL, label: 'Gmail', icon: GmailLogo },
+    { value: ConnectorType.GOOGLE_SLIDES, label: 'Google Slides', icon: GoogleSlidesLogo },
     { value: ConnectorType.JIRA, label: 'Jira', icon: JiraLogo },
     { value: ConnectorType.NOTION, label: 'Notion', icon: NotionLogo },
     { value: ConnectorType.ZOOM, label: 'Zoom', icon: ZoomLogo },
+    { value: ConnectorType.OUTLOOK, label: 'Outlook', icon: OutlookLogo },
+    { value: ConnectorType.TEAMS, label: 'Teams', icon: TeamsLogo },
+    { value: ConnectorType.EXCEL, label: 'Excel', icon: ExcelLogo },
+    { value: ConnectorType.POWERPOINT, label: 'PowerPoint', icon: PowerPointLogo },
+    { value: ConnectorType.CONFLUENCE, label: 'Confluence', icon: ConfluenceLogo },
+    { value: ConnectorType.GITLAB, label: 'GitLab', icon: GitLabLogo },
+    { value: ConnectorType.BITBUCKET, label: 'Bitbucket', icon: BitbucketLogo },
+    { value: ConnectorType.LINEAR, label: 'Linear', icon: LinearLogo },
+    { value: ConnectorType.DISCORD, label: 'Discord', icon: DiscordLogo },
   ]
 
   return (
