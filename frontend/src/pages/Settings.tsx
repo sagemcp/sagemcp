@@ -15,19 +15,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 function SettingRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-zinc-800 last:border-0">
-      <span className="text-sm text-zinc-400">{label}</span>
-      <span className={`text-sm text-zinc-200 ${mono ? 'font-mono' : ''}`}>{value}</span>
+    <div className="flex items-center justify-between py-2.5 border-b border-theme-default last:border-0">
+      <span className="text-sm text-theme-secondary">{label}</span>
+      <span className={`text-sm text-theme-primary ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   )
 }
 
 function SettingSection({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-surface-elevated">
-      <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-800">
+    <div className="rounded-lg border border-theme-default bg-surface-elevated">
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-theme-default">
         <Icon className="h-4 w-4 text-accent" />
-        <h3 className="text-sm font-medium text-zinc-200">{title}</h3>
+        <h3 className="text-sm font-medium text-theme-primary">{title}</h3>
       </div>
       <div className="px-5 py-2">
         {children}
@@ -46,8 +46,8 @@ export default function Settings() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
-          <p className="text-sm text-zinc-500 mt-1">Platform configuration (read-only)</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Settings</h1>
+          <p className="text-sm text-theme-muted mt-1">Platform configuration (read-only)</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -63,8 +63,8 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
-        <p className="text-sm text-zinc-500 mt-1">Platform configuration (read-only)</p>
+        <h1 className="text-2xl font-bold text-theme-primary">Settings</h1>
+        <p className="text-sm text-theme-muted mt-1">Platform configuration (read-only)</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

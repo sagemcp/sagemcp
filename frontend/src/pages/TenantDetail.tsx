@@ -65,18 +65,18 @@ const ConnectionInfoDialog = ({
       <DialogContent onClose={() => onOpenChange(false)} className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Connection Info</DialogTitle>
-          <p className="text-sm text-zinc-400 mt-1">{connector.name}</p>
+          <p className="text-sm text-theme-secondary mt-1">{connector.name}</p>
         </DialogHeader>
         <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">MCP Endpoint</label>
+            <label className="block text-sm font-medium text-theme-secondary mb-2">MCP Endpoint</label>
             <EndpointDisplay url={mcpHttpUrl} protocol="HTTP" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Claude Desktop Config</label>
+            <label className="block text-sm font-medium text-theme-secondary mb-2">Claude Desktop Config</label>
             <CodeBlock code={claudeConfig} language="json" />
-            <p className="text-xs text-zinc-500 mt-2">
-              Add to: <code className="text-zinc-400">~/Library/Application Support/Claude/claude_desktop_config.json</code>
+            <p className="text-xs text-theme-muted mt-2">
+              Add to: <code className="text-theme-secondary">~/Library/Application Support/Claude/claude_desktop_config.json</code>
             </p>
           </div>
         </div>
@@ -104,9 +104,9 @@ const DeleteConfirmDialog = ({
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent onClose={() => onOpenChange(false)} className="max-w-md">
       <div className="px-6 py-4">
-        <h3 className="text-lg font-semibold text-zinc-100 mb-2">Delete Connector</h3>
-        <p className="text-sm text-zinc-400 mb-6">
-          Are you sure you want to delete <span className="font-medium text-zinc-200">"{connectorName}"</span>? This action cannot be undone.
+        <h3 className="text-lg font-semibold text-theme-primary mb-2">Delete Connector</h3>
+        <p className="text-sm text-theme-secondary mb-6">
+          Are you sure you want to delete <span className="font-medium text-theme-primary">"{connectorName}"</span>? This action cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isDeleting}>Cancel</Button>
@@ -238,13 +238,13 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
         tenantSlug={tenantSlug}
       />
 
-      <div className="rounded-lg border border-zinc-800 bg-surface-elevated self-start">
+      <div className="rounded-lg border border-theme-default bg-surface-elevated self-start">
         <div className="p-4">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-zinc-100">{connector.name}</h4>
-              <p className="text-xs text-zinc-500 capitalize">{connector.connector_type.replace('_', ' ')}</p>
+              <h4 className="font-medium text-theme-primary">{connector.name}</h4>
+              <p className="text-xs text-theme-muted capitalize">{connector.connector_type.replace('_', ' ')}</p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <Badge variant={connector.is_enabled ? 'healthy' : 'idle'}>
@@ -253,35 +253,35 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
               <button
                 onClick={() => toggleMutation.mutate()}
                 disabled={toggleMutation.isPending}
-                className="p-1 rounded hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                className="p-1 rounded hover:bg-theme-elevated disabled:opacity-50 transition-colors"
               >
                 {connector.is_enabled ? (
                   <ToggleRight className="h-5 w-5 text-success-400" />
                 ) : (
-                  <ToggleLeft className="h-5 w-5 text-zinc-500" />
+                  <ToggleLeft className="h-5 w-5 text-theme-muted" />
                 )}
               </button>
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="p-1 rounded hover:bg-zinc-800 text-zinc-500 transition-colors"
+                  className="p-1 rounded hover:bg-theme-elevated text-theme-muted transition-colors"
                 >
                   <MoreVertical className="h-4 w-4" />
                 </button>
                 {showMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                    <div className="absolute right-0 mt-1 w-40 rounded-md bg-zinc-800 border border-zinc-700 py-1 z-20 shadow-elevated">
+                    <div className="absolute right-0 mt-1 w-40 rounded-md bg-theme-elevated border border-theme-default py-1 z-20 shadow-elevated">
                       <button
                         onClick={() => { setShowEditModal(true); setShowMenu(false) }}
-                        className="flex items-center w-full px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                        className="flex items-center w-full px-3 py-2 text-sm text-theme-secondary hover:bg-theme-hover"
                       >
                         <Edit className="h-3.5 w-3.5 mr-2" />
                         Edit
                       </button>
                       <button
                         onClick={() => { setShowDeleteDialog(true); setShowMenu(false) }}
-                        className="flex items-center w-full px-3 py-2 text-sm text-error-400 hover:bg-zinc-700"
+                        className="flex items-center w-full px-3 py-2 text-sm text-error-400 hover:bg-theme-hover"
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-2" />
                         Delete
@@ -294,7 +294,7 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
           </div>
 
           {connector.description && (
-            <p className="text-sm text-zinc-400 mb-3">{connector.description}</p>
+            <p className="text-sm text-theme-secondary mb-3">{connector.description}</p>
           )}
 
           {/* Process Status */}
@@ -305,7 +305,7 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
           />
 
           {/* Actions */}
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-zinc-800">
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-theme-default">
             <button
               onClick={() => setShowConnectionInfo(true)}
               className="inline-flex items-center text-xs text-accent hover:text-accent-hover font-medium transition-colors"
@@ -315,7 +315,7 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
             </button>
             <button
               onClick={() => setShowTools(!showTools)}
-              className="inline-flex items-center text-xs text-zinc-400 hover:text-zinc-200 font-medium transition-colors"
+              className="inline-flex items-center text-xs text-theme-secondary hover:text-theme-primary font-medium transition-colors"
             >
               <Wrench className="h-3.5 w-3.5 mr-1" />
               Tools
@@ -326,7 +326,7 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
 
         {/* Expandable tools */}
         {showTools && (
-          <div className="border-t border-zinc-800 px-4 py-4 bg-zinc-900/50">
+          <div className="border-t border-theme-default px-4 py-4 bg-theme-surface/50">
             <ToolManagement
               tenantSlug={tenantSlug}
               connectorId={connector.id}
@@ -364,32 +364,32 @@ function SessionsTab({ tenantSlug }: { tenantSlug: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-zinc-800 overflow-hidden">
+    <div className="rounded-lg border border-theme-default overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900/50">
-            <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Session ID</th>
-            <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Connector</th>
-            <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Version</th>
-            <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Age</th>
-            <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Idle</th>
+          <tr className="border-b border-theme-default bg-theme-surface/50">
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-theme-muted uppercase tracking-wider">Session ID</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-theme-muted uppercase tracking-wider">Connector</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-theme-muted uppercase tracking-wider">Version</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-theme-muted uppercase tracking-wider">Age</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-theme-muted uppercase tracking-wider">Idle</th>
             <th className="text-right px-4 py-2.5"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800">
           {sessions.map((session) => (
-            <tr key={session.session_id} className="hover:bg-zinc-800/50 transition-colors">
-              <td className="px-4 py-3 font-mono text-xs text-zinc-400">{session.session_id.slice(0, 12)}...</td>
-              <td className="px-4 py-3 text-zinc-300">{session.connector_id}</td>
+            <tr key={session.session_id} className="hover:bg-theme-elevated/50 transition-colors">
+              <td className="px-4 py-3 font-mono text-xs text-theme-secondary">{session.session_id.slice(0, 12)}...</td>
+              <td className="px-4 py-3 text-theme-secondary">{session.connector_id}</td>
               <td className="px-4 py-3">
                 {session.negotiated_version ? (
                   <Badge variant="accent">{session.negotiated_version}</Badge>
                 ) : (
-                  <span className="text-zinc-500">—</span>
+                  <span className="text-theme-muted">—</span>
                 )}
               </td>
-              <td className="px-4 py-3 text-zinc-400">{Math.round(session.created_at)}s</td>
-              <td className="px-4 py-3 text-zinc-400">{Math.round(session.last_access)}s</td>
+              <td className="px-4 py-3 text-theme-secondary">{Math.round(session.created_at)}s</td>
+              <td className="px-4 py-3 text-theme-secondary">{Math.round(session.last_access)}s</td>
               <td className="px-4 py-3 text-right">
                 <Button
                   variant="ghost"
@@ -465,17 +465,17 @@ export default function TenantDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/tenants" className="p-2 rounded-md hover:bg-zinc-800 transition-colors">
-            <ArrowLeft className="h-5 w-5 text-zinc-400" />
+          <Link to="/tenants" className="p-2 rounded-md hover:bg-theme-elevated transition-colors">
+            <ArrowLeft className="h-5 w-5 text-theme-secondary" />
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-zinc-100">{tenant.name}</h1>
+              <h1 className="text-2xl font-bold text-theme-primary">{tenant.name}</h1>
               <Badge variant={tenant.is_active ? 'healthy' : 'idle'}>
                 {tenant.is_active ? 'Active' : 'Inactive'}
               </Badge>
             </div>
-            <p className="text-sm text-zinc-500 font-mono mt-0.5">{tenant.slug}</p>
+            <p className="text-sm text-theme-muted font-mono mt-0.5">{tenant.slug}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -506,44 +506,44 @@ export default function TenantDetail() {
         <TabsContent value="overview">
           <div className="space-y-6">
             {/* Endpoint */}
-            <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-6">
-              <h3 className="text-sm font-medium text-zinc-200 mb-3">MCP Endpoint</h3>
+            <div className="rounded-lg border border-theme-default bg-surface-elevated p-6">
+              <h3 className="text-sm font-medium text-theme-primary mb-3">MCP Endpoint</h3>
               <EndpointDisplay url={mcpEndpoint} protocol="Streamable HTTP" />
               {tenant.description && (
-                <p className="text-sm text-zinc-400 mt-4">{tenant.description}</p>
+                <p className="text-sm text-theme-secondary mt-4">{tenant.description}</p>
               )}
               {tenant.contact_email && (
-                <p className="text-xs text-zinc-500 mt-2">Contact: {tenant.contact_email}</p>
+                <p className="text-xs text-theme-muted mt-2">Contact: {tenant.contact_email}</p>
               )}
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-5">
+              <div className="rounded-lg border border-theme-default bg-surface-elevated p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-400">Total Connectors</p>
-                    <p className="text-2xl font-bold font-mono text-zinc-100 mt-1">{connectors.length}</p>
+                    <p className="text-sm text-theme-secondary">Total Connectors</p>
+                    <p className="text-2xl font-bold font-mono text-theme-primary mt-1">{connectors.length}</p>
                   </div>
                   <Plug className="h-8 w-8 text-accent/60" />
                 </div>
               </div>
-              <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-5">
+              <div className="rounded-lg border border-theme-default bg-surface-elevated p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-400">Active</p>
-                    <p className="text-2xl font-bold font-mono text-zinc-100 mt-1">
+                    <p className="text-sm text-theme-secondary">Active</p>
+                    <p className="text-2xl font-bold font-mono text-theme-primary mt-1">
                       {connectors.filter((c: any) => c.is_enabled).length}
                     </p>
                   </div>
                   <StatusDot variant="healthy" size="lg" />
                 </div>
               </div>
-              <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-5">
+              <div className="rounded-lg border border-theme-default bg-surface-elevated p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-400">Types</p>
-                    <p className="text-2xl font-bold font-mono text-zinc-100 mt-1">
+                    <p className="text-sm text-theme-secondary">Types</p>
+                    <p className="text-2xl font-bold font-mono text-theme-primary mt-1">
                       {new Set(connectors.map((c: any) => c.connector_type)).size}
                     </p>
                   </div>
@@ -554,19 +554,19 @@ export default function TenantDetail() {
 
             {/* Claude Desktop config */}
             {connectors.length > 0 && (
-              <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-6">
+              <div className="rounded-lg border border-theme-default bg-surface-elevated p-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-3">
                   <div>
-                    <h3 className="text-sm font-medium text-zinc-200">Client Config</h3>
-                    <p className="text-xs text-zinc-500 mt-1">{CONFIG_PRESETS[configPreset].description}</p>
+                    <h3 className="text-sm font-medium text-theme-primary">Client Config</h3>
+                    <p className="text-xs text-theme-muted mt-1">{CONFIG_PRESETS[configPreset].description}</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full md:w-auto md:min-w-[420px]">
-                    <label className="text-xs text-zinc-400">
+                    <label className="text-xs text-theme-secondary">
                       Client preset
                       <select
                         value={configPreset}
                         onChange={(e) => setConfigPreset(e.target.value as ClientConfigPreset)}
-                        className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-200"
+                        className="mt-1 w-full rounded-md border border-theme-default bg-theme-surface px-2 py-1.5 text-sm text-theme-primary"
                       >
                         {Object.entries(CONFIG_PRESETS).map(([value, item]) => (
                           <option key={value} value={value}>
@@ -575,12 +575,12 @@ export default function TenantDetail() {
                         ))}
                       </select>
                     </label>
-                    <label className="text-xs text-zinc-400">
+                    <label className="text-xs text-theme-secondary">
                       Connection mode
                       <select
                         value={transportMode}
                         onChange={(e) => setTransportMode(e.target.value as TransportMode)}
-                        className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-200"
+                        className="mt-1 w-full rounded-md border border-theme-default bg-theme-surface px-2 py-1.5 text-sm text-theme-primary"
                       >
                         <option value="direct">Direct Streamable HTTP/WS</option>
                         <option value="mcp_remote">Via mcp-remote</option>
@@ -592,7 +592,7 @@ export default function TenantDetail() {
                   language="json"
                   code={buildTenantConfigCode(connectors, tenant.slug, configPreset, transportMode)}
                 />
-                <p className="text-xs text-zinc-500 mt-2">{CONFIG_PRESETS[configPreset].locationHint}</p>
+                <p className="text-xs text-theme-muted mt-2">{CONFIG_PRESETS[configPreset].locationHint}</p>
               </div>
             )}
           </div>
@@ -602,7 +602,7 @@ export default function TenantDetail() {
         <TabsContent value="connectors">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-200">Connectors</h3>
+              <h3 className="text-sm font-medium text-theme-primary">Connectors</h3>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setShowConnectorModal(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -637,7 +637,7 @@ export default function TenantDetail() {
           <div className="space-y-6">
             {connectors.length > 0 ? (
               connectors.map((connector: any) => (
-                <div key={connector.id} className="rounded-lg border border-zinc-800 bg-surface-elevated p-6">
+                <div key={connector.id} className="rounded-lg border border-theme-default bg-surface-elevated p-6">
                   <ToolManagement
                     tenantSlug={slug!}
                     connectorId={connector.id}
@@ -664,8 +664,8 @@ export default function TenantDetail() {
         <TabsContent value="oauth">
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-zinc-200">OAuth Configuration</h3>
-              <p className="text-xs text-zinc-500 mt-1">Configure OAuth providers for this tenant</p>
+              <h3 className="text-sm font-medium text-theme-primary">OAuth Configuration</h3>
+              <p className="text-xs text-theme-muted mt-1">Configure OAuth providers for this tenant</p>
             </div>
             <OAuthManager tenantSlug={slug!} />
           </div>

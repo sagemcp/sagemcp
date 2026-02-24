@@ -428,7 +428,7 @@ export default function MCPTesting() {
               <textarea
                 value={requestBody}
                 onChange={(e) => setRequestBody(e.target.value)}
-                className="w-full h-64 font-mono text-sm bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:border-accent focus:ring-1 focus:ring-accent"
+                className="w-full h-64 font-mono text-sm bg-theme-surface border border-theme-hover rounded-lg p-3 text-theme-primary placeholder:text-theme-muted focus:border-accent focus:ring-1 focus:ring-accent"
                 placeholder="Enter your MCP request JSON..."
               />
 

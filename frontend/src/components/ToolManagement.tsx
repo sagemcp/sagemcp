@@ -134,17 +134,17 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-zinc-100">
+          <h3 className="text-base font-semibold text-theme-primary">
             Tools for {connectorName}
           </h3>
-          <p className="text-sm text-zinc-500 mt-0.5">
+          <p className="text-sm text-theme-muted mt-0.5">
             {toolsData.summary.enabled} of {toolsData.summary.total} tools enabled
           </p>
         </div>
       </div>
 
       {/* Bulk Actions */}
-      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-zinc-800 bg-surface-elevated">
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-theme-default bg-surface-elevated">
         <Button
           variant="ghost"
           size="sm"
@@ -180,7 +180,7 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
 
         <div className="ml-auto flex items-center gap-2 flex-1 max-w-xs">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-theme-muted" />
             <input
               type="text"
               placeholder="Search tools..."
@@ -193,10 +193,10 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
       </div>
 
       {/* Tools List */}
-      <div className="border border-zinc-800 rounded-lg overflow-hidden">
+      <div className="border border-theme-default rounded-lg overflow-hidden">
         <div className="divide-y divide-zinc-800 max-h-[500px] overflow-y-auto">
           {filteredTools.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500">
+            <div className="p-8 text-center text-theme-muted">
               {searchQuery ? 'No tools match your search' : 'No tools available'}
             </div>
           ) : (
@@ -204,7 +204,7 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
               <div
                 key={tool.tool_name}
                 className={cn(
-                  "p-4 hover:bg-zinc-800/50 transition-colors",
+                  "p-4 hover:bg-theme-elevated/50 transition-colors",
                   !tool.is_enabled && "opacity-50"
                 )}
               >
@@ -213,7 +213,7 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
                     <div className="flex items-center gap-2">
                       <h4 className={cn(
                         "text-sm font-medium font-mono truncate",
-                        tool.is_enabled ? "text-zinc-100" : "text-zinc-500"
+                        tool.is_enabled ? "text-theme-primary" : "text-theme-muted"
                       )}>
                         {tool.tool_name}
                       </h4>
@@ -225,7 +225,7 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
                       )}
                     </div>
                     {tool.description && (
-                      <p className="text-xs text-zinc-500 mt-1 line-clamp-2">
+                      <p className="text-xs text-theme-muted mt-1 line-clamp-2">
                         {tool.description}
                       </p>
                     )}
@@ -238,7 +238,7 @@ export default function ToolManagement({ tenantSlug, connectorId, connectorName 
                       "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border",
                       tool.is_enabled
                         ? "bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20"
-                        : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700",
+                        : "bg-theme-elevated border-theme-default text-theme-muted hover:bg-theme-hover",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                     title={tool.is_enabled ? 'Disable tool' : 'Enable tool'}

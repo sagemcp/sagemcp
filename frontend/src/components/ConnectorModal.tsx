@@ -168,17 +168,17 @@ export default function ConnectorModal({
                     className={cn(
                       'p-4 border rounded-lg transition-all text-left w-full',
                       disabled
-                        ? 'border-zinc-800 bg-zinc-900/50 opacity-50 cursor-not-allowed'
+                        ? 'border-theme-default bg-theme-surface/50 opacity-50 cursor-not-allowed'
                         : selectedType === type
                         ? 'border-accent bg-accent/10'
-                        : 'border-zinc-800 hover:border-zinc-600 bg-surface-elevated'
+                        : 'border-theme-default hover:border-theme-hover bg-surface-elevated'
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <ConnectorBadge type={type} size="sm" />
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-zinc-100">{config.name}</h4>
-                        <p className="text-xs text-zinc-500 mt-0.5">
+                        <h4 className="text-sm font-medium text-theme-primary">{config.name}</h4>
+                        <p className="text-xs text-theme-muted mt-0.5">
                           {disabled ? 'Already exists for this tenant' : config.description}
                         </p>
                       </div>
@@ -207,7 +207,7 @@ export default function ConnectorModal({
 
               {!preselectedTenant && (
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">Tenant *</label>
+                  <label className="block text-sm font-medium text-theme-secondary mb-1">Tenant *</label>
                   <select {...register('tenant_slug')} className="input-field">
                     <option value="">Select a tenant...</option>
                     {tenants.map(tenant => (
@@ -223,7 +223,7 @@ export default function ConnectorModal({
               )}
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">Connector Name *</label>
+                <label className="block text-sm font-medium text-theme-secondary mb-1">Connector Name *</label>
                 <input
                   {...register('name')}
                   className="input-field"
@@ -235,7 +235,7 @@ export default function ConnectorModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
+                <label className="block text-sm font-medium text-theme-secondary mb-1">Description</label>
                 <textarea
                   {...register('description')}
                   className="input-field"

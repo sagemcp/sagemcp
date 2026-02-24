@@ -45,8 +45,8 @@ export default function Pool() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Server Pool</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-2xl font-bold text-theme-primary">Server Pool</h1>
+          <p className="text-sm text-theme-muted mt-1">
             Cached MCP server instances — LRU eviction with TTL expiry
           </p>
         </div>
@@ -101,14 +101,14 @@ export default function Pool() {
 
       {/* Pool utilization bar */}
       {summary && summary.max_size > 0 && (
-        <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-4">
+        <div className="rounded-lg border border-theme-default bg-surface-elevated p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-zinc-300">Pool Utilization</span>
-            <span className="text-xs text-zinc-500">
+            <span className="text-sm font-medium text-theme-secondary">Pool Utilization</span>
+            <span className="text-xs text-theme-muted">
               {summary.total} / {summary.max_size} slots
             </span>
           </div>
-          <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+          <div className="h-2 rounded-full bg-theme-elevated overflow-hidden">
             <div
               className="h-full rounded-full bg-accent transition-all duration-500"
               style={{ width: `${Math.min(100, (summary.total / summary.max_size) * 100)}%` }}
@@ -117,15 +117,15 @@ export default function Pool() {
           <div className="flex items-center gap-4 mt-3">
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-              <span className="text-xs text-zinc-400">Healthy ({summary.by_status.healthy})</span>
+              <span className="text-xs text-theme-secondary">Healthy ({summary.by_status.healthy})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-              <span className="text-xs text-zinc-400">Expiring ({summary.by_status.expiring})</span>
+              <span className="text-xs text-theme-secondary">Expiring ({summary.by_status.expiring})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-              <span className="text-xs text-zinc-400">Expired ({summary.by_status.expired})</span>
+              <span className="text-xs text-theme-secondary">Expired ({summary.by_status.expired})</span>
             </div>
           </div>
         </div>
@@ -133,8 +133,8 @@ export default function Pool() {
 
       {/* Tenant breakdown */}
       {summary && Object.keys(summary.by_tenant).length > 0 && (
-        <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-4">
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">By Tenant</h3>
+        <div className="rounded-lg border border-theme-default bg-surface-elevated p-4">
+          <h3 className="text-sm font-medium text-theme-secondary mb-3">By Tenant</h3>
           <div className="flex flex-wrap gap-2">
             {Object.entries(summary.by_tenant)
               .sort(([, a], [, b]) => b - a)
@@ -148,10 +148,10 @@ export default function Pool() {
       )}
 
       {/* Pool Grid */}
-      <div className="rounded-lg border border-zinc-800 bg-surface-elevated p-4">
+      <div className="rounded-lg border border-theme-default bg-surface-elevated p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-zinc-300">Instance Grid</h3>
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+          <h3 className="text-sm font-medium text-theme-secondary">Instance Grid</h3>
+          <div className="flex items-center gap-1.5 text-xs text-theme-muted">
             <Clock className="h-3 w-3" />
             Refreshes every 5s
           </div>

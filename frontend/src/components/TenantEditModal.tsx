@@ -68,7 +68,7 @@ export default function TenantEditModal({ isOpen, onClose, tenant }: TenantEditM
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-theme-secondary mb-1">
                 Name <span className="text-error-400">*</span>
               </label>
               <input
@@ -82,18 +82,18 @@ export default function TenantEditModal({ isOpen, onClose, tenant }: TenantEditM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Slug</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Slug</label>
               <input
                 type="text"
                 value={tenant.slug}
                 readOnly
-                className="input-field bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                className="input-field bg-theme-elevated text-theme-muted cursor-not-allowed"
               />
-              <p className="text-xs text-zinc-600 mt-1">Slug cannot be changed after creation</p>
+              <p className="text-xs text-theme-muted mt-1">Slug cannot be changed after creation</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Description</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -104,7 +104,7 @@ export default function TenantEditModal({ isOpen, onClose, tenant }: TenantEditM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Contact Email</label>
+              <label className="block text-sm font-medium text-theme-secondary mb-1">Contact Email</label>
               <input
                 type="email"
                 value={formData.contact_email}
@@ -120,9 +120,9 @@ export default function TenantEditModal({ isOpen, onClose, tenant }: TenantEditM
                 id="is_active"
                 checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-accent focus:ring-accent"
+                className="h-4 w-4 rounded border-theme-hover bg-theme-elevated text-accent focus:ring-accent"
               />
-              <label htmlFor="is_active" className="ml-2 block text-sm text-zinc-300">
+              <label htmlFor="is_active" className="ml-2 block text-sm text-theme-secondary">
                 Active
               </label>
             </div>
