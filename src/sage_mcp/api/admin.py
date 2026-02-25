@@ -18,7 +18,9 @@ from ..models.mcp_process import MCPProcess, ProcessStatus
 from ..models.tenant import Tenant
 from ..connectors.registry import connector_registry
 from ..runtime import process_manager
-from ..security.auth import require_scope, require_tenant_access
+from ..security.audit import record_audit
+from ..security.auth import AuthContext, get_auth_context, require_scope, require_tenant_access, require_permission
+from ..security.permissions import Permission
 
 logger = logging.getLogger(__name__)
 
@@ -180,11 +182,16 @@ async def populate_tools_for_connector(connector: Connector, session: AsyncSessi
     "/tenants",
     response_model=TenantResponse,
     status_code=201,
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+        Depends(require_permission(Permission.TENANT_CREATE)),
+    ],
 )
 async def create_tenant(
     tenant_data: TenantCreate,
-    session: AsyncSession = Depends(get_db_session)
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Create a new tenant."""
     # Check if tenant slug already exists
@@ -208,13 +215,22 @@ async def create_tenant(
     await session.commit()
     await session.refresh(tenant)
 
+    record_audit(
+        "tenant.create", auth, request,
+        resource_type="tenant", resource_id=str(tenant.id),
+        details={"slug": tenant.slug},
+    )
+
     return tenant
 
 
 @router.get(
     "/tenants",
     response_model=List[TenantResponse],
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+        Depends(require_permission(Permission.TENANT_READ)),
+    ],
 )
 async def list_tenants(
     session: AsyncSession = Depends(get_db_session)
@@ -231,7 +247,10 @@ async def list_tenants(
 @router.get(
     "/tenants/{tenant_slug}",
     response_model=TenantResponse,
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+        Depends(require_permission(Permission.TENANT_READ)),
+    ],
 )
 async def get_tenant(
     tenant_slug: str,
@@ -258,12 +277,15 @@ async def get_tenant(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.CONNECTOR_CREATE)),
     ],
 )
 async def create_connector(
     tenant_slug: str,
     connector_data: ConnectorCreate,
-    session: AsyncSession = Depends(get_db_session)
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Create a new connector for a tenant."""
     from sqlalchemy import select
@@ -321,13 +343,24 @@ async def create_connector(
     # Auto-populate all tools for this connector (all enabled by default)
     await populate_tools_for_connector(connector, session)
 
+    record_audit(
+        "connector.create", auth, request,
+        resource_type="connector", resource_id=str(connector.id),
+        tenant_id=str(tenant.id),
+        details={"name": connector.name, "type": connector_data.connector_type.value},
+    )
+
     return connector
 
 
 @router.get(
     "/tenants/{tenant_slug}/connectors",
     response_model=List[ConnectorResponse],
-    dependencies=[Depends(require_tenant_access())],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN, APIKeyScope.TENANT_USER)),
+        Depends(require_tenant_access()),
+        Depends(require_permission(Permission.CONNECTOR_READ)),
+    ],
 )
 async def list_connectors(
     tenant_slug: str,
@@ -356,11 +389,16 @@ async def list_connectors(
 
 @router.delete(
     "/tenants/{tenant_slug}",
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+        Depends(require_permission(Permission.TENANT_DELETE)),
+    ],
 )
 async def delete_tenant(
     tenant_slug: str,
-    session: AsyncSession = Depends(get_db_session)
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Delete a tenant and all its connectors."""
     from sqlalchemy import select, delete
@@ -374,6 +412,8 @@ async def delete_tenant(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
+    tenant_id_str = str(tenant.id)
+
     # Delete all connectors for this tenant first
     await session.execute(
         delete(Connector).where(Connector.tenant_id == tenant.id)
@@ -386,6 +426,12 @@ async def delete_tenant(
 
     await session.commit()
 
+    record_audit(
+        "tenant.delete", auth, request,
+        resource_type="tenant", resource_id=tenant_id_str,
+        details={"slug": tenant_slug},
+    )
+
     return {
         "message": (
             f"Tenant '{tenant_slug}' and all its connectors "
@@ -397,12 +443,17 @@ async def delete_tenant(
 @router.put(
     "/tenants/{tenant_slug}",
     response_model=TenantResponse,
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+        Depends(require_permission(Permission.TENANT_UPDATE)),
+    ],
 )
 async def update_tenant(
     tenant_slug: str,
     tenant_data: TenantCreate,
-    session: AsyncSession = Depends(get_db_session)
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Update a tenant."""
     from sqlalchemy import select, update
@@ -430,13 +481,22 @@ async def update_tenant(
     await session.commit()
     await session.refresh(tenant)
 
+    record_audit(
+        "tenant.update", auth, request,
+        resource_type="tenant", resource_id=str(tenant.id),
+        details={"slug": tenant_slug},
+    )
+
     return tenant
 
 
 @router.get(
     "/tenants/{tenant_slug}/connectors/{connector_id}",
     response_model=ConnectorResponse,
-    dependencies=[Depends(require_tenant_access())],
+    dependencies=[
+        Depends(require_tenant_access()),
+        Depends(require_permission(Permission.CONNECTOR_READ)),
+    ],
 )
 async def get_connector(
     tenant_slug: str,
@@ -476,6 +536,7 @@ async def get_connector(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.CONNECTOR_UPDATE)),
     ],
 )
 async def update_connector(
@@ -483,7 +544,8 @@ async def update_connector(
     connector_id: str,
     connector_data: ConnectorCreate,
     request: Request,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Update a connector."""
     from sqlalchemy import select, update
@@ -526,6 +588,13 @@ async def update_connector(
 
     _invalidate_pool(request, tenant_slug, connector_id)
 
+    record_audit(
+        "connector.update", auth, request,
+        resource_type="connector", resource_id=connector_id,
+        tenant_id=str(tenant.id),
+        details={"name": connector_data.name},
+    )
+
     return connector
 
 
@@ -534,13 +603,15 @@ async def update_connector(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.CONNECTOR_DELETE)),
     ],
 )
 async def delete_connector(
     tenant_slug: str,
     connector_id: str,
     request: Request,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Delete a connector."""
     from sqlalchemy import select, delete
@@ -566,6 +637,8 @@ async def delete_connector(
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
 
+    connector_name = connector.name
+
     # Delete connector
     await session.execute(
         delete(Connector).where(Connector.id == connector_id)
@@ -575,8 +648,15 @@ async def delete_connector(
 
     _invalidate_pool(request, tenant_slug, connector_id)
 
+    record_audit(
+        "connector.delete", auth, request,
+        resource_type="connector", resource_id=connector_id,
+        tenant_id=str(tenant.id),
+        details={"name": connector_name},
+    )
+
     return {
-        "message": f"Connector '{connector.name}' has been deleted"
+        "message": f"Connector '{connector_name}' has been deleted"
     }
 
 
@@ -586,6 +666,7 @@ async def delete_connector(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.CONNECTOR_UPDATE)),
     ],
 )
 async def toggle_connector(
@@ -641,6 +722,7 @@ async def toggle_connector(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
     ],
 )
 async def list_connector_tools(
@@ -729,7 +811,10 @@ async def list_connector_tools(
 @router.get(
     "/connectors/{connector_id}/tools",
     response_model=ToolsListResponse,
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
+    ],
 )
 async def list_connector_tools_legacy(
     connector_id: str,
@@ -771,6 +856,7 @@ async def list_connector_tools_legacy(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
     ],
 )
 async def toggle_tool(
@@ -779,7 +865,8 @@ async def toggle_tool(
     tool_name: str,
     request: ToolToggleRequest,
     http_request: Request,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    auth: Optional[AuthContext] = Depends(get_auth_context),
 ):
     """Toggle a specific tool's enabled/disabled state."""
     from sqlalchemy import select
@@ -832,6 +919,13 @@ async def toggle_tool(
 
     _invalidate_pool(http_request, tenant_slug, connector_id)
 
+    record_audit(
+        "tool.toggle", auth, http_request,
+        resource_type="tool", resource_id=tool_name,
+        tenant_id=str(tenant.id),
+        details={"connector_id": connector_id, "is_enabled": request.is_enabled},
+    )
+
     return ToolStateResponse(
         tool_name=tool_state.tool_name,
         is_enabled=tool_state.is_enabled
@@ -844,6 +938,7 @@ async def toggle_tool(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
     ],
 )
 async def bulk_update_tools(
@@ -919,6 +1014,7 @@ async def bulk_update_tools(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
     ],
 )
 async def enable_all_tools(
@@ -975,6 +1071,7 @@ async def enable_all_tools(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
     ],
 )
 async def disable_all_tools(
@@ -1031,6 +1128,7 @@ async def disable_all_tools(
     dependencies=[
         Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
         Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CONFIGURE)),
     ],
 )
 async def sync_connector_tools(
@@ -1146,23 +1244,37 @@ async def sync_connector_tools(
 @router.get(
     "/connectors/{connector_id}/process/status",
     response_model=Optional[ProcessStatusResponse],
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_permission(Permission.PROCESS_MANAGE)),
+    ],
 )
 async def get_process_status(
     connector_id: str,
-    session: AsyncSession = Depends(get_db_session)
+    auth: Optional[AuthContext] = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_db_session),
 ):
     """Get the status of an external MCP server process."""
     from sqlalchemy import select
 
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
     # Get connector
     connector_result = await session.execute(
-        select(Connector).where(Connector.id == connector_id)
+        select(Connector).where(Connector.id == connector_uuid)
     )
     connector = connector_result.scalar_one_or_none()
 
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
+
+    # Tenant isolation: non-platform_admin keys can only access their own tenant's connectors
+    if auth is not None and auth.scope != APIKeyScope.PLATFORM_ADMIN and auth.tenant_id:
+        if auth.tenant_id != str(connector.tenant_id):
+            raise HTTPException(status_code=403, detail="Access denied to this tenant's connector")
 
     # Check if this is an external MCP connector
     if connector.runtime_type == ConnectorRuntimeType.NATIVE:
@@ -1242,23 +1354,37 @@ async def get_process_status(
 
 @router.post(
     "/connectors/{connector_id}/process/restart",
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_permission(Permission.PROCESS_MANAGE)),
+    ],
 )
 async def restart_process(
     connector_id: str,
-    session: AsyncSession = Depends(get_db_session)
+    auth: Optional[AuthContext] = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_db_session),
 ):
     """Restart an external MCP server process."""
     from sqlalchemy import select, update, func
 
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
     # Get connector
     connector_result = await session.execute(
-        select(Connector).where(Connector.id == connector_id)
+        select(Connector).where(Connector.id == connector_uuid)
     )
     connector = connector_result.scalar_one_or_none()
 
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
+
+    # Tenant isolation: non-platform_admin keys can only access their own tenant's connectors
+    if auth is not None and auth.scope != APIKeyScope.PLATFORM_ADMIN and auth.tenant_id:
+        if auth.tenant_id != str(connector.tenant_id):
+            raise HTTPException(status_code=403, detail="Access denied to this tenant's connector")
 
     # Check if this is an external MCP connector
     if connector.runtime_type == ConnectorRuntimeType.NATIVE:
@@ -1314,23 +1440,37 @@ async def restart_process(
 
 @router.delete(
     "/connectors/{connector_id}/process",
-    dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN))],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_permission(Permission.PROCESS_MANAGE)),
+    ],
 )
 async def terminate_process(
     connector_id: str,
-    session: AsyncSession = Depends(get_db_session)
+    auth: Optional[AuthContext] = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_db_session),
 ):
     """Terminate an external MCP server process."""
     from sqlalchemy import select
 
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
     # Get connector
     connector_result = await session.execute(
-        select(Connector).where(Connector.id == connector_id)
+        select(Connector).where(Connector.id == connector_uuid)
     )
     connector = connector_result.scalar_one_or_none()
 
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
+
+    # Tenant isolation: non-platform_admin keys can only access their own tenant's connectors
+    if auth is not None and auth.scope != APIKeyScope.PLATFORM_ADMIN and auth.tenant_id:
+        if auth.tenant_id != str(connector.tenant_id):
+            raise HTTPException(status_code=403, detail="Access denied to this tenant's connector")
 
     # Check if this is an external MCP connector
     if connector.runtime_type == ConnectorRuntimeType.NATIVE:

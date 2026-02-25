@@ -6,10 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy import text
 
 from ..models.base import Base
+from ..models.audit_log import AuditLog
 from ..models.connector_tool_state import ConnectorToolState
+from ..models.tool_policy import GlobalToolPolicy
 from ..models.mcp_process import MCPProcess
 from ..models.mcp_server_registry import MCPServerRegistry, DiscoveryJob, MCPInstallation
 from ..models.tool_usage_daily import ToolUsageDaily
+from ..models.user import User, UserTenantMembership, RefreshToken
 from .connection import db_manager
 
 logger = logging.getLogger(__name__)
@@ -502,3 +505,78 @@ async def upgrade_create_api_keys_table(engine: AsyncEngine = None):
             lambda sync_conn: APIKey.__table__.create(sync_conn, checkfirst=True)
         )
     logger.debug("api_keys table ready")
+
+
+async def upgrade_create_audit_logs_table(engine: AsyncEngine = None):
+    """Migration: Create the audit_logs table for security audit trail."""
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            lambda sync_conn: AuditLog.__table__.create(sync_conn, checkfirst=True)
+        )
+    logger.debug("audit_logs table ready")
+
+
+async def upgrade_create_global_tool_policies_table(engine: AsyncEngine = None):
+    """Migration: Create the global_tool_policies table for platform governance."""
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            lambda sync_conn: GlobalToolPolicy.__table__.create(
+                sync_conn, checkfirst=True
+            )
+        )
+    logger.debug("global_tool_policies table ready")
+
+
+async def upgrade_create_users_tables(engine: AsyncEngine = None):
+    """Migration: Create users and user_tenant_memberships tables for RBAC.
+
+    Creates two tables:
+    1. users — User identity (email, password_hash, auth_provider)
+    2. user_tenant_memberships — Maps users to tenants with a role
+
+    Safe to run on existing databases — uses checkfirst=True.
+    """
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            lambda sync_conn: User.__table__.create(sync_conn, checkfirst=True)
+        )
+        await conn.run_sync(
+            lambda sync_conn: UserTenantMembership.__table__.create(
+                sync_conn, checkfirst=True
+            )
+        )
+    logger.debug("users and user_tenant_memberships tables ready")
+
+
+async def upgrade_create_refresh_tokens_table(engine: AsyncEngine = None):
+    """Migration: Create refresh_tokens table for JWT token rotation.
+
+    Safe to run on existing databases — uses checkfirst=True.
+    """
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            lambda sync_conn: RefreshToken.__table__.create(
+                sync_conn, checkfirst=True
+            )
+        )
+    logger.debug("refresh_tokens table ready")

@@ -1,8 +1,10 @@
-"""API key authentication and authorization.
+"""API key and JWT authentication and authorization.
 
 Feature-flagged via ``SAGEMCP_ENABLE_AUTH``. When disabled, all checks pass through.
 
-Hot-path optimisation: SHA256-keyed LRU cache avoids repeated bcrypt verifies (~100ms each).
+Hot-path optimisation: JWT decode is tried first (~0.1ms, no DB) before falling
+back to API key lookup with SHA256-keyed LRU cache to avoid repeated bcrypt
+verifies (~100ms each).
 """
 
 import hashlib
@@ -11,11 +13,12 @@ import secrets
 import threading
 import time
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import Depends, HTTPException, Request, WebSocket
+from jose import JWTError
 from starlette.websockets import WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import get_settings
 from ..database.connection import get_db_context, get_db_session
 from ..models.api_key import APIKey, APIKeyScope
+from .tokens import decode_token
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +58,18 @@ SCOPE_HIERARCHY: dict[APIKeyScope, set[APIKeyScope]] = {
 
 @dataclass(frozen=True)
 class AuthContext:
-    """Resolved identity from a valid API key."""
+    """Resolved identity from a valid API key or JWT token.
+
+    When authenticated via API key: ``user_id`` and ``email`` are ``None``.
+    When authenticated via JWT: ``user_id`` and ``email`` are populated from
+    token claims; ``key_id`` is set to ``"jwt:<user_id>"``.
+    """
     key_id: str
     name: str
     scope: APIKeyScope
     tenant_id: Optional[str]  # UUID as string, or None for platform-wide
+    user_id: Optional[str] = None
+    email: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +120,97 @@ def clear_auth_cache() -> None:
     """Clear the entire auth cache (used on key revocation)."""
     with _cache_lock:
         _cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# JWT authentication (fast path — no DB query)
+# ---------------------------------------------------------------------------
+
+# Maps TenantRole values → APIKeyScope. TenantRole has finer granularity
+# (tenant_member, tenant_viewer) which collapse to TENANT_USER for AuthContext.
+_ROLE_TO_SCOPE: Dict[str, APIKeyScope] = {
+    "platform_admin": APIKeyScope.PLATFORM_ADMIN,
+    "tenant_admin": APIKeyScope.TENANT_ADMIN,
+    "tenant_member": APIKeyScope.TENANT_USER,
+    "tenant_viewer": APIKeyScope.TENANT_USER,
+    "tenant_user": APIKeyScope.TENANT_USER,
+}
+
+# Lower index = higher privilege, used for scope resolution across multiple roles.
+_SCOPE_PRIORITY: List[APIKeyScope] = [
+    APIKeyScope.PLATFORM_ADMIN,
+    APIKeyScope.TENANT_ADMIN,
+    APIKeyScope.TENANT_USER,
+]
+
+
+def _resolve_scope_from_roles(
+    roles: Dict[str, str],
+) -> Tuple[APIKeyScope, Optional[str]]:
+    """Derive APIKeyScope and tenant_id from JWT roles dict.
+
+    ``roles`` maps tenant_id → role_string (e.g. ``{"<uuid>": "tenant_admin"}``).
+    A wildcard key ``"*"`` indicates platform-wide access.
+
+    Returns ``(highest_scope, tenant_id_or_None)``.
+    """
+    if not roles:
+        return APIKeyScope.TENANT_USER, None
+
+    best_scope = APIKeyScope.TENANT_USER
+    best_scope_idx = _SCOPE_PRIORITY.index(best_scope)
+    best_tenant: Optional[str] = None
+
+    for tid, role_str in roles.items():
+        scope = _ROLE_TO_SCOPE.get(role_str, APIKeyScope.TENANT_USER)
+        idx = _SCOPE_PRIORITY.index(scope)
+        if idx <= best_scope_idx:
+            best_scope = scope
+            best_scope_idx = idx
+            best_tenant = tid if tid != "*" else None
+
+    # Platform admin → no tenant restriction
+    if best_scope == APIKeyScope.PLATFORM_ADMIN:
+        best_tenant = None
+    # Multiple tenants → no single tenant restriction
+    elif len(roles) > 1:
+        best_tenant = None
+
+    return best_scope, best_tenant
+
+
+def _authenticate_jwt(token: str) -> Optional[AuthContext]:
+    """Try to authenticate a Bearer token as a JWT.
+
+    Returns ``AuthContext`` on success, ``None`` if the token is not a valid JWT.
+    Fast path: ~0.1ms signature verification, zero DB queries.
+    """
+    try:
+        payload = decode_token(token)
+    except (JWTError, Exception):
+        return None
+
+    # Only accept access tokens (not refresh tokens)
+    if payload.get("type") != "access":
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    email = payload.get("email", "")
+    roles: Dict[str, str] = payload.get("roles", {})
+
+    scope, tenant_id = _resolve_scope_from_roles(roles)
+
+    return AuthContext(
+        key_id=f"jwt:{user_id}",
+        name=email or user_id,
+        scope=scope,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        email=email or None,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -183,10 +285,14 @@ async def get_auth_context(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> Optional[AuthContext]:
-    """Extract and validate API key from Authorization header.
+    """Extract and validate credentials from Authorization header.
+
+    Supports both JWT tokens and API keys via ``Authorization: Bearer <token>``.
+    JWT decode is tried first (~0.1ms, no DB query) before falling back to
+    API key lookup (bcrypt verify, ~100ms worst case).
 
     Returns ``None`` when auth is disabled.
-    Raises 401 when auth is enabled but no valid key is provided.
+    Raises 401 when auth is enabled but no valid credentials are provided.
     """
     settings = get_settings()
     if not settings.enable_auth:
@@ -196,12 +302,19 @@ async def get_auth_context(
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
 
-    raw_key = auth_header[7:]
-    ctx = await _authenticate_raw_key(raw_key, session)
+    raw_token = auth_header[7:]
+
+    # Fast path: try JWT decode first (no DB query)
+    ctx = _authenticate_jwt(raw_token)
     if ctx is not None:
         return ctx
 
-    raise HTTPException(status_code=401, detail="Invalid API key")
+    # Slow path: fall back to API key lookup (bcrypt verify)
+    ctx = await _authenticate_raw_key(raw_token, session)
+    if ctx is not None:
+        return ctx
+
+    raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 def require_scope(*allowed_scopes: APIKeyScope):
@@ -216,6 +329,42 @@ def require_scope(*allowed_scopes: APIKeyScope):
             if scope in SCOPE_HIERARCHY.get(auth.scope, set()):
                 return
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    return _check
+
+
+def require_permission(*permissions: "Permission"):
+    """Dependency factory: require the auth context to have **all** listed permissions.
+
+    Resolves the caller's role from their API key scope (via ``SCOPE_TO_ROLE``)
+    and checks each requested permission against the role's permission set.
+
+    When auth is disabled (``AuthContext`` is ``None``), all checks pass through —
+    same behaviour as ``require_scope()``.
+
+    Returns 403 with a descriptive message listing missing permissions.
+    """
+    from .permissions import Permission as _Perm, SCOPE_TO_ROLE, has_permission
+
+    async def _check(
+        auth: Optional[AuthContext] = Depends(get_auth_context),
+    ):
+        if auth is None:
+            return  # Auth disabled
+
+        role = SCOPE_TO_ROLE.get(auth.scope)
+        if role is None:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Unknown scope '{auth.scope.value}' — cannot resolve permissions",
+            )
+
+        missing = [p.value for p in permissions if not has_permission(role, p)]
+        if missing:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Missing permissions: {', '.join(missing)}",
+            )
 
     return _check
 
@@ -262,10 +411,11 @@ def require_tenant_access(slug_param: str = "tenant_slug"):
 
 
 async def validate_websocket_auth(websocket: WebSocket) -> Optional[AuthContext]:
-    """Authenticate a WebSocket connection via API key.
+    """Authenticate a WebSocket connection via JWT token or API key.
 
-    Extracts the API key from the ``api_key`` query parameter or the
-    ``Authorization: Bearer <key>`` header.
+    Extracts credentials from the ``api_key`` query parameter or the
+    ``Authorization: Bearer <token>`` header. JWT decode is tried first
+    (fast path), then falls back to API key lookup.
 
     Returns ``None`` when auth is disabled, ``AuthContext`` when valid.
     Raises ``WebSocketDisconnect(4401)`` on authentication failure.
@@ -275,18 +425,24 @@ async def validate_websocket_auth(websocket: WebSocket) -> Optional[AuthContext]
         return None
 
     # Try query param first, then Authorization header
-    raw_key = websocket.query_params.get("api_key")
-    if not raw_key:
+    raw_token = websocket.query_params.get("api_key")
+    if not raw_token:
         auth_header = websocket.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
-            raw_key = auth_header[7:]
+            raw_token = auth_header[7:]
 
-    if not raw_key:
-        raise WebSocketDisconnect(code=4401, reason="Missing API key")
+    if not raw_token:
+        raise WebSocketDisconnect(code=4401, reason="Missing credentials")
 
+    # Fast path: try JWT decode first (no DB query)
+    ctx = _authenticate_jwt(raw_token)
+    if ctx is not None:
+        return ctx
+
+    # Slow path: fall back to API key lookup
     async with get_db_context() as session:
-        ctx = await _authenticate_raw_key(raw_key, session)
+        ctx = await _authenticate_raw_key(raw_token, session)
         if ctx is not None:
             return ctx
 
-    raise WebSocketDisconnect(code=4401, reason="Invalid API key")
+    raise WebSocketDisconnect(code=4401, reason="Invalid credentials")

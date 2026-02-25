@@ -7,14 +7,18 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 
 from ..models.api_key import APIKeyScope
-from ..security.auth import require_scope
+from ..security.auth import require_scope, require_permission
+from ..security.permissions import Permission
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/sessions", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/sessions", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def list_sessions(
     request: Request,
     tenant_slug: Optional[str] = Query(None, description="Filter by tenant slug"),
@@ -44,7 +48,10 @@ async def list_sessions(
     return sessions
 
 
-@router.delete("/sessions/{session_id}", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.delete("/sessions/{session_id}", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def terminate_session(request: Request, session_id: str):
     """Terminate an active MCP session."""
     sm = getattr(request.app.state, "session_manager", None)
