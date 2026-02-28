@@ -781,14 +781,6 @@ export default function MCPTesting() {
               </div>
             </div>
             <div className="card-content">
-<<<<<<< HEAD
-              <textarea
-                value={requestBody}
-                onChange={(e) => setRequestBody(e.target.value)}
-                className="w-full h-64 font-mono text-sm bg-theme-surface border border-theme-hover rounded-lg p-3 text-theme-primary placeholder:text-theme-muted focus:border-accent focus:ring-1 focus:ring-accent"
-                placeholder="Enter your MCP request JSON..."
-              />
-=======
               <div
                 ref={editorContainerRef}
                 className="border border-theme-default rounded-lg bg-theme-surface overflow-hidden relative"
@@ -831,7 +823,6 @@ export default function MCPTesting() {
                   </div>
                 </div>
               )}
->>>>>>> 1354b8a (Fix MCPTesting syntax error positioning and tool selection updates)
 
               <div className="flex justify-end space-x-2 mt-4">
                 <button
