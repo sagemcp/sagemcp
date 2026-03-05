@@ -30,18 +30,7 @@ LINEAR_API = "https://api.linear.app/graphql"
 
 # -- Issues ----------------------------------------------------------------
 
-_LIST_ISSUES_QUERY = """
-query ListIssues($first: Int!, $after: String, $teamId: String, $projectId: String, $stateId: String) {
-  issues(
-    first: $first
-    after: $after
-    filter: {
-      team: { id: { eq: $teamId } }
-      project: { id: { eq: $projectId } }
-      state: { id: { eq: $stateId } }
-    }
-  ) {
-    nodes {
+_ISSUES_NODE_FIELDS = """
       id
       identifier
       title
@@ -56,11 +45,53 @@ query ListIssues($first: Int!, $after: String, $teamId: String, $projectId: Stri
       team { id name key }
       project { id name }
       labels { nodes { id name color } }
-    }
-    pageInfo { hasNextPage endCursor }
-  }
-}
 """
+
+
+def _build_list_issues_query(
+    team_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    state_id: Optional[str] = None,
+) -> str:
+    """Build a list-issues query with only the provided filters.
+
+    Linear's GraphQL API returns 400 if filter fields contain null comparators
+    (e.g. ``{ eq: null }``), so we must omit filter keys that aren't set.
+    """
+    var_defs = ["$first: Int!", "$after: String"]
+    filter_parts: list[str] = []
+
+    if team_id:
+        var_defs.append("$teamId: String!")
+        filter_parts.append("team: { id: { eq: $teamId } }")
+    if project_id:
+        var_defs.append("$projectId: String!")
+        filter_parts.append("project: { id: { eq: $projectId } }")
+    if state_id:
+        var_defs.append("$stateId: String!")
+        filter_parts.append("state: { id: { eq: $stateId } }")
+
+    var_str = ", ".join(var_defs)
+    filter_block = ""
+    if filter_parts:
+        inner = "\n      ".join(filter_parts)
+        filter_block = f"""
+    filter: {{
+      {inner}
+    }}"""
+
+    return f"""
+query ListIssues({var_str}) {{
+  issues(
+    first: $first
+    after: $after{filter_block}
+  ) {{
+    nodes {{{_ISSUES_NODE_FIELDS}    }}
+    pageInfo {{ hasNextPage endCursor }}
+  }}
+}}
+"""
+
 
 _GET_ISSUE_QUERY = """
 query GetIssue($id: String!) {
@@ -923,17 +954,22 @@ class LinearConnector(BaseConnector):
     ) -> str:
         """List issues with optional team/project/state filters."""
         client = self._get_client(oauth_cred)
-        variables: Dict[str, Any] = {}
-        if arguments.get("teamId"):
-            variables["teamId"] = arguments["teamId"]
-        if arguments.get("projectId"):
-            variables["projectId"] = arguments["projectId"]
-        if arguments.get("stateId"):
-            variables["stateId"] = arguments["stateId"]
+        team_id = arguments.get("teamId")
+        project_id = arguments.get("projectId")
+        state_id = arguments.get("stateId")
 
+        variables: Dict[str, Any] = {}
+        if team_id:
+            variables["teamId"] = team_id
+        if project_id:
+            variables["projectId"] = project_id
+        if state_id:
+            variables["stateId"] = state_id
+
+        query = _build_list_issues_query(team_id, project_id, state_id)
         max_items = arguments.get("first", 50)
         issues = await client.collect_connection(
-            _LIST_ISSUES_QUERY,
+            query,
             variables,
             connection_path="issues",
             page_size=min(max_items, 50),
