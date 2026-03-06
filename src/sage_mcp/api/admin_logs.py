@@ -8,12 +8,16 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 
 from ..models.api_key import APIKeyScope
-from ..security.auth import require_scope
+from ..security.auth import require_scope, require_permission
+from ..security.permissions import Permission
 
 router = APIRouter()
 
 
-@router.get("/logs/recent", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/logs/recent", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.AUDIT_VIEW_GLOBAL)),
+])
 async def recent_logs(
     request: Request,
     count: int = Query(default=100, le=1000),
@@ -40,7 +44,10 @@ async def recent_logs(
     return [e.to_dict() for e in entries]
 
 
-@router.get("/logs/stream", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/logs/stream", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.AUDIT_VIEW_GLOBAL)),
+])
 async def stream_logs(
     request: Request,
     level: Optional[str] = Query(default=None),

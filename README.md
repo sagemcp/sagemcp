@@ -216,11 +216,51 @@ graph TB
 [![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-## Security
+## Security & Authentication
 
-- **Encryption at rest** -- All OAuth tokens, API keys, and connector credentials encrypted via Fernet (AES-128-CBC + HMAC), key derived from `SECRET_KEY` via PBKDF2-SHA256 (480K iterations).
-- **API key authentication** -- Three scope tiers (`platform_admin`, `tenant_admin`, `tenant_user`) with bcrypt-hashed storage and SHA-256 LRU cache. Feature-flagged via `SAGEMCP_ENABLE_AUTH`.
-- **Transport security** -- CORS origin validation, Content-Type enforcement, per-tenant token-bucket rate limiting.
+All auth features are **off by default** and opt-in via `SAGEMCP_ENABLE_AUTH=true`. When disabled, the platform runs without any access control (suitable for local dev).
+
+**[Full Auth Documentation](docs/auth.md)** -- roles, permissions, API reference, and examples.
+
+### Quick Start: Enable Auth
+
+```bash
+# In your .env file:
+SAGEMCP_ENABLE_AUTH=true
+SECRET_KEY=your-secret-key-min-16-chars
+
+# Optional: pre-set a bootstrap API key for automation
+SAGEMCP_BOOTSTRAP_ADMIN_KEY=smcp_pa_your-bootstrap-key
+```
+
+```bash
+# 1. Register the first user (open when 0 users exist)
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "your-password"}'
+
+# 2. Log in to get tokens
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "your-password"}'
+# Returns: { "access_token": "eyJ...", "refresh_token": "eyJ...", "expires_in": 1800 }
+
+# 3. Use the access token for API calls
+curl http://localhost:8000/api/v1/admin/tenants \
+  -H "Authorization: Bearer eyJ..."
+```
+
+### What's Included
+
+| Feature | Description |
+|---------|-------------|
+| **Field-level encryption** | Fernet AES-128 encryption for tokens, secrets, and configs in the DB. Transparent encrypt-on-write, decrypt-on-read. Key derived from `SECRET_KEY` via PBKDF2-SHA256. |
+| **Dual authentication** | JWT tokens (fast path, ~0.1ms, no DB) with API key fallback (bcrypt verify, cached via SHA-256 LRU). Both use `Authorization: Bearer <token>`. |
+| **RBAC** | 4 roles, 18 permissions. `require_permission()` enforced on all 44 admin endpoints. See [roles table](docs/auth.md#roles-and-permissions). |
+| **Tenant isolation** | Scoped access checks on WebSocket MCP, process management, and connector listing. Tenant-scoped keys cannot cross boundaries. |
+| **Audit logging** | Fire-and-forget audit trail for tenant/connector/tool/key changes. Paginated query endpoints with filtering. |
+| **Global tool policies** | Platform admins can block or warn on tools by glob pattern. In-memory cache for zero-DB-query enforcement on the hot path. |
+| **Transport security** | CORS origin validation, Content-Type enforcement, per-tenant token-bucket rate limiting. |
 
 ## Getting Started
 
@@ -331,17 +371,19 @@ SageMCP uses feature flags for progressive rollout of v2 capabilities. All flags
 | `SAGEMCP_ENABLE_SERVER_POOL` | LRU server-instance pool (5,000 max, 30-min TTL) | `false` |
 | `SAGEMCP_ENABLE_SESSION_MANAGEMENT` | `Mcp-Session-Id` tracking and SSE replay | `false` |
 | `SAGEMCP_ENABLE_METRICS` | Prometheus `/metrics` endpoint | `false` |
-| `SAGEMCP_ENABLE_AUTH` | API key authentication and authorization | `false` |
+| `SAGEMCP_ENABLE_AUTH` | API key + JWT auth, RBAC, audit logging, tool policies | `false` |
 
 Additional configuration settings:
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `SECRET_KEY` | Key for Fernet encryption and token signing (min 16 chars) | *required* |
+| `SECRET_KEY` | Key for Fernet encryption and JWT signing (min 16 chars) | *required* |
+| `SAGEMCP_BOOTSTRAP_ADMIN_KEY` | Pre-set a platform admin API key on first startup | -- |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT access token lifetime | `30` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | JWT refresh token lifetime | `7` |
 | `RATE_LIMIT_RPM` | Requests per minute per tenant (token bucket) | `100` |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed CORS origins | `*` (dev) |
 | `MCP_ALLOWED_ORIGINS` | Comma-separated allowed MCP `Origin` headers | -- |
-| `SAGEMCP_BOOTSTRAP_ADMIN_KEY` | One-time bootstrap key to create first platform admin | -- |
 
 ## Development
 
@@ -404,7 +446,9 @@ helm install sage-mcp ./helm \
 
 ## Roadmap
 
-- [ ] Tool policy language (per-connector tool enable/disable rules)
+- [x] RBAC with JWT + API key dual auth
+- [x] Global tool policies (block/warn by pattern)
+- [x] Audit logging with tenant-scoped queries
 - [ ] OpenTelemetry tracing
 - [ ] Redis-backed session persistence
 

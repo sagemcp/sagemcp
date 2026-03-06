@@ -411,7 +411,12 @@ erDiagram
     TENANT ||--o{ CONNECTOR : has
     TENANT ||--o{ OAUTH_CREDENTIAL : has
     TENANT ||--o{ OAUTH_CONFIG : has
+    TENANT ||--o{ AUDIT_LOG : has
     CONNECTOR ||--o{ CONNECTOR_TOOL_STATE : has
+    USER ||--o{ REFRESH_TOKEN : has
+    USER ||--o{ USER_TENANT_MEMBERSHIP : has
+    TENANT ||--o{ USER_TENANT_MEMBERSHIP : has
+    TENANT ||--o{ API_KEY : scoped_to
 
     TENANT {
         uuid id PK
@@ -443,8 +448,8 @@ erDiagram
         string provider
         string provider_user_id
         string provider_username
-        text access_token
-        text refresh_token
+        text access_token "encrypted"
+        text refresh_token "encrypted"
         datetime expires_at
         string scopes
         string provider_data
@@ -458,7 +463,7 @@ erDiagram
         uuid tenant_id FK
         string provider
         string client_id
-        string client_secret
+        string client_secret "encrypted"
         boolean is_active
         datetime created_at
         datetime updated_at
@@ -469,6 +474,72 @@ erDiagram
         uuid connector_id FK
         string tool_name
         boolean is_enabled
+        datetime created_at
+        datetime updated_at
+    }
+
+    USER {
+        uuid id PK
+        string email UK
+        string display_name
+        string password_hash
+        enum auth_provider
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
+    REFRESH_TOKEN {
+        uuid id PK
+        uuid user_id FK
+        string token_hash
+        boolean revoked
+        datetime expires_at
+        datetime created_at
+    }
+
+    USER_TENANT_MEMBERSHIP {
+        uuid id PK
+        uuid user_id FK
+        uuid tenant_id FK
+        enum role
+        datetime created_at
+    }
+
+    API_KEY {
+        uuid id PK
+        string name
+        string key_prefix
+        string key_hash
+        enum scope
+        uuid tenant_id FK "nullable"
+        boolean is_active
+        datetime expires_at
+        datetime created_at
+    }
+
+    AUDIT_LOG {
+        uuid id PK
+        datetime timestamp
+        string actor_id
+        string actor_type
+        string action
+        string resource_type
+        string resource_id
+        uuid tenant_id FK "nullable"
+        json details
+        string ip_address
+        string user_agent
+    }
+
+    GLOBAL_TOOL_POLICY {
+        uuid id PK
+        string tool_name_pattern
+        enum action
+        string reason
+        string created_by
+        string connector_type
+        boolean is_active
         datetime created_at
         datetime updated_at
     }
@@ -955,11 +1026,17 @@ Optional"]
 - `SessionManager` ensures only one session is created per concurrent `initialize` request
 - Max 10 sessions per tenant+connector key; oldest evicted when limit reached
 
-### 9. **Decorator Pattern**
+### 9. **RBAC with Precomputed Permission Sets**
+- Roles mapped to frozen permission sets at import time (zero allocation per check)
+- API key scopes bridge to roles via `SCOPE_TO_ROLE` for unified permission checks
+- `require_permission()` dependency enforced on all admin endpoints
+- JWT decode (fast path, ~0.1ms) tried before API key lookup (slow path, bcrypt)
+
+### 10. **Decorator Pattern**
 - `@register_connector` decorator for plugin registration
 - FastAPI route decorators for API endpoints
 
-### 10. **Adapter Pattern**
+### 11. **Adapter Pattern**
 - Connectors adapt external APIs to MCP protocol
 - `GenericMCPConnector` adapts stdio-based external MCP servers to the same interface
 - Each connector translates between MCP tools and provider-specific APIs
@@ -974,7 +1051,7 @@ graph TB
             CORS[CORS Middleware]
         end
 
-        subgraph "v2: Request Validation"
+        subgraph "Request Validation"
             RATE_LIM["Rate Limiting
 Token bucket · per-tenant"]
             ORIGIN_VAL["Origin Validation
@@ -987,22 +1064,35 @@ Mcp-Session-Id"]
 
         subgraph "Authentication"
             OAUTH[OAuth 2.0 Flow]
-            JWT["JWT Tokens
-Optional"]
+            JWT_AUTH["JWT Tokens
+30min access · 7d refresh"]
+            API_KEY_AUTH["API Keys
+3 scopes · bcrypt + LRU cache"]
             STATE["State Token
 CSRF Protection"]
         end
 
-        subgraph "Authorization"
+        subgraph "Authorization (RBAC)"
+            RBAC_PERM["18 Permissions
+require_permission() on all endpoints"]
+            RBAC_ROLES["4 Roles
+platform_admin · tenant_admin
+tenant_member · tenant_viewer"]
             TENANT_ISO["Tenant Isolation
-Path-based"]
-            FK_CHECK["Foreign Key
-Constraints"]
+Path-based + key scope"]
+            TOOL_POL["Global Tool Policies
+Block/Warn by glob pattern"]
+        end
+
+        subgraph "Audit"
+            AUDIT["Audit Log
+Fire-and-forget recording
+Paginated query endpoints"]
         end
 
         subgraph "Data Protection"
-            TOKEN_ENC["Token Encryption
-at rest"]
+            TOKEN_ENC["Fernet Encryption
+AES-128 · PBKDF2-SHA256"]
             SECRET_MGR["Secret Management
 K8s Secrets/Vault"]
             ENV_VAR[Environment Variables]
@@ -1020,23 +1110,35 @@ SQL Injection Prevention"]
     RATE_LIM --> CT_VAL
     ORIGIN_VAL --> CT_VAL
     CT_VAL --> SESS_BIND
-    SESS_BIND --> OAUTH
+    SESS_BIND --> JWT_AUTH
+    JWT_AUTH --> API_KEY_AUTH
+    API_KEY_AUTH --> RBAC_PERM
+    RBAC_PERM --> RBAC_ROLES
+    RBAC_ROLES --> TENANT_ISO
+    TENANT_ISO --> TOOL_POL
+    TOOL_POL --> AUDIT
     OAUTH --> STATE
-    STATE --> TENANT_ISO
-    TENANT_ISO --> FK_CHECK
-    FK_CHECK --> TOKEN_ENC
+    STATE --> TOKEN_ENC
     TOKEN_ENC --> SECRET_MGR
     SECRET_MGR --> ENV_VAR
     ENV_VAR --> PYDANTIC
     PYDANTIC --> SQL_PREVENT
 ```
 
-**v2 Security Additions:**
-- **Rate limiting** — Token-bucket rate limiter prevents abuse; configurable per-tenant RPM with `Retry-After` headers
-- **Origin validation** — `MCP_ALLOWED_ORIGINS` env var restricts which origins can send MCP requests
+**Security features** (all feature-flagged under `SAGEMCP_ENABLE_AUTH`):
+- **Dual authentication** — JWT decode first (~0.1ms, no DB), API key fallback (bcrypt verify with SHA-256 LRU cache)
+- **RBAC** — 4 roles, 18 permissions, `require_permission()` enforced on all 44 admin endpoints
+- **Tenant isolation** — Scoped API keys, WebSocket tenant checks, process management guards
+- **Global tool policies** — Block/warn on tools by glob pattern; in-memory cache for zero-DB-query enforcement
+- **Audit logging** — Fire-and-forget recording of state changes; paginated query endpoints with filtering
+- **Field-level encryption** — Fernet AES-128 for tokens, secrets, configs; transparent encrypt/decrypt
+- **Rate limiting** — Token-bucket per-tenant RPM with `Retry-After` headers
+- **Origin validation** — `MCP_ALLOWED_ORIGINS` restricts which origins can send MCP requests
 - **Content-Type enforcement** — Only `application/json` accepted for MCP HTTP POST endpoints
-- **Session binding** — `Mcp-Session-Id` binds a client to a specific server instance, preventing session hijacking
-- **CORS hardening** — `Mcp-Session-Id` added to `Access-Control-Expose-Headers` for cross-origin clients
+- **Session binding** — `Mcp-Session-Id` binds a client to a specific server instance
+- **CORS hardening** — `Mcp-Session-Id` added to `Access-Control-Expose-Headers`
+
+See [Authentication & Authorization](auth.md) for full details, API reference, and examples.
 
 ## Performance Considerations
 
@@ -1147,14 +1249,15 @@ Optional"]
 
 ## Summary
 
-SageMCP is a **multi-tenant MCP server platform** that enables Claude Desktop to connect to external services via OAuth-authenticated connectors. The v2 architecture provides:
+SageMCP is a **multi-tenant MCP server platform** that enables Claude Desktop to connect to external services via OAuth-authenticated connectors. The architecture provides:
 
 - **Pooled instances** — `ServerPool` caches up to 5,000 `MCPServer` instances with LRU eviction and 30-min TTL
 - **Session management** — `Mcp-Session-Id` tracking with `EventBuffer` ring buffers for resumable SSE streams
+- **RBAC & auth** — JWT + API key dual auth, 4 roles with 18 permissions, audit logging, global tool policies ([details](auth.md))
 - **Rate limiting** — Per-tenant token-bucket rate limiter (configurable RPM) with `Retry-After` headers
 - **Observability** — 11 Prometheus metrics, structured JSON logging, and Kubernetes health probes (`/health/live|ready|startup`)
 - **External MCP hosting** — `MCPProcessManager` runs third-party MCP servers as stdio subprocesses with health checks and auto-restart
-- **Progressive rollout** — Feature flags (`SAGEMCP_ENABLE_*`) for safe, incremental v2 adoption
+- **Progressive rollout** — Feature flags (`SAGEMCP_ENABLE_*`) for safe, incremental adoption
 - **Protocol compliance** — Supports MCP protocol versions `2025-06-18` and `2024-11-05` with version negotiation
 
 The platform bridges Claude Desktop's MCP protocol with 18 external service APIs (GitHub, GitLab, Bitbucket, Jira, Linear, Confluence, Slack, Discord, Teams, Gmail, Outlook, Google Docs, Google Sheets, Google Slides, Notion, Excel, PowerPoint, Zoom) and any MCP-compatible server through a unified, tenant-aware, production-hardened interface. Shared infrastructure modules (pagination, retry, GraphQL client, structured exceptions) ensure consistent behavior across all connectors.

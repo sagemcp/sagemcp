@@ -24,6 +24,9 @@ from sage_mcp.models.tenant import Tenant
 from sage_mcp.models.connector import Connector, ConnectorType
 from sage_mcp.models.oauth_credential import OAuthCredential
 from sage_mcp.models.api_key import APIKey
+from sage_mcp.models.audit_log import AuditLog
+from sage_mcp.models.tool_policy import GlobalToolPolicy
+from sage_mcp.models.user import User, UserTenantMembership, RefreshToken
 
 
 # Always use SQLite for tests to avoid PostgreSQL driver dependencies
@@ -100,7 +103,27 @@ def cleanup_db():
         session.query(OAuthCredential).delete()
         session.query(Connector).delete()
         try:
+            session.query(AuditLog).delete()
+        except Exception:
+            session.rollback()
+        try:
+            session.query(GlobalToolPolicy).delete()
+        except Exception:
+            session.rollback()
+        try:
             session.query(APIKey).delete()
+        except Exception:
+            session.rollback()
+        try:
+            session.query(RefreshToken).delete()
+        except Exception:
+            session.rollback()
+        try:
+            session.query(UserTenantMembership).delete()
+        except Exception:
+            session.rollback()
+        try:
+            session.query(User).delete()
         except Exception:
             session.rollback()
         session.query(Tenant).delete()

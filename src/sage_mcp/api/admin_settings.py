@@ -4,12 +4,16 @@ from fastapi import APIRouter, Depends, Request
 
 from ..config import get_settings
 from ..models.api_key import APIKeyScope
-from ..security.auth import require_scope
+from ..security.auth import require_scope, require_permission
+from ..security.permissions import Permission
 
 router = APIRouter()
 
 
-@router.get("/settings", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/settings", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def get_platform_settings(request: Request):
     """Return non-secret platform configuration."""
     settings = get_settings()

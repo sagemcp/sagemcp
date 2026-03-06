@@ -58,7 +58,7 @@ async def test_get_process_status_reconciles_stale_running_record():
     original_processes = process_manager.processes
     process_manager.processes = {}
     try:
-        response = await get_process_status(str(connector_id), session=session)
+        response = await get_process_status(str(connector_id), auth=None, session=session)
     finally:
         process_manager.processes = original_processes
 
@@ -90,7 +90,7 @@ async def test_restart_process_increments_restart_count():
     mocked_terminate = AsyncMock()
     process_manager.terminate = mocked_terminate
     try:
-        response = await restart_process(str(connector_id), session=session)
+        response = await restart_process(str(connector_id), auth=None, session=session)
     finally:
         process_manager.terminate = original_terminate
 
@@ -136,7 +136,7 @@ async def test_get_process_status_keeps_running_when_process_is_live():
         )
     }
     try:
-        response = await get_process_status(str(connector_id), session=session)
+        response = await get_process_status(str(connector_id), auth=None, session=session)
     finally:
         process_manager.processes = original_processes
 
@@ -178,7 +178,7 @@ async def test_get_process_status_normalizes_stopped_metadata():
     original_processes = process_manager.processes
     process_manager.processes = {}
     try:
-        response = await get_process_status(str(connector_id), session=session)
+        response = await get_process_status(str(connector_id), auth=None, session=session)
     finally:
         process_manager.processes = original_processes
 

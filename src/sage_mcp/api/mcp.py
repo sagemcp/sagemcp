@@ -13,7 +13,10 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from ..mcp.transport import MCPTransport
-from ..security.auth import require_tenant_access, validate_websocket_auth
+from ..database.connection import get_db_context
+from ..models.api_key import APIKeyScope
+from ..security.auth import require_tenant_access, require_permission, validate_websocket_auth
+from ..security.permissions import Permission
 
 logger = logging.getLogger(__name__)
 
@@ -160,10 +163,23 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
     from starlette.websockets import WebSocketDisconnect
 
     try:
-        await validate_websocket_auth(websocket)
+        auth_ctx = await validate_websocket_auth(websocket)
     except WebSocketDisconnect as exc:
         await websocket.close(code=exc.code, reason=exc.reason)
         return
+
+    # Tenant scope check: verify key's tenant matches the URL tenant
+    if auth_ctx is not None and auth_ctx.scope != APIKeyScope.PLATFORM_ADMIN and auth_ctx.tenant_id:
+        from sqlalchemy import select
+        from ..models.tenant import Tenant
+        async with get_db_context() as session:
+            result = await session.execute(
+                select(Tenant.id).where(Tenant.slug == tenant_slug)
+            )
+            tenant_id = result.scalar_one_or_none()
+            if tenant_id is None or auth_ctx.tenant_id != str(tenant_id):
+                await websocket.close(code=4403, reason="Access denied to this tenant")
+                return
 
     user_token = websocket.query_params.get('token')
 
@@ -177,7 +193,10 @@ async def mcp_websocket(websocket: WebSocket, tenant_slug: str, connector_id: st
 
 @router.post(
     "/{tenant_slug}/connectors/{connector_id}/mcp",
-    dependencies=[Depends(require_tenant_access())],
+    dependencies=[
+        Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CALL)),
+    ],
 )
 async def mcp_http_post(tenant_slug: str, connector_id: str, request: Request):
     """HTTP POST endpoint for MCP protocol communication (Streamable HTTP transport).
@@ -364,7 +383,10 @@ async def _handle_batch(
 
 @router.get(
     "/{tenant_slug}/connectors/{connector_id}/mcp",
-    dependencies=[Depends(require_tenant_access())],
+    dependencies=[
+        Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CALL)),
+    ],
 )
 async def mcp_http_get(tenant_slug: str, connector_id: str, request: Request):
     """HTTP GET endpoint for SSE server-initiated messages.
@@ -458,7 +480,10 @@ async def mcp_http_get(tenant_slug: str, connector_id: str, request: Request):
 
 @router.get(
     "/{tenant_slug}/connectors/{connector_id}/mcp/sse",
-    dependencies=[Depends(require_tenant_access())],
+    dependencies=[
+        Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CALL)),
+    ],
 )
 async def mcp_sse(tenant_slug: str, connector_id: str):
     """DEPRECATED: Old HTTP+SSE endpoint (protocol version 2024-11-05)."""
@@ -497,7 +522,10 @@ async def mcp_sse(tenant_slug: str, connector_id: str):
 
 @router.get(
     "/{tenant_slug}/connectors/{connector_id}/mcp/info",
-    dependencies=[Depends(require_tenant_access())],
+    dependencies=[
+        Depends(require_tenant_access()),
+        Depends(require_permission(Permission.TOOL_CALL)),
+    ],
 )
 async def mcp_info(tenant_slug: str, connector_id: str):
     """Get MCP server information for a specific connector."""

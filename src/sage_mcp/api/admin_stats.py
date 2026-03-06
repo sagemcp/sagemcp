@@ -12,7 +12,8 @@ from ..models.api_key import APIKeyScope
 from ..models.tenant import Tenant
 from ..models.connector import Connector
 from ..observability.metrics import get_tool_calls_today
-from ..security.auth import require_scope
+from ..security.auth import require_scope, require_permission
+from ..security.permissions import Permission
 from .mcp import get_recent_active_session_count
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/stats", dependencies=[Depends(require_scope(APIKeyScope.PLATFORM_ADMIN))])
+@router.get("/stats", dependencies=[
+    Depends(require_scope(APIKeyScope.PLATFORM_ADMIN)),
+    Depends(require_permission(Permission.STATS_VIEW_GLOBAL)),
+])
 async def get_platform_stats(request: Request):
     """Return aggregated platform stats for the dashboard.
 
