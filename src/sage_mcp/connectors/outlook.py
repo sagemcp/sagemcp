@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -64,7 +65,13 @@ class OutlookConnector(BaseConnector):
                             "description": "OData $orderby expression (e.g., \"receivedDateTime desc\", \"subject asc\")"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="outlook_get_message",
@@ -82,7 +89,13 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="outlook_send_message",
@@ -121,7 +134,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["subject", "body", "to_recipients"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="outlook_reply_to_message",
@@ -144,7 +164,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "comment"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="outlook_forward_message",
@@ -167,7 +194,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "to_recipients"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="outlook_delete_message",
@@ -181,7 +215,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="outlook_move_message",
@@ -199,7 +240,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "destination_folder_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="outlook_list_folders",
@@ -207,7 +255,13 @@ class OutlookConnector(BaseConnector):
                 inputSchema={
                     "type": "object",
                     "properties": {}
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="outlook_create_folder",
@@ -225,7 +279,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["display_name"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="outlook_list_attachments",
@@ -239,7 +300,13 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="outlook_get_attachment",
@@ -257,7 +324,13 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "attachment_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="outlook_create_draft",
@@ -291,7 +364,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["subject", "body", "to_recipients"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="outlook_search_messages",
@@ -312,7 +392,13 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="outlook_flag_message",
@@ -331,7 +417,14 @@ class OutlookConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "flag_status"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="outlook_list_focused_inbox",
@@ -351,7 +444,13 @@ class OutlookConnector(BaseConnector):
                             "description": "Additional OData $filter expression to apply on top of focused inbox filter"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
         ]
 

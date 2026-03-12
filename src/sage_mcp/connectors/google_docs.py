@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -54,7 +55,14 @@ class GoogleDocsConnector(BaseConnector):
                             "description": "Filter documents owned by this email address. Use get_user_external_accounts to resolve a user's Google email first."
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="google_docs_get_document",
@@ -68,7 +76,14 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["document_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="google_docs_read_document_content",
@@ -88,7 +103,14 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["document_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="google_docs_search_documents",
@@ -113,7 +135,14 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="google_docs_create_document",
@@ -131,7 +160,15 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="google_docs_append_text",
@@ -149,7 +186,15 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["document_id", "text"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="google_docs_insert_text",
@@ -172,7 +217,15 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["document_id", "text", "index"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="google_docs_export_document",
@@ -197,7 +250,14 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["document_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="google_docs_get_permissions",
@@ -211,7 +271,14 @@ class GoogleDocsConnector(BaseConnector):
                         }
                     },
                     "required": ["document_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="google_docs_list_shared_documents",
@@ -227,7 +294,14 @@ class GoogleDocsConnector(BaseConnector):
                             "description": "Number of documents to return"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             )
         ]
 

@@ -16,6 +16,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -110,6 +111,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_get_cost_breakdown",
@@ -128,6 +130,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_get_code_analytics",
@@ -146,6 +149,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_get_org_info",
@@ -154,6 +158,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ---- Admin & Access Management (10) ----
             types.Tool(
@@ -177,6 +182,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_update_user_role",
@@ -195,6 +201,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["user_id", "role"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="claude_code_remove_user",
@@ -209,6 +216,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["user_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="claude_code_list_invites",
@@ -231,6 +239,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_create_invite",
@@ -249,6 +258,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["email", "role"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="claude_code_delete_invite",
@@ -263,6 +273,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["invite_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="claude_code_list_workspaces",
@@ -285,6 +296,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_get_workspace",
@@ -299,6 +311,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["workspace_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_list_api_keys",
@@ -321,6 +334,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_update_api_key",
@@ -343,6 +357,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["api_key_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             # ---- Workspace Management (3) ----
             types.Tool(
@@ -362,6 +377,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["name"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="claude_code_list_workspace_members",
@@ -389,6 +405,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["workspace_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="claude_code_add_workspace_member",
@@ -411,6 +428,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["workspace_id", "user_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # ---- Normalized Metrics (1) ----
             types.Tool(
@@ -430,6 +448,7 @@ class ClaudeCodeConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
 
