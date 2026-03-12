@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import httpx
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -105,7 +106,8 @@ class ZoomConnector(BaseConnector):
                             "default": 30
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_get_meeting",
@@ -119,7 +121,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["meeting_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_create_meeting",
@@ -157,7 +160,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["topic"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="zoom_update_meeting",
@@ -187,7 +191,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["meeting_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="zoom_delete_meeting",
@@ -201,7 +206,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["meeting_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="zoom_get_user",
@@ -215,7 +221,8 @@ class ZoomConnector(BaseConnector):
                             "default": "me"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_list_recordings",
@@ -239,7 +246,8 @@ class ZoomConnector(BaseConnector):
                             "default": 30
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_get_meeting_recordings",
@@ -253,7 +261,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["meeting_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_list_webinars",
@@ -269,7 +278,8 @@ class ZoomConnector(BaseConnector):
                             "default": 30
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_get_webinar",
@@ -283,7 +293,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["webinar_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_list_meeting_participants",
@@ -304,7 +315,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["meeting_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="zoom_get_meeting_invitation",
@@ -318,7 +330,8 @@ class ZoomConnector(BaseConnector):
                         }
                     },
                     "required": ["meeting_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             )
         ]
         return tools

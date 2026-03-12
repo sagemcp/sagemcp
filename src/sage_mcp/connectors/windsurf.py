@@ -17,6 +17,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -82,6 +83,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date", "metrics"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_get_user_analytics",
@@ -104,6 +106,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date", "user_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_get_cascade_analytics",
@@ -122,6 +125,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_get_usage_config",
@@ -130,6 +134,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_set_usage_config",
@@ -144,6 +149,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     },
                     "required": ["config"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="windsurf_get_credit_balance",
@@ -152,6 +158,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ----------------------------------------------------------
             # Stub tools -- APIs not publicly documented (4 tools)
@@ -166,6 +173,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_list_audit_events",
@@ -177,6 +185,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_get_spending_breakdown",
@@ -188,6 +197,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="windsurf_get_seat_info",
@@ -199,6 +209,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ----------------------------------------------------------
             # Normalized cross-tool metrics (1 tool)
@@ -224,6 +235,7 @@ class WindsurfConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
         return tools

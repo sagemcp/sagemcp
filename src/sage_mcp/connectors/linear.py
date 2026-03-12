@@ -11,6 +11,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -542,6 +543,7 @@ class LinearConnector(BaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 2. get_issue
             types.Tool(
@@ -557,6 +559,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 3. create_issue
             types.Tool(
@@ -603,6 +606,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["title", "teamId"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # 4. update_issue
             types.Tool(
@@ -640,6 +644,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             # 5. search_issues
             types.Tool(
@@ -662,6 +667,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["query"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 6. archive_issue
             types.Tool(
@@ -677,6 +683,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             # 7. list_teams
             types.Tool(
@@ -686,6 +693,7 @@ class LinearConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 8. get_team
             types.Tool(
@@ -701,6 +709,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 9. list_projects
             types.Tool(
@@ -715,6 +724,7 @@ class LinearConnector(BaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 10. get_project
             types.Tool(
@@ -730,6 +740,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 11. create_project
             types.Tool(
@@ -754,6 +765,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["name", "teamIds"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # 12. list_cycles
             types.Tool(
@@ -769,6 +781,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["teamId"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 13. get_cycle
             types.Tool(
@@ -784,6 +797,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 14. list_labels
             types.Tool(
@@ -793,6 +807,7 @@ class LinearConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 15. list_workflow_states
             types.Tool(
@@ -808,6 +823,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["teamId"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 16. add_comment
             types.Tool(
@@ -827,6 +843,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["issueId", "body"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # 17. list_comments
             types.Tool(
@@ -842,6 +859,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["issueId"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 18. list_users
             types.Tool(
@@ -851,6 +869,7 @@ class LinearConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 19. get_user_by_email
             types.Tool(
@@ -866,6 +885,7 @@ class LinearConnector(BaseConnector):
                     },
                     "required": ["email"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
 

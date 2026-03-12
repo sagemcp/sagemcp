@@ -8,6 +8,7 @@ from . import github  # noqa: F401
 from . import google_docs  # noqa: F401
 from . import google_sheets  # noqa: F401
 from . import gmail  # noqa: F401
+from . import google_calendar  # noqa: F401
 from . import google_slides  # noqa: F401
 from . import jira  # noqa: F401
 from . import notion  # noqa: F401

@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -97,7 +98,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["start_time"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_get_cost_breakdown",
@@ -133,7 +135,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["start_time"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_get_embeddings_usage",
@@ -184,7 +187,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["start_time"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_get_code_interpreter_usage",
@@ -220,7 +224,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["start_time"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ------------------------------------------------------------------
             # Admin & Access Management (9 tools)
@@ -240,7 +245,8 @@ class CodexConnector(ApiKeyBaseConnector):
                             "description": "Cursor for pagination; pass the 'after' value from a previous response."
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_modify_user",
@@ -259,7 +265,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["user_id", "role"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="codex_delete_user",
@@ -273,7 +280,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["user_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="codex_list_invites",
@@ -290,7 +298,8 @@ class CodexConnector(ApiKeyBaseConnector):
                             "description": "Cursor for pagination."
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_create_invite",
@@ -309,7 +318,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["email", "role"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="codex_list_projects",
@@ -330,7 +340,8 @@ class CodexConnector(ApiKeyBaseConnector):
                             "description": "Whether to include archived projects."
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_get_project",
@@ -344,7 +355,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["project_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_create_project",
@@ -358,7 +370,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["name"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="codex_list_project_api_keys",
@@ -380,7 +393,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["project_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ------------------------------------------------------------------
             # Governance (2 tools)
@@ -428,7 +442,8 @@ class CodexConnector(ApiKeyBaseConnector):
                             "description": "Cursor for pagination."
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="codex_list_service_accounts",
@@ -450,7 +465,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["project_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ------------------------------------------------------------------
             # Normalized metrics (1 tool)
@@ -471,7 +487,8 @@ class CodexConnector(ApiKeyBaseConnector):
                         }
                     },
                     "required": ["start_time"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
 
