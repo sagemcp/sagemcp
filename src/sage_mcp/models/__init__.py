@@ -5,6 +5,7 @@ from .tenant import Tenant
 from .oauth_credential import OAuthCredential
 from .oauth_config import OAuthConfig
 from .connector import Connector, ConnectorType, ConnectorRuntimeType
+from .connector_mcp_override import ConnectorMCPOverride
 from .connector_tool_state import ConnectorToolState
 from .mcp_process import MCPProcess, ProcessStatus
 from .tool_usage_daily import ToolUsageDaily
@@ -18,6 +19,7 @@ __all__ = [
     "Connector",
     "ConnectorType",
     "ConnectorRuntimeType",
+    "ConnectorMCPOverride",
     "ConnectorToolState",
     "MCPProcess",
     "ProcessStatus",

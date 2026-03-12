@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -20,6 +21,7 @@ from .database.migrations import (
     upgrade_add_process_status_values,
     upgrade_remove_connector_unique_constraint,
     upgrade_add_mcp_server_registry,
+    upgrade_add_connector_local_mcp_entities,
     upgrade_encrypt_existing_secrets,
     upgrade_create_api_keys_table,
 )
@@ -29,6 +31,13 @@ from .observability.logging import configure_logging
 from .connectors import github  # noqa
 
 logger = logging.getLogger(__name__)
+
+_MCP_HTTP_PATH_RE = re.compile(r"^/api/v1/[^/]+/connectors/[^/]+/mcp(?:$|/)")
+
+
+def _should_disable_http_caching(path: str) -> bool:
+    """Return True for API paths that must bypass shared HTTP caches."""
+    return path.startswith("/api/v1/admin") or bool(_MCP_HTTP_PATH_RE.match(path))
 
 
 @asynccontextmanager
@@ -56,6 +65,7 @@ async def lifespan(app: FastAPI):
     await upgrade_add_process_status_values()
     await upgrade_remove_connector_unique_constraint()
     await upgrade_add_mcp_server_registry()
+    await upgrade_add_connector_local_mcp_entities()
 
     # Encrypt existing plaintext secrets in DB
     await upgrade_encrypt_existing_secrets()
@@ -173,6 +183,17 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
     )
+
+    @app.middleware("http")
+    async def disable_caching_for_admin_and_mcp(request: Request, call_next):
+        """Prevent stale admin and MCP API responses from shared HTTP caches."""
+        response = await call_next(request)
+        if _should_disable_http_caching(request.url.path):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            response.headers["Surrogate-Control"] = "no-store"
+        return response
 
     # CORS middleware — configurable origins
     cors_origins = settings.get_cors_origins()

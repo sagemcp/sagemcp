@@ -44,6 +44,22 @@ class ConnectorPlugin(Protocol):
         """Get available resources for this connector."""
         ...
 
+    async def get_resource_templates(
+        self,
+        connector: Connector,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> List[types.ResourceTemplate]:
+        """Get available resource templates for this connector."""
+        ...
+
+    async def get_prompts(
+        self,
+        connector: Connector,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> List[types.Prompt]:
+        """Get available prompts for this connector."""
+        ...
+
     async def execute_tool(
         self,
         connector: Connector,
@@ -61,6 +77,16 @@ class ConnectorPlugin(Protocol):
         oauth_cred: Optional[OAuthCredential] = None
     ) -> str:
         """Read a resource."""
+        ...
+
+    async def get_prompt(
+        self,
+        connector: Connector,
+        prompt_name: str,
+        arguments: Optional[Dict[str, str]] = None,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> types.GetPromptResult:
+        """Resolve a prompt."""
         ...
 
 
@@ -103,6 +129,22 @@ class BaseConnector(ABC):
         """Get available resources for this connector."""
         pass
 
+    async def get_resource_templates(
+        self,
+        connector: Connector,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> List[types.ResourceTemplate]:
+        """Get available resource templates for this connector."""
+        return []
+
+    async def get_prompts(
+        self,
+        connector: Connector,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> List[types.Prompt]:
+        """Get available prompts for this connector."""
+        return []
+
     @abstractmethod
     async def execute_tool(
         self,
@@ -123,6 +165,16 @@ class BaseConnector(ABC):
     ) -> str:
         """Read a resource."""
         pass
+
+    async def get_prompt(
+        self,
+        connector: Connector,
+        prompt_name: str,
+        arguments: Optional[Dict[str, str]] = None,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> types.GetPromptResult:
+        """Resolve a prompt."""
+        raise NotImplementedError(f"Connector {self.name} does not support prompts")
 
     def validate_oauth_credential(self, oauth_cred: OAuthCredential) -> bool:
         """Validate OAuth credentials for this connector."""
