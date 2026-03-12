@@ -86,10 +86,8 @@ class TestSessionManager:
         """Test that getting a session updates last_access."""
         session_id = session_mgr.create_session("tenant-a", "conn-1", mock_server)
         entry = session_mgr.sessions[session_id]
-        original_access = entry.last_access
-
-        # Small sleep to ensure time difference
-        await asyncio.sleep(0.01)
+        original_access = time.monotonic() - 1
+        entry.last_access = original_access
 
         entry = session_mgr.get_session(session_id)
         assert entry.last_access > original_access
