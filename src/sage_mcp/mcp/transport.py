@@ -207,7 +207,8 @@ class MCPTransport:
                         "protocolVersion": negotiated,
                         "capabilities": {
                             "tools": {"listChanged": True},
-                            "resources": {"subscribe": True, "listChanged": True}
+                            "resources": {"subscribe": True, "listChanged": True},
+                            "prompts": {"listChanged": True},
                         },
                         "serverInfo": {
                             "name": "sage-mcp",
@@ -355,6 +356,54 @@ class MCPTransport:
                     "result": {"resources": []}
                 }
 
+            elif method == "resources/templates/list":
+                if hasattr(self.mcp_server.server, 'request_handlers'):
+                    handlers = self.mcp_server.server.request_handlers
+
+                    from mcp.types import ListResourceTemplatesRequest
+                    if ListResourceTemplatesRequest in handlers:
+                        handler = handlers[ListResourceTemplatesRequest]
+                        try:
+                            request_obj = ListResourceTemplatesRequest(
+                                method="resources/templates/list",
+                                params=params or {},
+                            )
+                            result = await handler(request_obj)
+
+                            templates_list = None
+                            if hasattr(result, 'resourceTemplates'):
+                                templates_list = result.resourceTemplates
+                            elif hasattr(result, 'root') and hasattr(result.root, 'resourceTemplates'):
+                                templates_list = result.root.resourceTemplates
+                            elif isinstance(result, dict) and 'resourceTemplates' in result:
+                                templates_list = result['resourceTemplates']
+
+                            clean_templates = []
+                            if templates_list:
+                                for template in templates_list:
+                                    if hasattr(template, "model_dump"):
+                                        clean_templates.append(
+                                            template.model_dump(mode="json", exclude_none=True)
+                                        )
+                                    else:
+                                        clean_templates.append(dict(template))
+
+                            return {
+                                "jsonrpc": "2.0",
+                                "id": message_id,
+                                "result": {
+                                    "resourceTemplates": clean_templates
+                                }
+                            }
+                        except Exception as e:
+                            return _error_response(message_id, -32603, f"Error listing resource templates: {str(e)}")
+
+                return {
+                    "jsonrpc": "2.0",
+                    "id": message_id,
+                    "result": {"resourceTemplates": []}
+                }
+
             elif method == "resources/read":
                 uri = params.get("uri")
 
@@ -416,6 +465,21 @@ class MCPTransport:
                                     "id": message_id,
                                     "result": {"contents": clean_contents},
                                 }
+
+                            if isinstance(result, str):
+                                return {
+                                    "jsonrpc": "2.0",
+                                    "id": message_id,
+                                    "result": {
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "uri": str(uri or ""),
+                                                "text": result,
+                                            }
+                                        ]
+                                    },
+                                }
                         except Exception as e:
                             return _error_response(message_id, -32603, f"Error reading resource: {str(e)}")
 
@@ -430,6 +494,77 @@ class MCPTransport:
                         }
 
                 return _error_response(message_id, -32601, f"Resource not found: {uri}")
+
+            elif method == "prompts/list":
+                if hasattr(self.mcp_server.server, 'request_handlers'):
+                    handlers = self.mcp_server.server.request_handlers
+
+                    from mcp.types import ListPromptsRequest
+                    if ListPromptsRequest in handlers:
+                        handler = handlers[ListPromptsRequest]
+                        try:
+                            request_obj = ListPromptsRequest(method="prompts/list", params=params or {})
+                            result = await handler(request_obj)
+
+                            prompts_list = None
+                            if hasattr(result, 'prompts'):
+                                prompts_list = result.prompts
+                            elif hasattr(result, 'root') and hasattr(result.root, 'prompts'):
+                                prompts_list = result.root.prompts
+                            elif isinstance(result, dict) and 'prompts' in result:
+                                prompts_list = result['prompts']
+
+                            clean_prompts = []
+                            if prompts_list:
+                                for prompt in prompts_list:
+                                    if hasattr(prompt, "model_dump"):
+                                        clean_prompts.append(
+                                            prompt.model_dump(mode="json", exclude_none=True)
+                                        )
+                                    else:
+                                        clean_prompts.append(dict(prompt))
+
+                            return {
+                                "jsonrpc": "2.0",
+                                "id": message_id,
+                                "result": {"prompts": clean_prompts}
+                            }
+                        except Exception as e:
+                            return _error_response(message_id, -32603, f"Error listing prompts: {str(e)}")
+
+                return {
+                    "jsonrpc": "2.0",
+                    "id": message_id,
+                    "result": {"prompts": []}
+                }
+
+            elif method == "prompts/get":
+                if hasattr(self.mcp_server.server, 'request_handlers'):
+                    handlers = self.mcp_server.server.request_handlers
+
+                    from mcp.types import GetPromptRequest
+                    if GetPromptRequest in handlers:
+                        handler = handlers[GetPromptRequest]
+                        try:
+                            request_obj = GetPromptRequest(method="prompts/get", params=params or {})
+                            result = await handler(request_obj)
+
+                            if hasattr(result, "model_dump"):
+                                clean_result = result.model_dump(mode="json", exclude_none=True)
+                            elif isinstance(result, dict):
+                                clean_result = result
+                            else:
+                                clean_result = {}
+
+                            return {
+                                "jsonrpc": "2.0",
+                                "id": message_id,
+                                "result": clean_result,
+                            }
+                        except Exception as e:
+                            return _error_response(message_id, -32603, f"Error resolving prompt: {str(e)}")
+
+                return _error_response(message_id, -32601, "Prompt handler not found")
 
             else:
                 return _error_response(message_id, -32601, f"Method not found: {method}")

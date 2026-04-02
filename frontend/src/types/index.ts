@@ -46,6 +46,34 @@ export interface ConnectorCreate {
   package_path?: string
 }
 
+export type ConnectorOverrideTargetKind = 'tool' | 'resource' | 'resource_template' | 'prompt'
+
+export interface ConnectorOverride {
+  id: string
+  connector_id: string
+  target_kind: ConnectorOverrideTargetKind
+  identifier: string
+  payload_text: string
+  metadata_json?: Record<string, any>
+  is_enabled: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ConnectorOverrideCreate {
+  target_kind: ConnectorOverrideTargetKind
+  identifier: string
+  payload_text: string
+  metadata_json?: Record<string, any>
+  is_enabled?: boolean
+}
+
+export interface ConnectorOverrideUpdate {
+  payload_text?: string
+  metadata_json?: Record<string, any>
+  is_enabled?: boolean
+}
+
 export enum ConnectorType {
   // Source control
   GITHUB = 'github',

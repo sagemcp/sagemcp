@@ -22,6 +22,7 @@ from sage_mcp.database.connection import get_db_session, db_manager
 from sage_mcp.models.base import Base
 from sage_mcp.models.tenant import Tenant
 from sage_mcp.models.connector import Connector, ConnectorType
+from sage_mcp.models.connector_mcp_override import ConnectorMCPOverride
 from sage_mcp.models.oauth_credential import OAuthCredential
 from sage_mcp.models.api_key import APIKey
 
@@ -98,6 +99,7 @@ def cleanup_db():
     try:
         # Delete in correct order to avoid foreign key constraints
         session.query(OAuthCredential).delete()
+        session.query(ConnectorMCPOverride).delete()
         session.query(Connector).delete()
         try:
             session.query(APIKey).delete()
@@ -138,10 +140,18 @@ def client() -> TestClient:
             finally:
                 await session.close()
 
+    original_engine = db_manager.engine
+    original_session_factory = db_manager.session_factory
+    db_manager.engine = test_async_engine
+    db_manager.session_factory = TestingAsyncSessionLocal
     app.dependency_overrides[get_db_session] = override_get_db_session
     client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+    try:
+        yield client
+    finally:
+        app.dependency_overrides.clear()
+        db_manager.engine = original_engine
+        db_manager.session_factory = original_session_factory
 
 
 @pytest.fixture

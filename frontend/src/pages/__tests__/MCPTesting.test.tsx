@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '../../test/utils'
-import MCPTesting from '../MCPTesting'
+import MCPTesting, { buildPromptArgumentsSchema, buildPromptArgumentsSeed } from '../MCPTesting'
 import * as api from '../../utils/api'
 
 vi.mock('../../utils/api', () => ({
@@ -44,25 +44,44 @@ describe('MCPTesting validation UX', () => {
 
     mockMcpApi.sendMessage.mockImplementation(
       (_tenant: string, _connector: string, payload: { method?: string } | undefined) => {
-      if (payload?.method === 'tools/list') {
-        return Promise.resolve({
-          data: {
-            result: {
-              tools: [
-                {
-                  name: 'known_tool',
-                  inputSchema: {
-                    type: 'object',
-                    properties: { value: { type: 'string' } },
-                    required: ['value'],
+        if (payload?.method === 'tools/list') {
+          return Promise.resolve({
+            data: {
+              result: {
+                tools: [
+                  {
+                    name: 'known_tool',
+                    inputSchema: {
+                      type: 'object',
+                      properties: { value: { type: 'string' } },
+                      required: ['value'],
+                    },
                   },
-                },
-              ],
+                ],
+              },
             },
-          },
-        } as any)
-      }
-      return Promise.resolve({ data: { ok: true } } as any)
+          } as any)
+        }
+        if (payload?.method === 'prompts/list') {
+          return Promise.resolve({
+            data: {
+              result: {
+                prompts: [
+                  {
+                    name: 'test_prompt',
+                    arguments: [
+                      {
+                        name: 'id',
+                        required: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          } as any)
+        }
+        return Promise.resolve({ data: { ok: true } } as any)
       }
     )
   })
@@ -149,8 +168,192 @@ describe('MCPTesting validation UX', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Send HTTP' })).toBeDisabled()
-      const highlightedNameTokens = document.querySelectorAll('.json-error-token[data-error-key="name"]')
+      const highlightedNameTokens = document.querySelectorAll('.json-error-token[data-error-key="/params/name"]')
       expect(highlightedNameTokens.length).toBe(1)
+    })
+  })
+
+  it('loads prompt request templates', async () => {
+    await setupAndSelectConnector()
+
+    fireEvent.click(screen.getByRole('button', { name: 'List Prompts' }))
+
+    let editor = document.getElementById('mcp-request-editor') as HTMLTextAreaElement
+    await waitFor(() => {
+      expect(editor.value).toContain('"method": "prompts/list"')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Get Prompt' }))
+
+    editor = document.getElementById('mcp-request-editor') as HTMLTextAreaElement
+    await waitFor(() => {
+      expect(editor.value).toContain('"method": "prompts/get"')
+      expect(editor.value).toContain('"name": "example.prompt"')
+    })
+  })
+
+  it('validates required prompt arguments before sending prompts/get', async () => {
+    await setupAndSelectConnector()
+
+    const editor = document.getElementById('mcp-request-editor') as HTMLTextAreaElement
+    expect(editor).not.toBeNull()
+
+    fireEvent.change(editor, {
+      target: {
+        value: `{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/get",
+  "params": {
+    "name": "test_prompt",
+    "arguments": {}
+  }
+}`,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Send HTTP' })).toBeDisabled()
+    })
+  })
+
+  it('anchors missing prompt argument errors to params.arguments instead of the top-level id', async () => {
+    await setupAndSelectConnector()
+
+    const editor = document.getElementById('mcp-request-editor') as HTMLTextAreaElement
+    expect(editor).not.toBeNull()
+
+    fireEvent.change(editor, {
+      target: {
+        value: `{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/get",
+  "params": {
+    "name": "test_prompt",
+    "arguments": {}
+  }
+}`,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Send HTTP' })).toBeDisabled()
+    })
+
+    const topLevelIdToken = Array.from(document.querySelectorAll('.token.property')).find(
+      (token) => token.textContent === '"id"'
+    )
+    expect(topLevelIdToken?.classList.contains('json-error-token')).toBe(false)
+  })
+
+  it('rejects unknown prompt arguments before sending prompts/get', async () => {
+    await setupAndSelectConnector()
+
+    const editor = document.getElementById('mcp-request-editor') as HTMLTextAreaElement
+    expect(editor).not.toBeNull()
+
+    fireEvent.change(editor, {
+      target: {
+        value: `{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/get",
+  "params": {
+    "name": "test_prompt",
+    "arguments": {
+      "blah": "blah"
+    }
+  }
+}`,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Send HTTP' })).toBeDisabled()
+    })
+  })
+
+  it('does not highlight top-level keys for unknown prompt arguments that reuse reserved names', async () => {
+    await setupAndSelectConnector()
+
+    const editor = document.getElementById('mcp-request-editor') as HTMLTextAreaElement
+    expect(editor).not.toBeNull()
+
+    fireEvent.change(editor, {
+      target: {
+        value: `{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/get",
+  "params": {
+    "name": "test_prompt",
+    "arguments": {
+      "method": "oops"
+    }
+  }
+}`,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Send HTTP' })).toBeDisabled()
+    })
+
+    const topLevelMethodToken = Array.from(document.querySelectorAll('.token.property')).find(
+      (token) => token.textContent === '"method"'
+    )
+    const topLevelIdToken = Array.from(document.querySelectorAll('.token.property')).find(
+      (token) => token.textContent === '"id"'
+    )
+
+    expect(topLevelMethodToken?.classList.contains('json-error-token')).toBe(false)
+    expect(topLevelIdToken?.classList.contains('json-error-token')).toBe(false)
+  })
+
+  it('hydrates prompt arguments from prompt metadata while preserving existing values', () => {
+    const seededArguments = buildPromptArgumentsSeed(
+      {
+        name: 'test_prompt',
+        arguments: [
+          { name: 'id', required: true },
+          { name: 'format', required: false },
+        ],
+      },
+      { id: '123' }
+    )
+
+    expect(seededArguments).toEqual({
+      id: '123',
+      format: '',
+    })
+  })
+
+  it('builds a strict prompt schema from prompt metadata', () => {
+    expect(
+      buildPromptArgumentsSchema({
+        name: 'test_prompt',
+        arguments: [
+          { name: 'id', required: true, description: 'Issue id' },
+          { name: 'format', required: false },
+        ],
+      })
+    ).toEqual({
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'Issue id',
+          minLength: 1,
+        },
+        format: {
+          type: 'string',
+          description: undefined,
+          minLength: 0,
+        },
+      },
+      required: ['id'],
+      additionalProperties: false,
     })
   })
 
