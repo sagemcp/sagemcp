@@ -21,6 +21,10 @@ import { tenantsApi, connectorsApi, mcpApi } from '@/utils/api'
 import { cn } from '@/utils/cn'
 import { toast } from 'sonner'
 import { CodeBlock } from '@/components/sage/code-block'
+import {
+  mapValidationErrorsToPropertyTokenIndices,
+  type ValidationErrorDetail,
+} from './mcpTestingValidation'
 
 interface TestMessage {
   id: string
@@ -37,11 +41,16 @@ interface ToolDefinition {
   input_schema?: Record<string, unknown>
 }
 
-interface ValidationErrorDetail {
-  message: string
-  path?: string
-  propertyName?: string
-  offset?: number
+interface PromptArgumentDefinition {
+  name: string
+  required?: boolean
+  description?: string
+}
+
+interface PromptDefinition {
+  name: string
+  description?: string
+  arguments?: PromptArgumentDefinition[]
 }
 
 function formatAjvErrors(errors: ErrorObject[]): ValidationErrorDetail[] {
@@ -50,19 +59,74 @@ function formatAjvErrors(errors: ErrorObject[]): ValidationErrorDetail[] {
       const missingProperty = (error.params as { missingProperty?: string }).missingProperty
       return {
         message: `arguments.${missingProperty ?? 'unknown'} is required`,
-        path: missingProperty ? `/arguments/${missingProperty}` : '/arguments',
-        propertyName: missingProperty,
+        path: missingProperty ? `/params/arguments/${missingProperty}` : '/params/arguments',
+      }
+    }
+
+    if (error.keyword === 'additionalProperties') {
+      const additionalProperty = (error.params as { additionalProperty?: string }).additionalProperty
+      return {
+        message: `arguments.${additionalProperty ?? 'unknown'} is not allowed`,
+        path: additionalProperty ? `/params/arguments/${additionalProperty}` : '/params/arguments',
       }
     }
 
     const path = error.instancePath ? `arguments${error.instancePath}` : 'arguments'
-    const propertyName = error.instancePath.split('/').filter(Boolean).pop()
     return {
       message: `${path}: ${error.message ?? 'invalid value'}`,
-      path: error.instancePath ? `/arguments${error.instancePath}` : '/arguments',
-      propertyName: propertyName || undefined,
+      path: error.instancePath ? `/params/arguments${error.instancePath}` : '/params/arguments',
     }
   })
+}
+
+export function buildPromptArgumentsSeed(
+  prompt: PromptDefinition | undefined,
+  existingArguments: unknown
+): Record<string, string> {
+  const seededArguments: Record<string, string> =
+    existingArguments && typeof existingArguments === 'object' && !Array.isArray(existingArguments)
+      ? { ...(existingArguments as Record<string, string>) }
+      : {}
+
+  for (const argument of prompt?.arguments ?? []) {
+    if (!argument.name) continue
+    if (!(argument.name in seededArguments)) {
+      seededArguments[argument.name] = ''
+    }
+  }
+
+  return seededArguments
+}
+
+export function buildPromptArgumentsSchema(
+  prompt: PromptDefinition | undefined
+): Record<string, unknown> | null {
+  const promptArguments = prompt?.arguments ?? []
+  if (promptArguments.length === 0) {
+    return null
+  }
+
+  const properties = Object.fromEntries(
+    promptArguments
+      .filter((argument) => argument.name)
+      .map((argument) => [
+        argument.name,
+        {
+          type: 'string',
+          description: argument.description,
+          minLength: argument.required ? 1 : 0,
+        },
+      ])
+  )
+
+  return {
+    type: 'object',
+    properties,
+    required: promptArguments
+      .filter((argument) => argument.required && argument.name)
+      .map((argument) => argument.name),
+    additionalProperties: false,
+  }
 }
 
 const MessageCard = ({
@@ -148,6 +212,21 @@ const RequestTemplates = {
     params: {
       uri: 'example://resource'
     }
+  },
+  'List Prompts': {
+    jsonrpc: '2.0',
+    id: 5,
+    method: 'prompts/list',
+    params: {}
+  },
+  'Get Prompt': {
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'prompts/get',
+    params: {
+      name: 'example.prompt',
+      arguments: {}
+    }
   }
 }
 
@@ -206,6 +285,29 @@ export default function MCPTesting() {
     [availableTools]
   )
 
+  const { data: availablePrompts = [] } = useQuery({
+    queryKey: ['mcp-prompts', selectedTenant, selectedConnector],
+    queryFn: async () => {
+      const response = await mcpApi.sendMessage(selectedTenant, selectedConnector, {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'prompts/list',
+        params: {},
+      })
+
+      const data = response.data
+      const prompts = data?.result?.prompts ?? data?.prompts ?? []
+      return Array.isArray(prompts) ? (prompts as PromptDefinition[]) : []
+    },
+    enabled: !!selectedTenant && !!selectedConnector,
+    staleTime: 30_000,
+  })
+
+  const promptsByName = useMemo(
+    () => new Map(availablePrompts.map((prompt) => [prompt.name, prompt])),
+    [availablePrompts]
+  )
+
   const ajv = useMemo(() => new Ajv({ allErrors: true, strict: false }), [])
 
   useEffect(() => {
@@ -262,77 +364,114 @@ export default function MCPTesting() {
     }
 
     const request = parsedRequest.data
-    if (!request || request.method !== 'tools/call') {
+    if (!request) {
       return errors
     }
 
-    const toolName = request?.params?.name
-    if (!toolName || typeof toolName !== 'string') {
-      errors.push({ message: 'params.name is required for tools/call', path: '/params/name' })
-      return errors
-    }
-
-    const tool = toolsByName.get(toolName)
-    if (availableTools.length > 0 && !tool) {
-      errors.push({
-        message: `Unknown tool "${toolName}". Select a tool from available options.`,
-        path: '/params/name',
-      })
-      return errors
-    }
-
-    const args = request?.params?.arguments ?? {}
-    if (request?.params?.arguments !== undefined && typeof request?.params?.arguments !== 'object') {
-      errors.push({ message: 'params.arguments must be an object', path: '/params/arguments' })
-      return errors
-    }
-
-    const schema = tool?.inputSchema ?? tool?.input_schema
-    if (!schema) {
-      return errors
-    }
-
-    try {
-      const cacheKey = `${toolName}:${JSON.stringify(schema)}`
-      let validate = validatorCacheRef.current.get(cacheKey)
-      if (!validate) {
-        validate = ajv.compile(schema)
-        validatorCacheRef.current.set(cacheKey, validate)
+    if (request.method === 'tools/call') {
+      const toolName = request?.params?.name
+      if (!toolName || typeof toolName !== 'string') {
+        errors.push({ message: 'params.name is required for tools/call', path: '/params/name' })
+        return errors
       }
-      const isValid = validate(args)
-      if (!isValid && validate.errors) {
-        errors.push(...formatAjvErrors(validate.errors))
+
+      const tool = toolsByName.get(toolName)
+      if (availableTools.length > 0 && !tool) {
+        errors.push({
+          message: `Unknown tool "${toolName}". Select a tool from available options.`,
+          path: '/params/name',
+        })
+        return errors
       }
-    } catch (error: any) {
-      errors.push({ message: `Failed to validate tool schema: ${error.message}`, path: '/params/arguments' })
+
+      const args = request?.params?.arguments ?? {}
+      if (request?.params?.arguments !== undefined && typeof request?.params?.arguments !== 'object') {
+        errors.push({ message: 'params.arguments must be an object', path: '/params/arguments' })
+        return errors
+      }
+
+      const schema = tool?.inputSchema ?? tool?.input_schema
+      if (!schema) {
+        return errors
+      }
+
+      try {
+        const cacheKey = `${toolName}:${JSON.stringify(schema)}`
+        let validate = validatorCacheRef.current.get(cacheKey)
+        if (!validate) {
+          validate = ajv.compile(schema)
+          validatorCacheRef.current.set(cacheKey, validate)
+        }
+        const isValid = validate(args)
+        if (!isValid && validate.errors) {
+          errors.push(...formatAjvErrors(validate.errors))
+        }
+      } catch (error: any) {
+        errors.push({ message: `Failed to validate tool schema: ${error.message}`, path: '/params/arguments' })
+      }
+
+      return errors
+    }
+
+    if (request.method === 'prompts/get') {
+      const promptName = request?.params?.name
+      if (!promptName || typeof promptName !== 'string') {
+        errors.push({ message: 'params.name is required for prompts/get', path: '/params/name' })
+        return errors
+      }
+
+      const prompt = promptsByName.get(promptName)
+      if (availablePrompts.length > 0 && !prompt) {
+        errors.push({
+          message: `Unknown prompt "${promptName}". Select a prompt from available options.`,
+          path: '/params/name',
+        })
+        return errors
+      }
+
+      const args = request?.params?.arguments ?? {}
+      if (request?.params?.arguments !== undefined && typeof request?.params?.arguments !== 'object') {
+        errors.push({ message: 'params.arguments must be an object', path: '/params/arguments' })
+        return errors
+      }
+
+      const promptSchema = buildPromptArgumentsSchema(prompt)
+      if (!promptSchema) {
+        return errors
+      }
+
+      try {
+        const cacheKey = `${promptName}:${JSON.stringify(promptSchema)}`
+        let validate = validatorCacheRef.current.get(cacheKey)
+        if (!validate) {
+          validate = ajv.compile(promptSchema)
+          validatorCacheRef.current.set(cacheKey, validate)
+        }
+        const isValid = validate(args)
+        if (!isValid && validate.errors) {
+          errors.push(...formatAjvErrors(validate.errors))
+        }
+      } catch (error: any) {
+        errors.push({ message: `Failed to validate prompt schema: ${error.message}`, path: '/params/arguments' })
+      }
     }
 
     return errors
-  }, [ajv, parsedRequest, toolsByName, availableTools.length])
+  }, [ajv, parsedRequest, toolsByName, availableTools.length, promptsByName, availablePrompts.length])
 
   const hasRequestValidationErrors = requestValidationErrors.length > 0
   const selectedToolName =
     requestPreview?.method === 'tools/call' && typeof requestPreview?.params?.name === 'string'
       ? requestPreview.params.name
       : ''
+  const selectedPromptName =
+    requestPreview?.method === 'prompts/get' && typeof requestPreview?.params?.name === 'string'
+      ? requestPreview.params.name
+      : ''
 
   const propertyErrorMap = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const error of requestValidationErrors) {
-      if (error.propertyName) {
-        map.set(error.propertyName, error.message)
-        continue
-      }
-
-      // Map non-AJV errors to concrete request keys so squiggles appear.
-      if (error.path === '/params/name') {
-        map.set('name', error.message)
-      } else if (error.path === '/params/arguments') {
-        map.set('arguments', error.message)
-      }
-    }
-    return map
-  }, [requestValidationErrors])
+    return mapValidationErrorsToPropertyTokenIndices(debouncedRequestBody, requestValidationErrors)
+  }, [debouncedRequestBody, requestValidationErrors])
 
   const syntaxErrorDetail = useMemo(() => {
     const syntaxErrors = requestValidationErrors.filter((error) => error.path === '/')
@@ -402,27 +541,6 @@ export default function MCPTesting() {
     const previouslyTaggedTokens = container.querySelectorAll('.json-error-token')
     previouslyTaggedTokens.forEach((tokenNode) => clearTokenErrorAttrs(tokenNode as HTMLElement))
 
-    const consumedErrorKeys = new Set<string>()
-    const propertyTokens = container.querySelectorAll('.token.property')
-    propertyTokens.forEach((tokenNode) => {
-      const token = tokenNode as HTMLElement
-
-      const rawText = token.textContent ?? ''
-      if (!rawText.startsWith('"') || !rawText.endsWith('"')) return
-      const propertyName = rawText.slice(1, -1)
-      if (consumedErrorKeys.has(propertyName)) return
-      const errorMessage = propertyErrorMap.get(propertyName)
-      if (!errorMessage) return
-
-      token.classList.add('json-error-token')
-      if (activeErrorKey === propertyName) {
-        token.classList.add('json-error-token-active')
-      }
-      token.dataset.errorKey = propertyName
-      token.dataset.errorMessage = errorMessage
-      consumedErrorKeys.add(propertyName)
-    })
-
     const findTokenAtOffset = (targetOffset: number): HTMLElement | null => {
       const root = container.querySelector('pre') ?? container
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
@@ -443,6 +561,20 @@ export default function MCPTesting() {
 
       return null
     }
+
+    const propertyTokens = Array.from(container.querySelectorAll('.token.property')) as HTMLElement[]
+    propertyErrorMap.forEach((errors, tokenIndex) => {
+      const token = propertyTokens[tokenIndex]
+      if (!token) return
+
+      const errorKey = errors.map((error) => error.path ?? error.message).join('|') || `__property_${tokenIndex}`
+      token.classList.add('json-error-token')
+      if (activeErrorKey === errorKey) {
+        token.classList.add('json-error-token-active')
+      }
+      token.dataset.errorKey = errorKey
+      token.dataset.errorMessage = errors.map((error) => error.message).join('\n')
+    })
 
     // Attach syntax-level errors to the token closest to the parser offset.
     const firstToken = container.querySelector(
@@ -586,7 +718,25 @@ export default function MCPTesting() {
   const loadTemplate = (templateName: string) => {
     const template = RequestTemplates[templateName as keyof typeof RequestTemplates]
     if (template) {
-      setRequestBody(JSON.stringify(template, null, 2))
+      const nextRequest = JSON.parse(JSON.stringify(template)) as Record<string, any>
+
+      if (nextRequest.method === 'tools/call' && availableTools.length > 0) {
+        nextRequest.params = nextRequest.params || {}
+        nextRequest.params.name = availableTools[0].name
+        nextRequest.params.arguments = nextRequest.params.arguments || {}
+      }
+
+      if (nextRequest.method === 'prompts/get' && availablePrompts.length > 0) {
+        const defaultPrompt = availablePrompts[0]
+        nextRequest.params = nextRequest.params || {}
+        nextRequest.params.name = defaultPrompt.name
+        nextRequest.params.arguments = buildPromptArgumentsSeed(
+          defaultPrompt,
+          nextRequest.params.arguments
+        )
+      }
+
+      setRequestBody(JSON.stringify(nextRequest, null, 2))
     }
   }
 
@@ -606,6 +756,31 @@ export default function MCPTesting() {
       request.params = request.params || {}
       request.params.name = toolName
       request.params.arguments = request.params.arguments || {}
+      setRequestBody(JSON.stringify(request, null, 2))
+    } catch {
+      // ignore invalid JSON in editor
+    }
+  }
+
+  const setPromptNameInRequest = (promptName: string) => {
+    try {
+      const syntaxErrors: ParseError[] = []
+      const request = parseJsonc(requestBody, syntaxErrors, {
+        allowTrailingComma: true,
+        disallowComments: false,
+      }) as Record<string, any> | undefined
+      if (!request || typeof request !== 'object') {
+        return
+      }
+      if (request.method !== 'prompts/get') {
+        return
+      }
+      request.params = request.params || {}
+      request.params.name = promptName
+      request.params.arguments = buildPromptArgumentsSeed(
+        promptsByName.get(promptName),
+        request.params.arguments
+      )
       setRequestBody(JSON.stringify(request, null, 2))
     } catch {
       // ignore invalid JSON in editor
@@ -651,10 +826,11 @@ export default function MCPTesting() {
             <div className="card-content space-y-4">
               {/* Tenant Selection */}
               <div>
-                <label className="block text-sm font-medium text-theme-secondary mb-1">
+                <label htmlFor="mcp-testing-tenant" className="block text-sm font-medium text-theme-secondary mb-1">
                   Select Tenant
                 </label>
                 <select
+                  id="mcp-testing-tenant"
                   value={selectedTenant}
                   onChange={(e) => {
                     setSelectedTenant(e.target.value)
@@ -674,10 +850,11 @@ export default function MCPTesting() {
               {/* Connector Selection */}
               {selectedTenant && (
                 <div>
-                  <label className="block text-sm font-medium text-theme-secondary mb-1">
+                  <label htmlFor="mcp-testing-connector" className="block text-sm font-medium text-theme-secondary mb-1">
                     Select Connector
                   </label>
                   <select
+                    id="mcp-testing-connector"
                     value={selectedConnector}
                     onChange={(e) => setSelectedConnector(e.target.value)}
                     className="input-field"
@@ -805,10 +982,11 @@ export default function MCPTesting() {
               {requestPreview?.method === 'tools/call' && (
                 <div className="mt-3">
                   <div>
-                    <label className="block text-sm font-medium text-theme-secondary mb-1">
+                    <label htmlFor="mcp-testing-tool-name" className="block text-sm font-medium text-theme-secondary mb-1">
                       Tool name (from tools/list)
                     </label>
                     <select
+                      id="mcp-testing-tool-name"
                       value={selectedToolName}
                       onChange={(e) => setToolNameInRequest(e.target.value)}
                       className="input-field"
@@ -817,6 +995,29 @@ export default function MCPTesting() {
                       {availableTools.map((tool) => (
                         <option key={tool.name} value={tool.name}>
                           {tool.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {requestPreview?.method === 'prompts/get' && (
+                <div className="mt-3">
+                  <div>
+                    <label htmlFor="mcp-testing-prompt-name" className="block text-sm font-medium text-theme-secondary mb-1">
+                      Prompt name (from prompts/list)
+                    </label>
+                    <select
+                      id="mcp-testing-prompt-name"
+                      value={selectedPromptName}
+                      onChange={(e) => setPromptNameInRequest(e.target.value)}
+                      className="input-field"
+                    >
+                      <option value="">Select a prompt...</option>
+                      {availablePrompts.map((prompt) => (
+                        <option key={prompt.name} value={prompt.name}>
+                          {prompt.name}
                         </option>
                       ))}
                     </select>

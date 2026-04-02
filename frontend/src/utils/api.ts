@@ -1,5 +1,22 @@
 import axios from 'axios'
-import { Tenant, TenantCreate, Connector, ConnectorCreate, MCPServerInfo, OAuthProvider, OAuthCredential, OAuthConfig, MCPProcessStatus, PlatformStats, SessionInfo, PoolEntry, PoolSummary } from '@/types'
+import {
+  Tenant,
+  TenantCreate,
+  Connector,
+  ConnectorCreate,
+  ConnectorOverride,
+  ConnectorOverrideCreate,
+  ConnectorOverrideUpdate,
+  MCPServerInfo,
+  OAuthProvider,
+  OAuthCredential,
+  OAuthConfig,
+  MCPProcessStatus,
+  PlatformStats,
+  SessionInfo,
+  PoolEntry,
+  PoolSummary,
+} from '@/types'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -52,6 +69,19 @@ export const connectorsApi = {
     api.delete(`/admin/tenants/${tenantSlug}/connectors/${connectorId}`),
   toggle: (tenantSlug: string, connectorId: string) =>
     api.patch<Connector>(`/admin/tenants/${tenantSlug}/connectors/${connectorId}/toggle`),
+}
+
+export const overridesApi = {
+  list: (tenantSlug: string, connectorId: string) =>
+    api.get<ConnectorOverride[]>(`/admin/tenants/${tenantSlug}/connectors/${connectorId}/overrides`),
+  create: (tenantSlug: string, connectorId: string, data: ConnectorOverrideCreate) =>
+    api.post<ConnectorOverride>(`/admin/tenants/${tenantSlug}/connectors/${connectorId}/overrides`, data),
+  get: (tenantSlug: string, connectorId: string, overrideId: string) =>
+    api.get<ConnectorOverride>(`/admin/tenants/${tenantSlug}/connectors/${connectorId}/overrides/${overrideId}`),
+  update: (tenantSlug: string, connectorId: string, overrideId: string, data: ConnectorOverrideUpdate) =>
+    api.patch<ConnectorOverride>(`/admin/tenants/${tenantSlug}/connectors/${connectorId}/overrides/${overrideId}`, data),
+  delete: (tenantSlug: string, connectorId: string, overrideId: string) =>
+    api.delete(`/admin/tenants/${tenantSlug}/connectors/${connectorId}/overrides/${overrideId}`),
 }
 
 export interface ToolState {

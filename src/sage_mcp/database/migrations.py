@@ -3,13 +3,14 @@
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from ..models.base import Base
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.mcp_process import MCPProcess
 from ..models.mcp_server_registry import MCPServerRegistry, DiscoveryJob, MCPInstallation
 from ..models.tool_usage_daily import ToolUsageDaily
+from ..models.connector_mcp_override import ConnectorMCPOverride
 from .connection import db_manager
 
 logger = logging.getLogger(__name__)
@@ -398,6 +399,28 @@ async def upgrade_add_mcp_server_registry(engine: AsyncEngine = None):
             print("✓ Added registry_id and installed_version columns to connectors table")
         else:
             print("✓ registry_id column already exists in connectors table")
+
+
+async def upgrade_add_connector_local_mcp_entities(engine: AsyncEngine = None):
+    """Migration: add generic local MCP override table for connectors."""
+    if engine is None:
+        if not db_manager.engine:
+            db_manager.initialize()
+        engine = db_manager.engine
+
+    async with engine.begin() as conn:
+        table_exists = await conn.run_sync(
+            lambda sync_conn: inspect(sync_conn).has_table("connector_mcp_overrides")
+        )
+
+        if table_exists:
+            print("connector_mcp_overrides table already exists")
+            return
+
+        await conn.run_sync(
+            lambda sync_conn: ConnectorMCPOverride.__table__.create(sync_conn, checkfirst=True)
+        )
+        print("Created connector_mcp_overrides table")
 
 
 async def upgrade_encrypt_existing_secrets(engine: AsyncEngine = None):

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from mcp import types
 from mcp.server import Server
+from mcp.server.lowlevel.helper_types import ReadResourceContents
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,7 @@ from ..models.connector import ConnectorRuntimeType
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.oauth_credential import OAuthCredential
 from ..connectors.registry import connector_registry
+from .local_catalog import LocalOverrideRegistry, merge_unique_by_key
 from ..observability.metrics import record_tool_call
 
 logger = logging.getLogger(__name__)
@@ -120,7 +122,11 @@ class MCPServer:
             # Execute the tool call
             start = time.perf_counter()
             try:
-                result = await self._execute_tool(connector, action, arguments)
+                local_result = await self._execute_local_tool(connector, name, action, arguments)
+                if local_result is not None:
+                    result = local_result
+                else:
+                    result = await self._execute_tool(connector, action, arguments)
                 record_tool_call(
                     connector_type=connector.connector_type.value,
                     tool_name=action,
@@ -155,10 +161,32 @@ class MCPServer:
 
             return resources
 
+        @self.server.list_resource_templates()
+        async def handle_list_resource_templates() -> List[types.ResourceTemplate]:
+            """List available resource templates."""
+            templates = []
+
+            for connector in self.connectors:
+                if not connector.is_enabled:
+                    continue
+
+                connector_templates = await self._get_connector_resource_templates(connector)
+                templates.extend(connector_templates)
+
+            return templates
+
         @self.server.read_resource()
-        async def handle_read_resource(uri: str) -> str:
+        async def handle_read_resource(uri: str):
             """Read a specific resource."""
             try:
+                for connector in self.connectors:
+                    if not connector.is_enabled:
+                        continue
+
+                    local_resource = await self._read_local_resource(connector, str(uri))
+                    if local_resource is not None:
+                        return [local_resource]
+
                 connector, resource_arg = self._resolve_resource_target(uri)
 
                 if not connector or not resource_arg:
@@ -168,6 +196,37 @@ class MCPServer:
 
             except Exception as e:
                 raise ValueError(f"Error reading resource {uri}: {str(e)}")
+
+        @self.server.list_prompts()
+        async def handle_list_prompts() -> List[types.Prompt]:
+            """List available prompts."""
+            prompts = []
+
+            for connector in self.connectors:
+                if not connector.is_enabled:
+                    continue
+
+                connector_prompts = await self._get_connector_prompts(connector)
+                prompts.extend(connector_prompts)
+
+            return prompts
+
+        @self.server.get_prompt()
+        async def handle_get_prompt(
+            name: str,
+            arguments: Optional[Dict[str, str]] = None,
+        ) -> types.GetPromptResult:
+            """Resolve a prompt."""
+            connector, prompt_name = self._resolve_prompt_target(name)
+
+            if not connector or not prompt_name:
+                raise ValueError(f"Connector not found or not enabled for prompt: {name}")
+
+            local_prompt = await self._get_local_prompt(connector, name, prompt_name, arguments)
+            if local_prompt is not None:
+                return local_prompt
+
+            return await self._get_connector_prompt(connector, prompt_name, arguments)
 
     def _resolve_tool_target(self, tool_name: str) -> Tuple[Optional[Connector], Optional[str]]:
         """Resolve a tool call into (connector, action)."""
@@ -216,6 +275,21 @@ class MCPServer:
 
         return None, None
 
+    def _resolve_prompt_target(self, prompt_name: str) -> Tuple[Optional[Connector], Optional[str]]:
+        """Resolve a prompt name into (connector, prompt name)."""
+        enabled_connectors = [c for c in self.connectors if c.is_enabled]
+        sorted_connectors = sorted(enabled_connectors, key=lambda c: len(c.connector_type.value), reverse=True)
+
+        for conn in sorted_connectors:
+            connector_prefix = conn.connector_type.value.lower() + "_"
+            if prompt_name.lower().startswith(connector_prefix):
+                return conn, prompt_name
+
+        if len(enabled_connectors) == 1:
+            return enabled_connectors[0], prompt_name
+
+        return None, None
+
     async def _get_tenant(self, session: AsyncSession, tenant_slug: str) -> Optional[Tenant]:
         """Get tenant by slug."""
         result = await session.execute(
@@ -253,6 +327,7 @@ class MCPServer:
     async def _get_connector_tools(self, connector: Connector) -> List[types.Tool]:
         """Get tools for a specific connector, filtered by enabled state."""
         logger.debug("Getting tools for connector %s (%s)", connector.name, connector.connector_type.value)
+        local_tools = await self._get_local_catalog(connector).list_virtual_tools()
 
         # Get OAuth credential first (needed for get_connector_for_config on external connectors)
         oauth_cred = None
@@ -266,11 +341,25 @@ class MCPServer:
         # Use async routing method that supports both native and external connectors
         connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
-            logger.debug("No connector plugin found for %s", connector.connector_type.value)
-            return []
+            logger.debug(
+                "No connector plugin found for %s, falling back to %d local tools",
+                connector.connector_type.value,
+                len(local_tools),
+            )
+            upstream_tools = []
+        else:
+            try:
+                upstream_tools = await connector_plugin.get_tools(connector, oauth_cred)
+            except Exception as e:
+                logger.error("Error getting tools for %s: %s", connector.connector_type.value, e, exc_info=True)
+                upstream_tools = []
 
         try:
-            all_tools = await connector_plugin.get_tools(connector, oauth_cred)
+            all_tools = merge_unique_by_key(
+                upstream_tools,
+                local_tools,
+                key_func=lambda tool: tool.name,
+            )
             logger.debug("Got %d tools from connector", len(all_tools))
 
             # Use cached tool states if available, otherwise fetch from DB
@@ -298,6 +387,7 @@ class MCPServer:
 
     async def _get_connector_resources(self, connector: Connector) -> List[types.Resource]:
         """Get resources for a specific connector."""
+        local_resources = await self._get_local_catalog(connector).list_static_resources()
         oauth_cred = None
         connector_plugin = connector_registry.get_connector(connector.connector_type)
         needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
@@ -306,13 +396,66 @@ class MCPServer:
 
         connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
         if not connector_plugin:
-            return []
+            return local_resources
 
         try:
-            return await connector_plugin.get_resources(connector, oauth_cred)
+            upstream_resources = await connector_plugin.get_resources(connector, oauth_cred)
+            return merge_unique_by_key(
+                upstream_resources,
+                local_resources,
+                key_func=lambda resource: str(resource.uri),
+            )
         except Exception as e:
             logger.error("Error getting resources for %s: %s", connector.connector_type.value, e)
-            return []
+            return local_resources
+
+    async def _get_connector_resource_templates(self, connector: Connector) -> List[types.ResourceTemplate]:
+        """Get resource templates for a specific connector."""
+        local_templates = await self._get_local_catalog(connector).list_virtual_resource_templates()
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
+        if not connector_plugin:
+            return local_templates
+
+        try:
+            upstream_templates = await connector_plugin.get_resource_templates(connector, oauth_cred)
+            return merge_unique_by_key(
+                upstream_templates,
+                local_templates,
+                key_func=lambda template: template.uriTemplate,
+            )
+        except Exception as e:
+            logger.error("Error getting resource templates for %s: %s", connector.connector_type.value, e)
+            return local_templates
+
+    async def _get_connector_prompts(self, connector: Connector) -> List[types.Prompt]:
+        """Get prompts for a specific connector."""
+        local_prompts = await self._get_local_catalog(connector).list_prompts()
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
+        if not connector_plugin:
+            return local_prompts
+
+        try:
+            upstream_prompts = await connector_plugin.get_prompts(connector, oauth_cred)
+            return merge_unique_by_key(
+                upstream_prompts,
+                local_prompts,
+                key_func=lambda prompt: prompt.name,
+            )
+        except Exception as e:
+            logger.error("Error getting prompts for %s: %s", connector.connector_type.value, e)
+            return local_prompts
 
     async def _execute_tool(self, connector: Connector, action: str, arguments: Dict[str, Any]) -> str:
         """Execute a tool action for a connector."""
@@ -350,6 +493,98 @@ class MCPServer:
             return await connector_plugin.read_resource(connector, path, oauth_cred)
         except Exception as e:
             return f"Error reading resource: {str(e)}"
+
+    async def _get_connector_prompt(
+        self,
+        connector: Connector,
+        prompt_name: str,
+        arguments: Optional[Dict[str, str]],
+    ) -> types.GetPromptResult:
+        """Resolve a prompt from the upstream connector."""
+        oauth_cred = None
+        connector_plugin = connector_registry.get_connector(connector.connector_type)
+        needs_oauth = connector_plugin.requires_oauth if connector_plugin else True
+        if needs_oauth:
+            oauth_cred = await self._get_oauth_credential(connector.tenant_id, connector.connector_type.value)
+
+        connector_plugin = await connector_registry.get_connector_for_config(connector, oauth_cred)
+        if not connector_plugin:
+            raise ValueError(f"Connector plugin not found: {connector.connector_type.value}")
+
+        return await connector_plugin.get_prompt(connector, prompt_name, arguments, oauth_cred)
+
+    def _get_local_catalog(self, connector: Connector) -> LocalOverrideRegistry:
+        """Build a local catalog accessor for a connector."""
+        return LocalOverrideRegistry(connector.id)
+
+    async def _execute_local_tool(
+        self,
+        connector: Connector,
+        requested_name: str,
+        action: str,
+        arguments: Dict[str, Any],
+    ) -> Optional[str]:
+        """Execute a local virtual tool if one exists."""
+        catalog = self._get_local_catalog(connector)
+        candidate_names = [requested_name]
+        if action != requested_name:
+            candidate_names.append(action)
+
+        for candidate_name in candidate_names:
+            local_result = await catalog.execute_virtual_tool(
+                candidate_name,
+                arguments,
+                call_upstream_tool=lambda target_tool_name, upstream_args: self._execute_tool(
+                    connector,
+                    target_tool_name,
+                    upstream_args,
+                ),
+            )
+            if local_result.handled:
+                return local_result.result or ""
+
+        return None
+
+    async def _read_local_resource(
+        self,
+        connector: Connector,
+        uri: str,
+    ) -> Optional[ReadResourceContents]:
+        """Read a local static or virtual resource if one exists."""
+        local_result = await self._get_local_catalog(connector).read_local_resource(
+            uri,
+            call_upstream_tool=lambda target_tool_name, upstream_args: self._execute_tool(
+                connector,
+                target_tool_name,
+                upstream_args,
+            ),
+        )
+        if not local_result.handled or local_result.content is None:
+            return None
+        return ReadResourceContents(
+            content=local_result.content.text,
+            mime_type=local_result.content.mimeType,
+            meta=getattr(local_result.content, "meta", None),
+        )
+
+    async def _get_local_prompt(
+        self,
+        connector: Connector,
+        requested_name: str,
+        prompt_name: str,
+        arguments: Optional[Dict[str, str]],
+    ) -> Optional[types.GetPromptResult]:
+        """Resolve a local prompt if one exists."""
+        catalog = self._get_local_catalog(connector)
+        candidate_names = [requested_name]
+        if prompt_name != requested_name:
+            candidate_names.append(prompt_name)
+
+        for candidate_name in candidate_names:
+            local_result = await catalog.get_prompt(candidate_name, arguments)
+            if local_result.handled:
+                return local_result.result
+        return None
 
     async def _get_oauth_credential(self, tenant_id: str, provider: str) -> Optional[OAuthCredential]:
         """Get OAuth credential for a tenant and provider.

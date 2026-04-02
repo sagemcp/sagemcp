@@ -275,6 +275,40 @@ class GenericMCPConnector(BaseConnector):
         # Send initialized notification
         await self._send_notification("notifications/initialized")
 
+    async def get_resource_templates(
+        self,
+        connector: Connector,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> List[types.ResourceTemplate]:
+        """Proxy resource template listing to the external MCP server."""
+        result = await self._send_request("resources/templates/list", {})
+        templates = result.get("resourceTemplates", [])
+        return [types.ResourceTemplate(**item) for item in templates]
+
+    async def get_prompts(
+        self,
+        connector: Connector,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> List[types.Prompt]:
+        """Proxy prompt listing to the external MCP server."""
+        result = await self._send_request("prompts/list", {})
+        prompts = result.get("prompts", [])
+        return [types.Prompt(**item) for item in prompts]
+
+    async def get_prompt(
+        self,
+        connector: Connector,
+        prompt_name: str,
+        arguments: Optional[Dict[str, str]] = None,
+        oauth_cred: Optional[OAuthCredential] = None,
+    ) -> types.GetPromptResult:
+        """Proxy prompt resolution to the external MCP server."""
+        result = await self._send_request(
+            "prompts/get",
+            {"name": prompt_name, "arguments": arguments or {}},
+        )
+        return types.GetPromptResult(**result)
+
     async def _send_request(self, method: str, params: Dict, timeout: float = 30.0) -> Dict:
         """Send JSON-RPC request and wait for response.
 

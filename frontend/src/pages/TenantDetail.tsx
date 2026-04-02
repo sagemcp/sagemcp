@@ -35,6 +35,7 @@ import ProcessStatus from '@/components/ProcessStatus'
 import ConnectorEditModal from '@/components/ConnectorEditModal'
 import OAuthManager from '@/components/OAuthManager'
 import ToolManagement from '@/components/ToolManagement'
+import ConnectorOverridesManagement from '@/components/ConnectorOverridesManagement'
 import TenantEditModal from '@/components/TenantEditModal'
 import { useSessions, useTerminateSession } from '@/hooks/use-sessions'
 
@@ -240,7 +241,6 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
 
       <div className="rounded-lg border border-theme-default bg-surface-elevated self-start">
         <div className="p-4">
-          {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
               <h4 className="font-medium text-theme-primary">{connector.name}</h4>
@@ -297,14 +297,12 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
             <p className="text-sm text-theme-secondary mb-3">{connector.description}</p>
           )}
 
-          {/* Process Status */}
           <ProcessStatus
             connectorId={connector.id}
             runtimeType={connector.runtime_type}
             showControls={true}
           />
 
-          {/* Actions */}
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-theme-default">
             <button
               onClick={() => setShowConnectionInfo(true)}
@@ -324,7 +322,6 @@ const ConnectorCard = ({ connector, tenantSlug }: { connector: any; tenantSlug: 
           </div>
         </div>
 
-        {/* Expandable tools */}
         {showTools && (
           <div className="border-t border-theme-default px-4 py-4 bg-theme-surface/50">
             <ToolManagement
@@ -385,7 +382,7 @@ function SessionsTab({ tenantSlug }: { tenantSlug: string }) {
                 {session.negotiated_version ? (
                   <Badge variant="accent">{session.negotiated_version}</Badge>
                 ) : (
-                  <span className="text-theme-muted">—</span>
+                  <span className="text-theme-muted">-</span>
                 )}
               </td>
               <td className="px-4 py-3 text-theme-secondary">{Math.round(session.created_at)}s</td>
@@ -462,7 +459,6 @@ export default function TenantDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/tenants" className="p-2 rounded-md hover:bg-theme-elevated transition-colors">
@@ -492,20 +488,17 @@ export default function TenantDetail() {
         </div>
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="connectors">Connectors ({connectors.length})</TabsTrigger>
-          <TabsTrigger value="tools">Tool Policy</TabsTrigger>
+          <TabsTrigger value="tools">Connector Settings</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="oauth">OAuth</TabsTrigger>
         </TabsList>
 
-        {/* Overview */}
         <TabsContent value="overview">
           <div className="space-y-6">
-            {/* Endpoint */}
             <div className="rounded-lg border border-theme-default bg-surface-elevated p-6">
               <h3 className="text-sm font-medium text-theme-primary mb-3">MCP Endpoint</h3>
               <EndpointDisplay url={mcpEndpoint} protocol="Streamable HTTP" />
@@ -517,7 +510,6 @@ export default function TenantDetail() {
               )}
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="rounded-lg border border-theme-default bg-surface-elevated p-5">
                 <div className="flex items-center justify-between">
@@ -552,7 +544,6 @@ export default function TenantDetail() {
               </div>
             </div>
 
-            {/* Claude Desktop config */}
             {connectors.length > 0 && (
               <div className="rounded-lg border border-theme-default bg-surface-elevated p-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-3">
@@ -598,7 +589,6 @@ export default function TenantDetail() {
           </div>
         </TabsContent>
 
-        {/* Connectors */}
         <TabsContent value="connectors">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -632,35 +622,69 @@ export default function TenantDetail() {
           </div>
         </TabsContent>
 
-        {/* Tool Policy */}
         <TabsContent value="tools">
           <div className="space-y-6">
             {connectors.length > 0 ? (
               connectors.map((connector: any) => (
-                <div key={connector.id} className="rounded-lg border border-theme-default bg-surface-elevated p-6">
-                  <ToolManagement
-                    tenantSlug={slug!}
-                    connectorId={connector.id}
-                    connectorName={connector.name}
-                  />
+                <div key={connector.id} className="rounded-lg border border-theme-default bg-surface-elevated p-6 space-y-6">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold text-theme-primary">{connector.name}</h3>
+                        <Badge variant={connector.is_enabled ? 'healthy' : 'idle'}>
+                          {connector.is_enabled ? 'Enabled' : 'Disabled'}
+                        </Badge>
+                        <Badge variant="default" className="capitalize">
+                          {connector.connector_type.replace('_', ' ')}
+                        </Badge>
+                        <Badge variant="accent" className="capitalize">
+                          {connector.runtime_type.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-theme-secondary">
+                        {connector.description || 'Manage tool policy, local prompts, resources, and other connector-specific behavior.'}
+                      </p>
+                    </div>
+                    <div className="grid gap-2 text-xs text-theme-muted md:text-right">
+                      <div>
+                        Connector ID
+                        <div className="font-mono text-theme-secondary">{connector.id}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                    <div className="rounded-lg border border-theme-default bg-theme-surface p-4">
+                      <ToolManagement
+                        tenantSlug={slug!}
+                        connectorId={connector.id}
+                        connectorName={connector.name}
+                      />
+                    </div>
+                    <div className="rounded-lg border border-theme-default bg-theme-surface p-4">
+                      <ConnectorOverridesManagement
+                        tenantSlug={slug!}
+                        connectorId={connector.id}
+                        connectorName={connector.name}
+                      />
+                    </div>
+                  </div>
                 </div>
               ))
             ) : (
               <EmptyState
                 icon={Wrench}
-                title="No tools to manage"
-                description="Add connectors first, then manage their tool policies here."
+                title="No connector settings to manage"
+                description="Add connectors first, then manage their tool policies and local overrides here."
               />
             )}
           </div>
         </TabsContent>
 
-        {/* Sessions */}
         <TabsContent value="sessions">
           <SessionsTab tenantSlug={slug!} />
         </TabsContent>
 
-        {/* OAuth */}
         <TabsContent value="oauth">
           <div className="space-y-4">
             <div>
@@ -672,7 +696,6 @@ export default function TenantDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* Modals */}
       <ConnectorModal
         isOpen={showConnectorModal}
         onClose={() => setShowConnectorModal(false)}
