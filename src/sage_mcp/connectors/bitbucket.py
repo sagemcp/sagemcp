@@ -11,6 +11,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -77,7 +78,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_get_repository",
@@ -95,7 +97,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_list_pull_requests",
@@ -126,7 +129,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_get_pull_request",
@@ -148,7 +152,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "pull_request_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_create_pull_request",
@@ -187,7 +192,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "title", "source_branch"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="bitbucket_list_pr_comments",
@@ -209,7 +215,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "pull_request_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_add_pr_comment",
@@ -235,7 +242,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "pull_request_id", "body"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="bitbucket_list_issues",
@@ -264,7 +272,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_get_issue",
@@ -286,7 +295,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "issue_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_create_issue",
@@ -324,7 +334,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "title"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="bitbucket_list_pipelines",
@@ -353,7 +364,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_get_pipeline",
@@ -375,7 +387,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "pipeline_uuid"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_trigger_pipeline",
@@ -401,7 +414,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "branch"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="bitbucket_list_branches",
@@ -430,7 +444,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_list_commits",
@@ -455,7 +470,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_get_file",
@@ -481,7 +497,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "commit", "path"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_list_workspaces",
@@ -497,7 +514,8 @@ class BitbucketConnector(BaseConnector):
                             "description": "Number of results per page"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_list_workspace_members",
@@ -518,7 +536,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="bitbucket_get_diff",
@@ -540,7 +559,8 @@ class BitbucketConnector(BaseConnector):
                         }
                     },
                     "required": ["workspace", "repo_slug", "pull_request_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
 

@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -61,7 +62,14 @@ class GmailConnector(BaseConnector):
                             "description": "Only return messages with labels matching all of the specified label IDs"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="gmail_get_message",
@@ -75,7 +83,14 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="gmail_search_messages",
@@ -100,7 +115,14 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="gmail_send_message",
@@ -130,7 +152,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["to", "subject", "body"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
+
             ),
             types.Tool(
                 name="gmail_reply_to_message",
@@ -153,7 +183,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "body"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
+
             ),
             types.Tool(
                 name="gmail_forward_message",
@@ -176,7 +214,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["message_id", "to"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
+
             ),
             types.Tool(
                 name="gmail_list_threads",
@@ -205,7 +251,14 @@ class GmailConnector(BaseConnector):
                             "description": "Only return threads with labels matching all of the specified label IDs"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="gmail_get_thread",
@@ -219,7 +272,14 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="gmail_list_labels",
@@ -227,7 +287,14 @@ class GmailConnector(BaseConnector):
                 inputSchema={
                     "type": "object",
                     "properties": {}
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="gmail_create_label",
@@ -253,7 +320,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["name"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="gmail_modify_labels",
@@ -277,7 +352,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="gmail_trash_message",
@@ -291,7 +374,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
+
             ),
             types.Tool(
                 name="gmail_untrash_message",
@@ -305,7 +396,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="gmail_create_draft",
@@ -335,7 +434,15 @@ class GmailConnector(BaseConnector):
                         }
                     },
                     "required": ["to", "subject", "body"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="gmail_list_drafts",
@@ -355,7 +462,14 @@ class GmailConnector(BaseConnector):
                             "description": "Page token for retrieving the next page of results"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
         ]
 

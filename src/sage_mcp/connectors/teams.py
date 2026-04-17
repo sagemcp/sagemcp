@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -43,7 +44,8 @@ class TeamsConnector(BaseConnector):
                             "description": "Comma-separated list of properties to select (e.g., 'id,displayName,description')"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_get_team",
@@ -57,7 +59,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_list_channels",
@@ -75,7 +78,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_get_channel",
@@ -93,7 +97,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id", "channel_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_list_channel_messages",
@@ -118,7 +123,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id", "channel_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_get_channel_message",
@@ -140,7 +146,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id", "channel_id", "message_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_send_channel_message",
@@ -168,7 +175,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id", "channel_id", "content"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="teams_reply_to_message",
@@ -200,7 +208,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id", "channel_id", "message_id", "content"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="teams_list_chats",
@@ -220,7 +229,8 @@ class TeamsConnector(BaseConnector):
                             "description": "OData $filter expression to filter chats (e.g., \"chatType eq 'oneOnOne'\")"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_list_chat_messages",
@@ -241,7 +251,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["chat_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_send_chat_message",
@@ -265,7 +276,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["chat_id", "content"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="teams_list_team_members",
@@ -279,7 +291,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_search_messages",
@@ -300,7 +313,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_get_user_by_email",
@@ -314,7 +328,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["email"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="teams_list_channel_members",
@@ -332,7 +347,8 @@ class TeamsConnector(BaseConnector):
                         }
                     },
                     "required": ["team_id", "channel_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
 

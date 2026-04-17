@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -66,7 +67,14 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["channel_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_conversations_replies",
@@ -103,7 +111,14 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["channel_id", "thread_ts"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_conversations_add_message",
@@ -139,7 +154,15 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["channel_id", "text"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
+
             ),
             types.Tool(
                 name="slack_conversations_search_messages",
@@ -178,7 +201,14 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_conversations_list",
@@ -208,7 +238,14 @@ class SlackConnector(BaseConnector):
                             "description": "Exclude archived channels"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_conversations_info",
@@ -232,7 +269,14 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["channel_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_users_list",
@@ -257,7 +301,14 @@ class SlackConnector(BaseConnector):
                             "description": "Include locale information"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_users_info",
@@ -276,7 +327,14 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["user_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_users_lookup_by_email",
@@ -290,7 +348,14 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["email"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="slack_reactions_add",
@@ -312,7 +377,15 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["channel_id", "timestamp", "name"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="slack_reactions_remove",
@@ -334,7 +407,15 @@ class SlackConnector(BaseConnector):
                         }
                     },
                     "required": ["channel_id", "timestamp", "name"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="slack_auth_test",
@@ -343,7 +424,55 @@ class SlackConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                     "additionalProperties": False
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
+            ),
+            types.Tool(
+                name="slack_send_dm",
+                description="Send a direct message to a user",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "user_id": {"type": "string", "description": "User ID to send DM to"},
+                        "text": {"type": "string", "description": "Message text"},
+                        "blocks": {"type": "array", "description": "Block Kit blocks (optional)"}
+                    },
+                    "required": ["user_id", "text"]
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+            ),
+            types.Tool(
+                name="slack_update_message",
+                description="Update an existing message",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "channel_id": {"type": "string", "description": "Channel containing the message"},
+                        "ts": {"type": "string", "description": "Timestamp of message to update"},
+                        "text": {"type": "string", "description": "New message text"},
+                        "blocks": {"type": "array", "description": "Block Kit blocks (optional)"}
+                    },
+                    "required": ["channel_id", "ts", "text"]
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             )
         ]
 
@@ -445,6 +574,10 @@ class SlackConnector(BaseConnector):
                 return await self._reactions_remove(arguments, oauth_cred)
             elif tool_name == "auth_test":
                 return await self._auth_test(oauth_cred)
+            elif tool_name == "send_dm":
+                return await self._send_dm(arguments, oauth_cred)
+            elif tool_name == "update_message":
+                return await self._update_message(arguments, oauth_cred)
             else:
                 return f"Unknown tool: {tool_name}"
 
@@ -809,6 +942,77 @@ class SlackConnector(BaseConnector):
                 "team_id": data.get("team_id"),
                 "user_id": data.get("user_id"),
                 "bot_id": data.get("bot_id")
+            }, indent=2)
+        else:
+            return f"Error: {data.get('error')}"
+
+    async def _send_dm(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Send a direct message to a user."""
+        user_id = arguments["user_id"]
+        text = arguments["text"]
+
+        # First, open a DM channel with the user
+        open_response = await self._make_authenticated_request(
+            "POST",
+            "https://slack.com/api/conversations.open",
+            oauth_cred,
+            json={"users": user_id}
+        )
+
+        open_data = open_response.json()
+        if not open_data.get("ok"):
+            return f"Error opening DM channel: {open_data.get('error')}"
+
+        channel_id = open_data["channel"]["id"]
+
+        # Send the message to the DM channel
+        payload = {
+            "channel": channel_id,
+            "text": text
+        }
+        if "blocks" in arguments:
+            payload["blocks"] = arguments["blocks"]
+
+        response = await self._make_authenticated_request(
+            "POST",
+            "https://slack.com/api/chat.postMessage",
+            oauth_cred,
+            json=payload
+        )
+
+        data = response.json()
+        if data.get("ok"):
+            return json.dumps({
+                "ts": data.get("ts"),
+                "channel": data.get("channel"),
+                "message": data.get("message", {})
+            }, indent=2)
+        else:
+            return f"Error: {data.get('error')}"
+
+    async def _update_message(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Update an existing message."""
+        payload = {
+            "channel": arguments["channel_id"],
+            "ts": arguments["ts"],
+            "text": arguments["text"]
+        }
+        if "blocks" in arguments:
+            payload["blocks"] = arguments["blocks"]
+
+        response = await self._make_authenticated_request(
+            "POST",
+            "https://slack.com/api/chat.update",
+            oauth_cred,
+            json=payload
+        )
+
+        data = response.json()
+        if data.get("ok"):
+            return json.dumps({
+                "ts": data.get("ts"),
+                "channel": data.get("channel"),
+                "text": data.get("text")
             }, indent=2)
         else:
             return f"Error: {data.get('error')}"

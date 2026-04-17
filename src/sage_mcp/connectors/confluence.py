@@ -17,6 +17,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -117,7 +118,13 @@ class ConfluenceConnector(BaseConnector):
                             "description": "Filter by space status (optional)"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="confluence_get_space",
@@ -131,7 +138,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["space_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
 
             # Page Management
@@ -163,7 +176,13 @@ class ConfluenceConnector(BaseConnector):
                             "description": "Filter by page status (optional)"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="confluence_get_page",
@@ -177,7 +196,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="confluence_create_page",
@@ -203,7 +228,14 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["space_id", "title", "body"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="confluence_update_page",
@@ -235,7 +267,14 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id", "title", "body", "version_number"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="confluence_delete_page",
@@ -249,7 +288,14 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
 
             # Search
@@ -272,7 +318,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["cql"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
 
             # Page Children
@@ -295,7 +347,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
 
             # Comments
@@ -318,7 +376,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="confluence_add_comment",
@@ -336,7 +400,14 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id", "body"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
 
             # Labels
@@ -352,7 +423,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="confluence_add_label",
@@ -370,7 +447,14 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id", "label"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
 
             # History & Attachments
@@ -393,7 +477,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="confluence_list_page_attachments",
@@ -414,7 +504,13 @@ class ConfluenceConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
         ]
 

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -100,7 +101,13 @@ class NotionConnector(BaseConnector):
                             "default": 20
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="notion_search",
@@ -126,7 +133,13 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="notion_get_page",
@@ -140,7 +153,13 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="notion_get_page_content",
@@ -160,7 +179,13 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="notion_get_database",
@@ -174,7 +199,13 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["database_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="notion_query_database",
@@ -195,7 +226,13 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["database_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="notion_create_page",
@@ -223,7 +260,14 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["parent_id", "title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="notion_append_block_children",
@@ -241,7 +285,14 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id", "content"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="notion_update_page",
@@ -259,7 +310,14 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["page_id", "title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="notion_get_block",
@@ -273,7 +331,13 @@ class NotionConnector(BaseConnector):
                         }
                     },
                     "required": ["block_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             )
         ]
         return tools

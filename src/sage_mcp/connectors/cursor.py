@@ -13,6 +13,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -111,46 +112,55 @@ class CursorConnector(ApiKeyBaseConnector):
                 name="cursor_get_agent_edits",
                 description="Get team agent edit analytics for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_tab_usage",
                 description="Get team tab/autocomplete usage analytics for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_daily_active_users",
                 description="Get daily active user counts for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_model_usage",
                 description="Get model usage breakdown for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_top_file_extensions",
                 description="Get top file extensions used by the team for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_mcp_adoption",
                 description="Get MCP (Model Context Protocol) adoption analytics for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_commands_adoption",
                 description="Get commands adoption analytics for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_leaderboard",
                 description="Get team usage leaderboard for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_daily_usage_data",
                 description="Get detailed daily usage data for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_usage_events",
@@ -179,11 +189,13 @@ class CursorConnector(ApiKeyBaseConnector):
                     },
                     "required": ["start_date", "end_date"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_get_client_versions",
                 description="Get client version distribution for the team over a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ---- Admin & Billing (5 tools) ----
             types.Tool(
@@ -194,6 +206,7 @@ class CursorConnector(ApiKeyBaseConnector):
                     "properties": {},
                     "additionalProperties": False,
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_remove_member",
@@ -208,11 +221,13 @@ class CursorConnector(ApiKeyBaseConnector):
                     },
                     "required": ["user_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="cursor_get_spending",
                 description="Get team spending breakdown for a date range",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="cursor_set_user_spend_limit",
@@ -231,6 +246,7 @@ class CursorConnector(ApiKeyBaseConnector):
                     },
                     "required": ["user_id", "limit_usd"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="cursor_list_audit_events",
@@ -257,6 +273,7 @@ class CursorConnector(ApiKeyBaseConnector):
                     },
                     "required": [],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ---- Governance (1 tool) ----
             types.Tool(
@@ -267,12 +284,14 @@ class CursorConnector(ApiKeyBaseConnector):
                     "properties": {},
                     "additionalProperties": False,
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ---- Normalized metrics (1 tool) ----
             types.Tool(
                 name="cursor_get_normalized_metrics",
                 description="Get normalized CodingToolMetrics for cross-tool comparison (DAU, spending, members)",
                 inputSchema=date_range_schema,
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
         return tools

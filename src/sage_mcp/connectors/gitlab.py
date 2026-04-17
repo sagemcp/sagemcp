@@ -13,6 +13,7 @@ import urllib.parse
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -125,6 +126,7 @@ class GitLabConnector(BaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 2. get_project
             types.Tool(
@@ -140,6 +142,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 3. list_merge_requests
             types.Tool(
@@ -168,6 +171,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 4. get_merge_request
             types.Tool(
@@ -187,6 +191,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "merge_request_iid"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 5. create_merge_request
             types.Tool(
@@ -223,6 +228,7 @@ class GitLabConnector(BaseConnector):
                         "title",
                     ],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # 6. list_issues
             types.Tool(
@@ -255,6 +261,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 7. get_issue
             types.Tool(
@@ -274,6 +281,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "issue_iid"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 8. create_issue
             types.Tool(
@@ -310,6 +318,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "title"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # 9. update_issue
             types.Tool(
@@ -355,6 +364,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "issue_iid"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             # 10. list_pipelines
             types.Tool(
@@ -398,6 +408,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 11. get_pipeline
             types.Tool(
@@ -417,6 +428,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "pipeline_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 12. list_branches
             types.Tool(
@@ -443,6 +455,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 13. get_file
             types.Tool(
@@ -467,6 +480,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "file_path"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 14. list_commits
             types.Tool(
@@ -493,6 +507,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 15. list_project_members
             types.Tool(
@@ -515,6 +530,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 16. list_groups
             types.Tool(
@@ -536,6 +552,7 @@ class GitLabConnector(BaseConnector):
                         },
                     },
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 17. list_mr_discussions
             types.Tool(
@@ -555,6 +572,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "merge_request_iid"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 18. add_mr_note
             types.Tool(
@@ -578,6 +596,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "merge_request_iid", "body"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             # 19. list_milestones
             types.Tool(
@@ -605,6 +624,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 20. list_labels
             types.Tool(
@@ -627,6 +647,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 21. get_repository_tree
             types.Tool(
@@ -662,6 +683,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 22. search_users
             types.Tool(
@@ -684,6 +706,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["search"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # 23. retry_pipeline
             types.Tool(
@@ -703,6 +726,7 @@ class GitLabConnector(BaseConnector):
                     },
                     "required": ["project_id", "pipeline_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
         ]
 

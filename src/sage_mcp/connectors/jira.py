@@ -15,6 +15,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -111,7 +112,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["jql"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_issue",
@@ -130,7 +138,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_create_issue",
@@ -169,7 +184,15 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["project_key", "summary", "issue_type"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="jira_update_issue",
@@ -204,7 +227,15 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="jira_transition_issue",
@@ -226,7 +257,15 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key", "transition_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="jira_get_transitions",
@@ -240,7 +279,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_assign_issue",
@@ -258,7 +304,15 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key", "account_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
 
             # Comments
@@ -278,7 +332,15 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key", "body"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="jira_get_comments",
@@ -292,7 +354,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["issue_key"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
 
             # Projects
@@ -310,7 +379,14 @@ class JiraConnector(BaseConnector):
                             "description": "Maximum number of results"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_project",
@@ -324,7 +400,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["project_key"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
 
             # Boards & Sprints
@@ -346,7 +429,14 @@ class JiraConnector(BaseConnector):
                             "description": "Maximum number of results"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_board",
@@ -360,7 +450,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["board_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_list_sprints",
@@ -379,7 +476,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["board_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_sprint",
@@ -393,7 +497,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["sprint_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_sprint_issues",
@@ -414,7 +525,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["sprint_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
 
             # User Management
@@ -437,7 +555,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_current_user",
@@ -446,7 +571,14 @@ class JiraConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                     "additionalProperties": False
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
 
             # Versions/Releases
@@ -462,7 +594,14 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["project_key"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="jira_get_version",
@@ -476,7 +615,35 @@ class JiraConnector(BaseConnector):
                         }
                     },
                     "required": ["version_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
+            ),
+
+            # Sprint Management
+            types.Tool(
+                name="jira_move_to_sprint",
+                description="Move one or more issues to a sprint",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "sprint_id": {"type": "integer", "description": "Target sprint ID"},
+                        "issue_keys": {"type": "array", "items": {"type": "string"}, "description": "Issue keys to move (e.g. ['PROJ-1', 'PROJ-2'])"}
+                    },
+                    "required": ["sprint_id", "issue_keys"]
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             )
         ]
 
@@ -599,6 +766,8 @@ class JiraConnector(BaseConnector):
                 return await self._list_versions(cloud_id, arguments, oauth_cred)
             elif tool_name == "get_version":
                 return await self._get_version(cloud_id, arguments, oauth_cred)
+            elif tool_name == "move_to_sprint":
+                return await self._move_to_sprint(cloud_id, arguments, oauth_cred)
             else:
                 return f"Unknown tool: {tool_name}"
 
@@ -1240,3 +1409,27 @@ class JiraConnector(BaseConnector):
         )
 
         return json.dumps(response.json(), indent=2)
+
+    async def _move_to_sprint(self, cloud_id: str, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Move issues to a sprint."""
+        agile_url = f"https://api.atlassian.com/ex/jira/{cloud_id}/rest/agile/1.0"
+        sprint_id = arguments["sprint_id"]
+        issue_keys = arguments["issue_keys"]
+
+        print(f"DEBUG: Moving {len(issue_keys)} issues to sprint {sprint_id}")
+        response = await self._make_authenticated_request(
+            "POST",
+            f"{agile_url}/sprint/{sprint_id}/issue",
+            oauth_cred,
+            json={"issues": issue_keys}
+        )
+
+        # Jira returns 204 No Content on success
+        if response.status_code in (200, 204):
+            return json.dumps({
+                "success": True,
+                "message": f"Moved {len(issue_keys)} issue(s) to sprint {sprint_id}",
+                "issues": issue_keys
+            }, indent=2)
+        else:
+            return f"Error moving issues to sprint: {response.text}"

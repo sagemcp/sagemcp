@@ -11,6 +11,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -59,7 +60,8 @@ class PowerPointConnector(BaseConnector):
                             "description": "Maximum number of results to return"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="powerpoint_get_presentation",
@@ -73,7 +75,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="powerpoint_get_slide_content",
@@ -87,7 +90,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="powerpoint_create_presentation",
@@ -101,7 +105,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["filename"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="powerpoint_export_pdf",
@@ -115,7 +120,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="powerpoint_upload_presentation",
@@ -129,7 +135,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="powerpoint_list_slides",
@@ -143,7 +150,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="powerpoint_copy_presentation",
@@ -165,7 +173,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "new_name"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="powerpoint_move_presentation",
@@ -183,7 +192,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "destination_folder_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="powerpoint_delete_presentation",
@@ -197,7 +207,8 @@ class PowerPointConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
         ]
 

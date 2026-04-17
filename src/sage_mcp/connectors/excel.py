@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -61,7 +62,8 @@ class ExcelConnector(BaseConnector):
                             "description": "Maximum number of workbooks to return"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="excel_get_workbook",
@@ -75,7 +77,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="excel_list_worksheets",
@@ -89,7 +92,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="excel_read_range",
@@ -111,7 +115,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet", "range"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="excel_write_range",
@@ -141,7 +146,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet", "range", "values"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="excel_append_rows",
@@ -167,7 +173,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "table_name", "values"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="excel_clear_range",
@@ -189,7 +196,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet", "range"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="excel_create_workbook",
@@ -203,7 +211,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["filename"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="excel_add_worksheet",
@@ -221,7 +230,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "name"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="excel_delete_worksheet",
@@ -239,7 +249,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="excel_list_tables",
@@ -253,7 +264,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="excel_create_table",
@@ -280,7 +292,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet", "address"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="excel_get_used_range",
@@ -298,7 +311,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="excel_run_formula",
@@ -324,7 +338,8 @@ class ExcelConnector(BaseConnector):
                         }
                     },
                     "required": ["item_id", "worksheet", "cell", "formula"]
-                }
+                },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
         ]
 

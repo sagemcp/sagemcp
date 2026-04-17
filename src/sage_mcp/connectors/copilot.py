@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -85,6 +86,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_usage_trends",
@@ -107,6 +109,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_user_usage",
@@ -142,6 +145,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_acceptance_rate",
@@ -164,6 +168,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_usage_by_language",
@@ -186,6 +191,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_usage_by_editor",
@@ -208,6 +214,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_chat_usage",
@@ -230,6 +237,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_pr_summary_usage",
@@ -252,6 +260,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_legacy_metrics",
@@ -266,6 +275,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ----------------------------------------------------------------
             # Seat Management (6 tools)
@@ -283,6 +293,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_list_seat_assignments",
@@ -310,6 +321,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_seat_details",
@@ -328,6 +340,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org", "username"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_add_seats",
@@ -347,6 +360,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org", "selected_usernames"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="copilot_remove_seats",
@@ -366,6 +380,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org", "selected_usernames"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="copilot_list_inactive_seats",
@@ -386,6 +401,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ----------------------------------------------------------------
             # Policy & Governance (3 tools)
@@ -403,6 +419,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_get_content_exclusions",
@@ -417,6 +434,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="copilot_list_audit_events",
@@ -447,6 +465,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             # ----------------------------------------------------------------
             # Normalized metrics (1 tool)
@@ -472,6 +491,7 @@ class CopilotConnector(BaseConnector):
                     },
                     "required": ["org"]
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
 

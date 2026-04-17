@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -56,7 +57,14 @@ class GitHubConnector(BaseConnector):
                             "description": "Number of results per page"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_repository",
@@ -74,7 +82,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_issues",
@@ -109,7 +124,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_issue",
@@ -131,7 +153,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "issue_number"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_create_issue",
@@ -175,7 +204,15 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
+
             ),
             types.Tool(
                 name="github_update_issue",
@@ -228,7 +265,15 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "issue_number"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
+
             ),
             types.Tool(
                 name="github_get_file_content",
@@ -254,7 +299,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "path"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_pull_requests",
@@ -285,7 +337,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_search_repositories",
@@ -317,7 +376,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["q"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_check_token_scopes",
@@ -326,7 +392,14 @@ class GitHubConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                     "additionalProperties": False
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_organizations",
@@ -335,7 +408,14 @@ class GitHubConnector(BaseConnector):
                     "type": "object",
                     "properties": {},
                     "additionalProperties": False
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_user_info",
@@ -349,7 +429,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["username"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_search_issues",
@@ -403,7 +490,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["email"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_commits",
@@ -448,7 +542,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_commit",
@@ -470,7 +571,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "sha"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_compare_commits",
@@ -496,7 +604,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "base", "head"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_branches",
@@ -525,7 +640,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_branch",
@@ -547,7 +669,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "branch"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_user_activity",
@@ -568,7 +697,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["username"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_user_stats",
@@ -582,7 +718,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["username"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_contributors",
@@ -607,7 +750,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_repo_stats",
@@ -625,7 +775,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_workflows",
@@ -650,7 +807,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_workflow_runs",
@@ -684,7 +848,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_workflow_run",
@@ -706,7 +877,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "run_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_list_releases",
@@ -731,7 +909,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             ),
             types.Tool(
                 name="github_get_release",
@@ -753,7 +938,14 @@ class GitHubConnector(BaseConnector):
                         }
                     },
                     "required": ["owner", "repo", "release_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
+
             )
         ]
 

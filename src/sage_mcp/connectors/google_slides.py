@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -57,7 +58,13 @@ class GoogleSlidesConnector(BaseConnector):
                             "description": "Sort order for presentations"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_slides_get_presentation",
@@ -71,7 +78,13 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_slides_get_slide",
@@ -90,7 +103,13 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "slide_index"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_slides_create_presentation",
@@ -104,7 +123,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="google_slides_add_slide",
@@ -141,7 +167,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="google_slides_delete_slide",
@@ -159,7 +192,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "slide_object_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="google_slides_add_text",
@@ -187,7 +227,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "object_id", "text"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="google_slides_replace_text",
@@ -214,7 +261,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "find_text", "replace_text"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="google_slides_get_speaker_notes",
@@ -233,7 +287,13 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "slide_index"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_slides_update_speaker_notes",
@@ -259,7 +319,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "notes_object_id", "text"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="google_slides_duplicate_slide",
@@ -277,7 +344,14 @@ class GoogleSlidesConnector(BaseConnector):
                         }
                     },
                     "required": ["presentation_id", "slide_object_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
         ]
 

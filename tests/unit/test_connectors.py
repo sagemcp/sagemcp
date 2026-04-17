@@ -22,6 +22,8 @@ from sage_mcp.connectors.gitlab import GitLabConnector
 from sage_mcp.connectors.bitbucket import BitbucketConnector
 from sage_mcp.connectors.linear import LinearConnector
 from sage_mcp.connectors.discord import DiscordConnector
+from sage_mcp.connectors.slack import SlackConnector
+from sage_mcp.connectors.google_calendar import GoogleCalendarConnector
 from sage_mcp.connectors.registry import ConnectorRegistry
 from sage_mcp.models.connector import ConnectorType
 
@@ -579,7 +581,7 @@ class TestJiraConnector:
 
         tools = await connector.get_tools(sample_connector, sample_oauth_credential)
 
-        assert len(tools) == 20  # Jira has 20 tools
+        assert len(tools) == 21  # Jira has 21 tools (including move_to_sprint)
 
         # Check that all tools have the correct naming convention
         for tool in tools:
@@ -598,6 +600,7 @@ class TestJiraConnector:
         assert "jira_list_boards" in tool_names
         assert "jira_list_sprints" in tool_names
         assert "jira_search_users" in tool_names
+        assert "jira_move_to_sprint" in tool_names
 
     @pytest.mark.asyncio
     async def test_execute_tool_unknown(self, sample_connector, sample_oauth_credential):
@@ -5659,3 +5662,261 @@ class TestDiscordConnector:
         connector = DiscordConnector()
         result = await connector.execute_tool(sample_connector, "unknown_tool", {}, sample_oauth_credential)
         assert "Unknown tool" in result
+
+
+class TestToolAnnotations:
+    """Test that all connectors have ToolAnnotations on every tool."""
+
+    VALID_RISK_LEVELS = {"low", "medium", "high", "critical"}
+
+    ALL_CONNECTORS = [
+        (GitHubConnector, "github_"),
+        (JiraConnector, "jira_"),
+        (SlackConnector, "slack_"),
+        (GmailConnector, "gmail_"),
+        (GoogleDocsConnector, "google_docs_"),
+        (GoogleSheetsConnector, "google_sheets_"),
+        (GoogleSlidesConnector, "google_slides_"),
+        (ConfluenceConnector, "confluence_"),
+        (NotionConnector, "notion_"),
+        (OutlookConnector, "outlook_"),
+        (TeamsConnector, "teams_"),
+        (ExcelConnector, "excel_"),
+        (PowerPointConnector, "powerpoint_"),
+        (LinearConnector, "linear_"),
+        (GitLabConnector, "gitlab_"),
+        (BitbucketConnector, "bitbucket_"),
+        (DiscordConnector, "discord_"),
+        (ZoomConnector, "zoom_"),
+        (GoogleCalendarConnector, "google_calendar_"),
+    ]
+
+    @pytest.mark.asyncio
+    async def test_all_tools_have_annotations(self, sample_connector, sample_oauth_credential):
+        """Every tool across all connectors must have a non-None annotations field."""
+        for connector_cls, prefix in self.ALL_CONNECTORS:
+            connector = connector_cls()
+            tools = await connector.get_tools(sample_connector, sample_oauth_credential)
+            for tool in tools:
+                assert tool.annotations is not None, f"{tool.name} missing annotations"
+
+    @pytest.mark.asyncio
+    async def test_all_tools_have_risk_level(self, sample_connector, sample_oauth_credential):
+        """Every tool must have a valid riskLevel in annotations."""
+        for connector_cls, prefix in self.ALL_CONNECTORS:
+            connector = connector_cls()
+            tools = await connector.get_tools(sample_connector, sample_oauth_credential)
+            for tool in tools:
+                assert tool.annotations is not None, f"{tool.name} missing annotations"
+                risk = getattr(tool.annotations, "riskLevel", None)
+                assert risk in self.VALID_RISK_LEVELS, f"{tool.name} has invalid riskLevel: {risk}"
+
+    @pytest.mark.asyncio
+    async def test_read_tools_have_readonly_hint(self, sample_connector, sample_oauth_credential):
+        """Tools starting with list_, get_, search_, find_ should be readOnlyHint=True."""
+        read_prefixes = ("list_", "get_", "search_", "find_", "check_")
+        # These tools start with a read prefix but are actually write operations
+        write_exceptions = {"google_sheets_find_and_replace"}
+        for connector_cls, prefix in self.ALL_CONNECTORS:
+            connector = connector_cls()
+            tools = await connector.get_tools(sample_connector, sample_oauth_credential)
+            for tool in tools:
+                if tool.name in write_exceptions:
+                    continue
+                action = tool.name.replace(prefix, "", 1)
+                if any(action.startswith(rp) for rp in read_prefixes):
+                    assert tool.annotations.readOnlyHint is True, (
+                        f"{tool.name} is a read tool but readOnlyHint={tool.annotations.readOnlyHint}"
+                    )
+
+    @pytest.mark.asyncio
+    async def test_write_tools_not_readonly(self, sample_connector, sample_oauth_credential):
+        """Tools that create/update/delete should have readOnlyHint=False."""
+        write_prefixes = ("create_", "update_", "delete_", "send_", "add_", "remove_",
+                          "assign_", "transition_", "merge_", "move_", "trash_", "forward_",
+                          "reply_", "modify_", "insert_", "append_", "clear_", "rsvp_")
+        for connector_cls, prefix in self.ALL_CONNECTORS:
+            connector = connector_cls()
+            tools = await connector.get_tools(sample_connector, sample_oauth_credential)
+            for tool in tools:
+                action = tool.name.replace(prefix, "", 1)
+                if any(action.startswith(wp) for wp in write_prefixes):
+                    assert tool.annotations.readOnlyHint is False, (
+                        f"{tool.name} is a write tool but readOnlyHint={tool.annotations.readOnlyHint}"
+                    )
+
+
+class TestSlackConnector:
+    """Test SlackConnector class."""
+
+    def test_slack_connector_properties(self):
+        connector = SlackConnector()
+        assert connector.display_name == "Slack"
+        assert "Slack" in connector.description
+        assert connector.requires_oauth is True
+
+    @pytest.mark.asyncio
+    async def test_get_tools(self, sample_connector, sample_oauth_credential):
+        connector = SlackConnector()
+        tools = await connector.get_tools(sample_connector, sample_oauth_credential)
+        assert len(tools) == 14  # 12 original + send_dm + update_message
+
+        for tool in tools:
+            assert tool.name.startswith("slack_")
+            assert isinstance(tool, types.Tool)
+            assert tool.description is not None
+            assert tool.inputSchema is not None
+
+        tool_names = [tool.name for tool in tools]
+        assert "slack_conversations_history" in tool_names
+        assert "slack_send_dm" in tool_names
+        assert "slack_update_message" in tool_names
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_unknown(self, sample_connector, sample_oauth_credential):
+        connector = SlackConnector()
+        result = await connector.execute_tool(sample_connector, "unknown_tool", {}, sample_oauth_credential)
+        assert "Unknown tool" in result
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_no_credentials(self, sample_connector):
+        connector = SlackConnector()
+        result = await connector.execute_tool(sample_connector, "conversations_list", {}, None)
+        assert "Invalid or expired" in result
+
+    @pytest.mark.asyncio
+    @patch('sage_mcp.connectors.slack.SlackConnector._make_authenticated_request')
+    async def test_send_dm(self, mock_request, sample_connector, sample_oauth_credential):
+        connector = SlackConnector()
+        # First call: conversations.open returns channel
+        # Second call: chat.postMessage returns message
+        mock_open_response = Mock()
+        mock_open_response.json.return_value = {"ok": True, "channel": {"id": "D123"}}
+        mock_post_response = Mock()
+        mock_post_response.json.return_value = {"ok": True, "ts": "1234567890.123456", "channel": "D123"}
+        mock_request.side_effect = [mock_open_response, mock_post_response]
+
+        result = await connector._send_dm(
+            {"user_id": "U123", "text": "Hello!"},
+            sample_oauth_credential
+        )
+        assert "D123" in result or "ok" in result.lower() or "1234567890" in result
+
+    @pytest.mark.asyncio
+    @patch('sage_mcp.connectors.slack.SlackConnector._make_authenticated_request')
+    async def test_update_message(self, mock_request, sample_connector, sample_oauth_credential):
+        connector = SlackConnector()
+        mock_response = Mock()
+        mock_response.json.return_value = {"ok": True, "ts": "1234567890.123456", "channel": "C123"}
+        mock_request.return_value = mock_response
+
+        result = await connector._update_message(
+            {"channel_id": "C123", "ts": "1234567890.123456", "text": "Updated!"},
+            sample_oauth_credential
+        )
+        assert "C123" in result or "ok" in result.lower() or "1234567890" in result
+
+
+class TestGoogleCalendarConnector:
+    """Test GoogleCalendarConnector class."""
+
+    def test_properties(self):
+        connector = GoogleCalendarConnector()
+        assert connector.display_name == "Google Calendar"
+        assert "Calendar" in connector.description
+        assert connector.requires_oauth is True
+
+    @pytest.mark.asyncio
+    async def test_get_tools(self, sample_connector, sample_oauth_credential):
+        connector = GoogleCalendarConnector()
+        tools = await connector.get_tools(sample_connector, sample_oauth_credential)
+        assert len(tools) == 10
+
+        for tool in tools:
+            assert tool.name.startswith("google_calendar_")
+            assert isinstance(tool, types.Tool)
+            assert tool.description is not None
+            assert tool.inputSchema is not None
+            assert tool.annotations is not None
+
+        tool_names = [tool.name for tool in tools]
+        assert "google_calendar_list_calendars" in tool_names
+        assert "google_calendar_list_events" in tool_names
+        assert "google_calendar_get_event" in tool_names
+        assert "google_calendar_search_events" in tool_names
+        assert "google_calendar_get_freebusy" in tool_names
+        assert "google_calendar_create_event" in tool_names
+        assert "google_calendar_update_event" in tool_names
+        assert "google_calendar_delete_event" in tool_names
+        assert "google_calendar_rsvp_event" in tool_names
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_unknown(self, sample_connector, sample_oauth_credential):
+        connector = GoogleCalendarConnector()
+        result = await connector.execute_tool(sample_connector, "unknown_tool", {}, sample_oauth_credential)
+        assert "Unknown tool" in result
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_no_credentials(self, sample_connector):
+        connector = GoogleCalendarConnector()
+        result = await connector.execute_tool(sample_connector, "list_calendars", {}, None)
+        assert "Invalid or expired" in result
+
+    @pytest.mark.asyncio
+    @patch('sage_mcp.connectors.google_calendar.GoogleCalendarConnector._make_authenticated_request')
+    async def test_list_events(self, mock_request, sample_connector, sample_oauth_credential):
+        connector = GoogleCalendarConnector()
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "items": [
+                {
+                    "id": "event1",
+                    "summary": "Team standup",
+                    "start": {"dateTime": "2026-03-11T09:00:00Z"},
+                    "end": {"dateTime": "2026-03-11T09:30:00Z"},
+                    "status": "confirmed"
+                }
+            ]
+        }
+        mock_request.return_value = mock_response
+
+        result = await connector._list_events(
+            {"calendar_id": "primary"},
+            sample_oauth_credential
+        )
+        assert "standup" in result or "event1" in result
+
+    @pytest.mark.asyncio
+    @patch('sage_mcp.connectors.google_calendar.GoogleCalendarConnector._make_authenticated_request')
+    async def test_create_event(self, mock_request, sample_connector, sample_oauth_credential):
+        connector = GoogleCalendarConnector()
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "id": "new_event_123",
+            "summary": "Design review",
+            "start": {"dateTime": "2026-03-12T14:00:00Z"},
+            "end": {"dateTime": "2026-03-12T15:00:00Z"},
+            "status": "confirmed",
+            "htmlLink": "https://calendar.google.com/event?eid=new_event_123"
+        }
+        mock_request.return_value = mock_response
+
+        result = await connector._create_event(
+            {"summary": "Design review", "start_datetime": "2026-03-12T14:00:00Z", "end_datetime": "2026-03-12T15:00:00Z"},
+            sample_oauth_credential
+        )
+        assert "Design review" in result or "new_event_123" in result
+
+    @pytest.mark.asyncio
+    @patch('sage_mcp.connectors.google_calendar.GoogleCalendarConnector._make_authenticated_request')
+    async def test_delete_event(self, mock_request, sample_connector, sample_oauth_credential):
+        connector = GoogleCalendarConnector()
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_request.return_value = mock_response
+
+        result = await connector._delete_event(
+            {"calendar_id": "primary", "event_id": "event_to_delete"},
+            sample_oauth_credential
+        )
+        assert "delete" in result.lower() or "success" in result.lower() or "removed" in result.lower()

@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -58,7 +59,13 @@ class GoogleSheetsConnector(BaseConnector):
                             "description": "Filter spreadsheets owned by this email address"
                         }
                     }
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_sheets_get_spreadsheet",
@@ -77,7 +84,13 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_sheets_read_range",
@@ -107,7 +120,13 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "range"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_sheets_write_range",
@@ -139,7 +158,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "range", "values"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="google_sheets_append_rows",
@@ -171,7 +197,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "range", "values"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="google_sheets_clear_range",
@@ -189,7 +222,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "range"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="google_sheets_create_spreadsheet",
@@ -208,7 +248,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="google_sheets_add_sheet",
@@ -238,7 +285,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "title"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="medium",
+                )
             ),
             types.Tool(
                 name="google_sheets_delete_sheet",
@@ -256,7 +310,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "sheet_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                    riskLevel="critical",
+                )
             ),
             types.Tool(
                 name="google_sheets_get_sheet_metadata",
@@ -270,7 +331,13 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
             types.Tool(
                 name="google_sheets_batch_update",
@@ -289,7 +356,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "requests"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="google_sheets_find_and_replace",
@@ -330,7 +404,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "find", "replacement"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="google_sheets_format_range",
@@ -399,7 +480,14 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["spreadsheet_id", "sheet_id", "start_row", "end_row", "start_column", "end_column"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="high",
+                )
             ),
             types.Tool(
                 name="google_sheets_search_spreadsheets",
@@ -424,7 +512,13 @@ class GoogleSheetsConnector(BaseConnector):
                         }
                     },
                     "required": ["query"]
-                }
+                },
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    idempotentHint=True,
+                    openWorldHint=True,
+                    riskLevel="low",
+                )
             ),
         ]
 

@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from mcp import types
+from mcp.types import ToolAnnotations
 
 from ..models.connector import Connector, ConnectorType
 from ..models.oauth_credential import OAuthCredential
@@ -61,6 +62,7 @@ class DiscordConnector(BaseConnector):
                     "properties": {},
                     "additionalProperties": False,
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_get_guild",
@@ -75,6 +77,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["guild_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_list_channels",
@@ -89,6 +92,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["guild_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_get_channel",
@@ -103,6 +107,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_list_messages",
@@ -124,6 +129,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_send_message",
@@ -142,6 +148,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id", "content"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="discord_edit_message",
@@ -164,6 +171,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id", "message_id", "content"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True, riskLevel="high"),
             ),
             types.Tool(
                 name="discord_delete_message",
@@ -182,6 +190,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id", "message_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True, riskLevel="critical"),
             ),
             types.Tool(
                 name="discord_list_guild_members",
@@ -203,6 +212,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["guild_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_search_messages",
@@ -221,6 +231,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["guild_id", "query"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_list_threads",
@@ -235,6 +246,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["guild_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_create_thread",
@@ -263,6 +275,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id", "message_id", "name"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="discord_add_reaction",
@@ -285,6 +298,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["channel_id", "message_id", "emoji"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True, riskLevel="medium"),
             ),
             types.Tool(
                 name="discord_list_roles",
@@ -299,6 +313,7 @@ class DiscordConnector(BaseConnector):
                     },
                     "required": ["guild_id"],
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
             types.Tool(
                 name="discord_get_user",
@@ -308,6 +323,7 @@ class DiscordConnector(BaseConnector):
                     "properties": {},
                     "additionalProperties": False,
                 },
+                annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, riskLevel="low"),
             ),
         ]
         return tools
