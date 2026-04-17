@@ -439,6 +439,39 @@ class GitHubConnector(BaseConnector):
 
             ),
             types.Tool(
+                name="github_search_issues",
+                description="Search for issues and pull requests across all accessible repositories using GitHub's Search API. Use type:pr qualifier to search pull requests only. Results respect the authenticated user's repository access.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "q": {
+                            "type": "string",
+                            "description": "Search query using GitHub search qualifiers. Examples: \"type:pr author:username is:merged created:>2026-03-01\", \"type:issue label:bug repo:org/repo\""
+                        },
+                        "sort": {
+                            "type": "string",
+                            "enum": ["created", "updated", "comments"],
+                            "default": "created",
+                            "description": "Sort field"
+                        },
+                        "order": {
+                            "type": "string",
+                            "enum": ["asc", "desc"],
+                            "default": "desc",
+                            "description": "Sort order"
+                        },
+                        "per_page": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 10,
+                            "description": "Results per page"
+                        }
+                    },
+                    "required": ["q"]
+                }
+            ),
+            types.Tool(
                 name="github_search_users_by_email",
                 description="Search for GitHub users by email address. Only matches users who have set their email as public on GitHub.",
                 inputSchema={
@@ -990,6 +1023,8 @@ class GitHubConnector(BaseConnector):
                 return await self._list_pull_requests(arguments, oauth_cred)
             elif tool_name == "search_repositories":
                 return await self._search_repositories(arguments, oauth_cred)
+            elif tool_name == "search_issues":
+                return await self._search_issues(arguments, oauth_cred)
             elif tool_name == "check_token_scopes":
                 return await self._check_token_scopes(oauth_cred)
             elif tool_name == "list_organizations":
@@ -1401,6 +1436,57 @@ class GitHubConnector(BaseConnector):
                 "forks": repo["forks_count"],
                 "language": repo.get("language")
             })
+
+        return json.dumps(result, indent=2)
+
+    async def _search_issues(self, arguments: Dict[str, Any], oauth_cred: OAuthCredential) -> str:
+        """Search for issues and pull requests across all accessible repositories."""
+        params = {
+            "q": arguments["q"],
+            "per_page": arguments.get("per_page", 10)
+        }
+
+        if "sort" in arguments:
+            params["sort"] = arguments["sort"]
+        if "order" in arguments:
+            params["order"] = arguments["order"]
+
+        response = await self._make_authenticated_request(
+            "GET",
+            "https://api.github.com/search/issues",
+            oauth_cred,
+            params=params
+        )
+
+        search_results = response.json()
+        result = {
+            "total_count": search_results.get("total_count", 0),
+            "items": []
+        }
+
+        for item in search_results.get("items", []):
+            entry = {
+                "number": item["number"],
+                "title": item["title"],
+                "state": item["state"],
+                "html_url": item["html_url"],
+                "user": item["user"]["login"] if item.get("user") else None,
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+                "labels": [label["name"] for label in item.get("labels", [])],
+                "comments": item.get("comments", 0)
+            }
+
+            # Include pull_request info if present (indicates this is a PR)
+            if "pull_request" in item:
+                entry["is_pull_request"] = True
+                entry["pull_request_url"] = item["pull_request"].get("html_url")
+
+            # Include repository info if present
+            if "repository_url" in item:
+                entry["repository"] = item["repository_url"].replace("https://api.github.com/repos/", "")
+
+            result["items"].append(entry)
 
         return json.dumps(result, indent=2)
 

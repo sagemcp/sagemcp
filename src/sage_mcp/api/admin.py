@@ -2,17 +2,20 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_serializer
+from sqlalchemy import delete as sa_delete, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.connection import get_db_session
+from ..mcp.local_catalog import resolve_prompt_arguments_metadata
 from ..models.api_key import APIKeyScope
 from ..models.connector import Connector, ConnectorType, ConnectorRuntimeType
+from ..models.connector_mcp_override import ConnectorMCPOverride
 from ..models.connector_tool_state import ConnectorToolState
 from ..models.mcp_process import MCPProcess, ProcessStatus
 from ..models.tenant import Tenant
@@ -135,6 +138,71 @@ class ProcessStatusResponse(BaseModel):
         from_attributes = True
 
 
+OverrideTargetKind = Literal["tool", "resource", "resource_template", "prompt"]
+
+
+class ConnectorOverrideCreate(BaseModel):
+    target_kind: OverrideTargetKind
+    identifier: str
+    payload_text: str
+    metadata_json: Optional[Dict[str, Any]] = None
+    is_enabled: bool = True
+
+
+class ConnectorOverrideUpdate(BaseModel):
+    payload_text: Optional[str] = None
+    metadata_json: Optional[Dict[str, Any]] = None
+    is_enabled: Optional[bool] = None
+
+
+class ConnectorOverrideResponse(BaseModel):
+    id: UUID
+    connector_id: UUID
+    target_kind: OverrideTargetKind
+    identifier: str
+    payload_text: str
+    metadata_json: Optional[Dict[str, Any]]
+    is_enabled: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+def _normalize_prompt_arguments_metadata(
+    metadata_json: Optional[Dict[str, Any]],
+    payload_text: str,
+) -> Optional[Dict[str, Any]]:
+    """Validate and normalize prompt argument metadata for overrides."""
+    normalized = dict(metadata_json or {})
+    try:
+        resolved_arguments = resolve_prompt_arguments_metadata(
+            payload_text,
+            normalized.get("arguments"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if resolved_arguments:
+        normalized["arguments"] = resolved_arguments
+    else:
+        normalized.pop("arguments", None)
+
+    return normalized
+
+
+def _validate_override_metadata(
+    target_kind: OverrideTargetKind,
+    metadata_json: Optional[Dict[str, Any]],
+    payload_text: str,
+) -> Optional[Dict[str, Any]]:
+    """Validate override metadata based on target kind."""
+    if target_kind == "prompt":
+        return _normalize_prompt_arguments_metadata(metadata_json, payload_text)
+    return metadata_json
+
+
 async def populate_tools_for_connector(connector: Connector, session: AsyncSession):
     """Populate all tools for a connector when it's first created.
 
@@ -174,6 +242,31 @@ async def populate_tools_for_connector(connector: Connector, session: AsyncSessi
         # The connector is still usable, tools just won't have explicit state records
         logger.warning("Failed to populate tools for connector %s: %s", connector.id, e)
         await session.rollback()
+
+
+async def _get_connector_for_tenant(
+    session: AsyncSession,
+    tenant_slug: str,
+    connector_id: str,
+) -> Connector:
+    """Fetch connector scoped to a tenant slug."""
+    try:
+        connector_uuid = UUID(connector_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    result = await session.execute(
+        select(Connector)
+        .join(Tenant, Connector.tenant_id == Tenant.id)
+        .where(
+            Tenant.slug == tenant_slug,
+            Connector.id == connector_uuid,
+        )
+    )
+    connector = result.scalar_one_or_none()
+    if not connector:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    return connector
 
 
 @router.post(
@@ -376,12 +469,12 @@ async def delete_tenant(
 
     # Delete all connectors for this tenant first
     await session.execute(
-        delete(Connector).where(Connector.tenant_id == tenant.id)
+        sa_delete(Connector).where(Connector.tenant_id == tenant.id)
     )
 
     # Delete the tenant
     await session.execute(
-        delete(Tenant).where(Tenant.id == tenant.id)
+        sa_delete(Tenant).where(Tenant.id == tenant.id)
     )
 
     await session.commit()
@@ -418,7 +511,7 @@ async def update_tenant(
 
     # Update tenant
     await session.execute(
-        update(Tenant)
+        sa_update(Tenant)
         .where(Tenant.slug == tenant_slug)
         .values(
             name=tenant_data.name,
@@ -511,7 +604,7 @@ async def update_connector(
 
     # Update connector
     await session.execute(
-        update(Connector)
+        sa_update(Connector)
         .where(Connector.id == connector_id)
         .values(
             connector_type=connector_data.connector_type,
@@ -568,7 +661,7 @@ async def delete_connector(
 
     # Delete connector
     await session.execute(
-        delete(Connector).where(Connector.id == connector_id)
+        sa_delete(Connector).where(Connector.id == connector_id)
     )
 
     await session.commit()
@@ -620,7 +713,7 @@ async def toggle_connector(
     # Toggle enabled status
     new_status = not connector.is_enabled
     await session.execute(
-        update(Connector)
+        sa_update(Connector)
         .where(Connector.id == connector_id)
         .values(is_enabled=new_status)
     )
@@ -724,6 +817,201 @@ async def list_connector_tools(
             "disabled": disabled_count
         }
     )
+
+
+@router.get(
+    "/tenants/{tenant_slug}/connectors/{connector_id}/overrides",
+    response_model=List[ConnectorOverrideResponse],
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
+async def list_connector_overrides(
+    tenant_slug: str,
+    connector_id: str,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """List generic MCP overrides for a connector."""
+    connector = await _get_connector_for_tenant(session, tenant_slug, connector_id)
+    result = await session.execute(
+        select(ConnectorMCPOverride)
+        .where(ConnectorMCPOverride.connector_id == connector.id)
+        .order_by(ConnectorMCPOverride.target_kind, ConnectorMCPOverride.identifier)
+    )
+    return list(result.scalars().all())
+
+
+@router.post(
+    "/tenants/{tenant_slug}/connectors/{connector_id}/overrides",
+    response_model=ConnectorOverrideResponse,
+    status_code=201,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
+async def create_connector_override(
+    tenant_slug: str,
+    connector_id: str,
+    override_data: ConnectorOverrideCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Create a generic MCP override for a connector."""
+    connector = await _get_connector_for_tenant(session, tenant_slug, connector_id)
+
+    existing = await session.execute(
+        select(ConnectorMCPOverride).where(
+            ConnectorMCPOverride.connector_id == connector.id,
+            ConnectorMCPOverride.target_kind == override_data.target_kind,
+            ConnectorMCPOverride.identifier == override_data.identifier,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Override already exists")
+
+    validated_metadata = _validate_override_metadata(
+        override_data.target_kind,
+        override_data.metadata_json,
+        override_data.payload_text,
+    )
+
+    override = ConnectorMCPOverride(
+        connector_id=connector.id,
+        target_kind=override_data.target_kind,
+        identifier=override_data.identifier,
+        payload_text=override_data.payload_text,
+        metadata_json=validated_metadata,
+        is_enabled=override_data.is_enabled,
+    )
+    session.add(override)
+    await session.commit()
+    await session.refresh(override)
+    _invalidate_pool(request, tenant_slug, connector_id)
+    return override
+
+
+@router.get(
+    "/tenants/{tenant_slug}/connectors/{connector_id}/overrides/{override_id}",
+    response_model=ConnectorOverrideResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
+async def get_connector_override(
+    tenant_slug: str,
+    connector_id: str,
+    override_id: str,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Get a single override by ID."""
+    connector = await _get_connector_for_tenant(session, tenant_slug, connector_id)
+    try:
+        override_uuid = UUID(override_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Override not found")
+
+    result = await session.execute(
+        select(ConnectorMCPOverride).where(
+            ConnectorMCPOverride.id == override_uuid,
+            ConnectorMCPOverride.connector_id == connector.id,
+        )
+    )
+    override = result.scalar_one_or_none()
+    if not override:
+        raise HTTPException(status_code=404, detail="Override not found")
+    return override
+
+
+@router.patch(
+    "/tenants/{tenant_slug}/connectors/{connector_id}/overrides/{override_id}",
+    response_model=ConnectorOverrideResponse,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
+async def update_connector_override(
+    tenant_slug: str,
+    connector_id: str,
+    override_id: str,
+    override_data: ConnectorOverrideUpdate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Update a generic MCP override."""
+    connector = await _get_connector_for_tenant(session, tenant_slug, connector_id)
+    try:
+        override_uuid = UUID(override_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Override not found")
+
+    result = await session.execute(
+        select(ConnectorMCPOverride).where(
+            ConnectorMCPOverride.id == override_uuid,
+            ConnectorMCPOverride.connector_id == connector.id,
+        )
+    )
+    override = result.scalar_one_or_none()
+    if not override:
+        raise HTTPException(status_code=404, detail="Override not found")
+
+    if override_data.payload_text is not None:
+        override.payload_text = override_data.payload_text
+    if override_data.metadata_json is not None or (
+        override.target_kind == "prompt" and override_data.payload_text is not None
+    ):
+        override.metadata_json = _validate_override_metadata(
+            override.target_kind,
+            override_data.metadata_json if override_data.metadata_json is not None else override.metadata_json,
+            override.payload_text,
+        )
+    if override_data.is_enabled is not None:
+        override.is_enabled = override_data.is_enabled
+
+    await session.commit()
+    await session.refresh(override)
+    _invalidate_pool(request, tenant_slug, connector_id)
+    return override
+
+
+@router.delete(
+    "/tenants/{tenant_slug}/connectors/{connector_id}/overrides/{override_id}",
+    status_code=204,
+    dependencies=[
+        Depends(require_scope(APIKeyScope.PLATFORM_ADMIN, APIKeyScope.TENANT_ADMIN)),
+        Depends(require_tenant_access()),
+    ],
+)
+async def delete_connector_override(
+    tenant_slug: str,
+    connector_id: str,
+    override_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Delete a generic MCP override."""
+    connector = await _get_connector_for_tenant(session, tenant_slug, connector_id)
+    try:
+        override_uuid = UUID(override_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Override not found")
+
+    result = await session.execute(
+        select(ConnectorMCPOverride).where(
+            ConnectorMCPOverride.id == override_uuid,
+            ConnectorMCPOverride.connector_id == connector.id,
+        )
+    )
+    override = result.scalar_one_or_none()
+    if not override:
+        raise HTTPException(status_code=404, detail="Override not found")
+
+    await session.delete(override)
+    await session.commit()
+    _invalidate_pool(request, tenant_slug, connector_id)
 
 
 @router.get(
@@ -953,7 +1241,7 @@ async def enable_all_tools(
 
     # Update all tool states to enabled
     result = await session.execute(
-        update(ConnectorToolState)
+        sa_update(ConnectorToolState)
         .where(ConnectorToolState.connector_id == connector.id)
         .values(is_enabled=True)
     )
@@ -1009,7 +1297,7 @@ async def disable_all_tools(
 
     # Update all tool states to disabled
     result = await session.execute(
-        update(ConnectorToolState)
+        sa_update(ConnectorToolState)
         .where(ConnectorToolState.connector_id == connector.id)
         .values(is_enabled=False)
     )
@@ -1116,7 +1404,7 @@ async def sync_connector_tools(
     if orphaned_tool_names:
         for tool_name in orphaned_tool_names:
             await session.execute(
-                delete(ConnectorToolState).where(
+                sa_delete(ConnectorToolState).where(
                     ConnectorToolState.connector_id == connector.id,
                     ConnectorToolState.tool_name == tool_name
                 )
@@ -1275,7 +1563,7 @@ async def restart_process(
 
     # Count manual restart attempts even when restart is lazy (starts on next request).
     update_result = await session.execute(
-        update(MCPProcess)
+        sa_update(MCPProcess)
         .where(
             MCPProcess.connector_id == connector.id,
             MCPProcess.tenant_id == connector.tenant_id,
